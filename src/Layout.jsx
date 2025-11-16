@@ -19,7 +19,8 @@ import {
   Ticket,
   BarChart3,
   CreditCard,
-  Users
+  Users,
+  Award
 } from "lucide-react";
 import {
   Sidebar,
@@ -53,7 +54,6 @@ export default function Layout({ children, currentPageName }) {
       const userData = await User.me();
       setUser(userData);
       
-      // Calcular streak_days a partir de QuizAttempt
       const streak = await calculateStreakDays(userData.email);
       setStreakDays(streak);
     } catch (error) {
@@ -107,6 +107,11 @@ export default function Layout({ children, currentPageName }) {
       title: "Gerenciar Casos",
       url: createPageUrl("AdminCases"),
       icon: FileEdit
+    },
+    {
+      title: "Gerenciar Conquistas",
+      url: createPageUrl("AdminAchievements"),
+      icon: Award
     }
   ];
 
