@@ -28,7 +28,8 @@ import {
   FileText,
   Layers,
   Save,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -45,6 +46,7 @@ export default function AdminContent() {
   const [selectedPhaseId, setSelectedPhaseId] = useState("");
   const [contentText, setContentText] = useState("");
   const [saving, setSaving] = useState(false);
+  const [isIntroduction, setIsIntroduction] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -85,13 +87,26 @@ export default function AdminContent() {
     );
   };
 
-  const handleOpenDialog = (moduleId, phaseId = null) => {
-    const existingContent = getContent(moduleId, phaseId);
-    
-    setEditingContent(existingContent || null);
-    setSelectedModuleId(moduleId);
-    setSelectedPhaseId(phaseId || "");
-    setContentText(existingContent?.content || "");
+  const getIntroductionContent = () => {
+    return contents.find(c => !c.module_id && !c.phase_id);
+  };
+
+  const handleOpenDialog = (moduleId = null, phaseId = null, introduction = false) => {
+    if (introduction) {
+      const existingContent = getIntroductionContent();
+      setEditingContent(existingContent || null);
+      setSelectedModuleId("");
+      setSelectedPhaseId("");
+      setContentText(existingContent?.content || "");
+      setIsIntroduction(true);
+    } else {
+      const existingContent = getContent(moduleId, phaseId);
+      setEditingContent(existingContent || null);
+      setSelectedModuleId(moduleId);
+      setSelectedPhaseId(phaseId || "");
+      setContentText(existingContent?.content || "");
+      setIsIntroduction(false);
+    }
     setShowDialog(true);
   };
 
@@ -104,8 +119,8 @@ export default function AdminContent() {
     setSaving(true);
 
     const dataToSave = {
-      module_id: selectedModuleId,
-      phase_id: selectedPhaseId || null,
+      module_id: isIntroduction ? null : selectedModuleId,
+      phase_id: isIntroduction ? null : (selectedPhaseId || null),
       content: contentText
     };
 
@@ -155,6 +170,8 @@ export default function AdminContent() {
     );
   }
 
+  const introContent = getIntroductionContent();
+
   return (
     <div className="min-h-screen p-6 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -177,6 +194,42 @@ export default function AdminContent() {
             Os conteúdos aparecem como orientação para os usuários ao iniciarem uma fase pela primeira vez (0% de progresso).
           </AlertDescription>
         </Alert>
+
+        {/* Introduction Section */}
+        <Card className="border-2 border-amber-200 shadow-lg bg-gradient-to-br from-amber-50 to-orange-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="w-6 h-6 text-amber-600" />
+              Introdução ao ECG
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="border-l-4 border-amber-300 pl-4 py-2 bg-white rounded-r-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="font-semibold text-gray-900 flex items-center gap-2">
+                    <BookOpen className="w-4 h-4" />
+                    Conteúdo Introdutório Geral
+                  </p>
+                  {introContent ? (
+                    <div className="text-sm text-gray-600 mt-1" dangerouslySetInnerHTML={{ __html: introContent.content.substring(0, 100) + '...' }} />
+                  ) : (
+                    <p className="text-sm text-gray-500 mt-1">Nenhum conteúdo cadastrado</p>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOpenDialog(null, null, true)}
+                  className="border-amber-300 hover:bg-amber-50 gap-2"
+                >
+                  <Pencil className="w-4 h-4" />
+                  {introContent ? 'Editar' : 'Adicionar'}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Content List */}
         <div className="space-y-6">
@@ -279,13 +332,21 @@ export default function AdminContent() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2 mb-3">
-                <Badge className="bg-indigo-100 text-indigo-800">
-                  {getModuleName(selectedModuleId)}
-                </Badge>
-                {selectedPhaseId && (
-                  <Badge className="bg-purple-100 text-purple-800">
-                    {getPhaseName(selectedPhaseId)}
+                {isIntroduction ? (
+                  <Badge className="bg-amber-100 text-amber-800">
+                    Introdução ao ECG
                   </Badge>
+                ) : (
+                  <>
+                    <Badge className="bg-indigo-100 text-indigo-800">
+                      {getModuleName(selectedModuleId)}
+                    </Badge>
+                    {selectedPhaseId && (
+                      <Badge className="bg-purple-100 text-purple-800">
+                        {getPhaseName(selectedPhaseId)}
+                      </Badge>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -302,7 +363,10 @@ export default function AdminContent() {
                 />
               </div>
               <p className="text-xs text-gray-500">
-                Este conteúdo será exibido como guia quando o usuário abrir {selectedPhaseId ? "esta fase" : "este módulo"} pela primeira vez.
+                {isIntroduction 
+                  ? "Este conteúdo será exibido como introdução geral ao ECG."
+                  : `Este conteúdo será exibido como guia quando o usuário abrir ${selectedPhaseId ? "esta fase" : "este módulo"} pela primeira vez.`
+                }
               </p>
             </div>
           </div>
