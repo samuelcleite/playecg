@@ -14,6 +14,7 @@ import AdminCouponStats from './pages/AdminCouponStats';
 import ModulePhases from './pages/ModulePhases';
 import AdminPayments from './pages/AdminPayments';
 import AdminUsers from './pages/AdminUsers';
+import AdminAchievements from './pages/AdminAchievements';
 import __Layout from './Layout.jsx';
 
 
@@ -34,6 +35,7 @@ export const PAGES = {
     "ModulePhases": ModulePhases,
     "AdminPayments": AdminPayments,
     "AdminUsers": AdminUsers,
+    "AdminAchievements": AdminAchievements,
 }
 
 export const pagesConfig = {
