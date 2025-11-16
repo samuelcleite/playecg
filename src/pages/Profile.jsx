@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { calculateStreakDays } from "@/components/StreakCalculator";
+import { loadUserAchievements } from "@/components/AchievementChecker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -56,6 +57,7 @@ export default function Profile() {
   const [cancelling, setCancelling] = useState(false);
   const [cancelSuccess, setCancelSuccess] = useState(false);
   const [cancelError, setCancelError] = useState(null);
+  const [achievements, setAchievements] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -72,7 +74,6 @@ export default function Profile() {
       city: userData.city || ""
     });
 
-    // Calcular streak_days a partir de QuizAttempt
     const streak = await calculateStreakDays(userData.email);
     setStreakDays(streak);
 
@@ -82,13 +83,19 @@ export default function Profile() {
     const progress = await base44.entities.UserProgress.filter({ user_email: userData.email });
     const completedCount = progress.filter(p => p.completed).length;
 
-    setStats({
+    const statsData = {
       totalAttempts: attempts.length,
       correctAnswers: correctCount,
       accuracy: attempts.length > 0 ? Math.round((correctCount / attempts.length) * 100) : 0,
       totalPoints: userData.points || 0,
       completedModules: completedCount
-    });
+    };
+
+    setStats(statsData);
+
+    // Carregar conquistas dinâmicas
+    const userAchievements = await loadUserAchievements(userData, statsData, streak);
+    setAchievements(userAchievements);
 
     if (userData.subscription_type === 'premium') {
       await loadSubscriptionInfo();
@@ -99,11 +106,7 @@ export default function Profile() {
 
   const loadSubscriptionInfo = async () => {
     try {
-      console.log('🔍 Loading subscription info via backend function...');
-      
       const response = await base44.functions.invoke('getUserSubscriptionInfo', {});
-
-      console.log('📦 Function response:', response.data);
 
       if (response.data.success && response.data.hasSubscription) {
         const info = response.data.subscriptionInfo;
@@ -115,11 +118,7 @@ export default function Profile() {
           paymentMethod: info.paymentMethod,
           paymentId: info.paymentId
         });
-        
-        console.log('✅ Subscription info loaded successfully');
       } else {
-        console.warn('⚠️ No subscription info available, using fallback data');
-        
         const startDate = user?.subscription_start_date 
           ? new Date(user.subscription_start_date)
           : new Date(user?.created_date);
@@ -134,11 +133,9 @@ export default function Profile() {
           paymentMethod: 'Manual',
           paymentId: null
         });
-        
-        console.log('✅ Using fallback subscription info');
       }
     } catch (error) {
-      console.error('❌ Error loading subscription info:', error);
+      console.error('Error loading subscription info:', error);
       
       const startDate = new Date(user?.subscription_start_date || user?.created_date);
       const nextRenewal = new Date(startDate);
@@ -187,65 +184,6 @@ export default function Profile() {
   };
 
   const isPremium = user?.subscription_type === "premium";
-
-  const badges = [
-    { 
-      id: "first_correct", 
-      name: "Primeira Vitória", 
-      icon: "🎯", 
-      description: "Acerte seu primeiro caso",
-      earned: (user?.badges || []).includes("first_correct") || stats.correctAnswers > 0
-    },
-    { 
-      id: "streak_7", 
-      name: "Disciplina", 
-      icon: "🔥", 
-      description: "7 dias consecutivos praticando",
-      earned: streakDays >= 7
-    },
-    { 
-      id: "accuracy_80", 
-      name: "Precisão", 
-      icon: "🎪", 
-      description: "80% de acurácia",
-      earned: stats.accuracy >= 80 && stats.totalAttempts >= 10
-    },
-    { 
-      id: "level_5", 
-      name: "Ascensão", 
-      icon: "⭐", 
-      description: "Alcance o nível 5",
-      earned: (user?.level || 1) >= 5
-    },
-    { 
-      id: "level_10", 
-      name: "Especialista", 
-      icon: "💫", 
-      description: "Alcance o nível 10",
-      earned: (user?.level || 1) >= 10
-    },
-    { 
-      id: "module_complete", 
-      name: "Primeiro Módulo", 
-      icon: "📚", 
-      description: "Complete um módulo inteiro",
-      earned: stats.completedModules > 0
-    },
-    { 
-      id: "points_500", 
-      name: "Colecionador", 
-      icon: "💎", 
-      description: "Acumule 500 pontos",
-      earned: stats.totalPoints >= 500
-    },
-    { 
-      id: "master", 
-      name: "Mestre do ECG", 
-      icon: "👑", 
-      description: "Complete todos os módulos",
-      earned: (user?.badges || []).includes("master")
-    },
-  ];
 
   const nextLevelPoints = (user?.level || 1) * 100;
   const currentLevelProgress = ((user?.points || 0) % 100);
@@ -528,31 +466,37 @@ export default function Profile() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Award className="w-6 h-6 text-blue-600" />
-              Conquistas ({badges.filter(b => b.earned).length}/{badges.length})
+              Conquistas ({achievements.filter(b => b.earned).length}/{achievements.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {badges.map((badge, index) => (
-                <motion.div
-                  key={badge.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.05 }}
-                  className={`p-4 rounded-xl text-center transition-all duration-300 ${
-                    badge.earned 
-                      ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-md' 
-                      : 'bg-gray-100 opacity-50'
-                  }`}
-                >
-                  <div className="text-4xl mb-2">{badge.icon}</div>
-                  <p className={`text-sm font-semibold mb-1 ${badge.earned ? 'text-gray-900' : 'text-gray-500'}`}>
-                    {badge.name}
-                  </p>
-                  <p className="text-xs text-gray-600">{badge.description}</p>
-                </motion.div>
-              ))}
-            </div>
+            {achievements.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {achievements.map((achievement, index) => (
+                  <motion.div
+                    key={achievement.id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.05 }}
+                    className={`p-4 rounded-xl text-center transition-all duration-300 ${
+                      achievement.earned 
+                        ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-md' 
+                        : 'bg-gray-100 opacity-50'
+                    }`}
+                  >
+                    <div className="text-4xl mb-2">{achievement.icon}</div>
+                    <p className={`text-sm font-semibold mb-1 ${achievement.earned ? 'text-gray-900' : 'text-gray-500'}`}>
+                      {achievement.name}
+                    </p>
+                    <p className="text-xs text-gray-600">{achievement.description}</p>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                Nenhuma conquista cadastrada ainda
+              </div>
+            )}
           </CardContent>
         </Card>
 

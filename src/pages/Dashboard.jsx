@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { calculateStreakDays } from "@/components/StreakCalculator";
+import { loadUserAchievements } from "@/components/AchievementChecker";
 import { 
   Brain, 
   Trophy, 
@@ -35,6 +36,7 @@ export default function Dashboard() {
   });
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [achievements, setAchievements] = useState([]);
 
   useEffect(() => {
     checkPaymentReturn();
@@ -109,29 +111,28 @@ export default function Dashboard() {
       return;
     }
 
-    // Calcular streak_days a partir de QuizAttempt
     const streak = await calculateStreakDays(userData.email);
     setStreakDays(streak);
 
     const attempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", 100);
     const correctCount = attempts.filter(a => a.correct).length;
     
-    setStats({
+    const statsData = {
       totalAttempts: attempts.length,
       correctAnswers: correctCount,
       accuracy: attempts.length > 0 ? Math.round((correctCount / attempts.length) * 100) : 0,
-      recentAttempts: attempts.slice(0, 5)
-    });
+      recentAttempts: attempts.slice(0, 5),
+      completedModules: 0
+    };
+
+    setStats(statsData);
+
+    // Carregar conquistas dinâmicas
+    const userAchievements = await loadUserAchievements(userData, statsData, streak);
+    setAchievements(userAchievements.slice(0, 4)); // Mostrar apenas 4 no dashboard
   };
 
   const isPremium = user?.subscription_type === "premium";
-
-  const badges = [
-    { id: "first_correct", name: "Primeira Acerto", icon: "🎯", earned: (user?.badges || []).includes("first_correct") },
-    { id: "streak_7", name: "7 Dias Seguidos", icon: "🔥", earned: streakDays >= 7 },
-    { id: "level_5", name: "Nível 5", icon: "⭐", earned: (user?.level || 1) >= 5 },
-    { id: "master", name: "Mestre do ECG", icon: "👑", earned: (user?.badges || []).includes("master") },
-  ];
 
   return (
     <div className="min-h-screen p-6 md:p-8">
@@ -327,33 +328,35 @@ export default function Dashboard() {
         </div>
 
         {/* Badges */}
-        <Card className="border border-purple-100 shadow-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-gray-800">
-              <Award className="w-6 h-6 text-purple-600" />
-              Conquistas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {badges.map(badge => (
-                <div
-                  key={badge.id}
-                  className={`p-4 rounded-xl text-center transition-all duration-300 ${
-                    badge.earned 
-                      ? 'bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-300' 
-                      : 'bg-gray-50 opacity-50 border border-gray-200'
-                  }`}
-                >
-                  <div className="text-4xl mb-2">{badge.icon}</div>
-                  <p className={`text-sm font-medium ${badge.earned ? 'text-gray-800' : 'text-gray-500'}`}>
-                    {badge.name}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {achievements.length > 0 && (
+          <Card className="border border-purple-100 shadow-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-gray-800">
+                <Award className="w-6 h-6 text-purple-600" />
+                Conquistas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {achievements.map(achievement => (
+                  <div
+                    key={achievement.id}
+                    className={`p-4 rounded-xl text-center transition-all duration-300 ${
+                      achievement.earned 
+                        ? 'bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-300' 
+                        : 'bg-gray-50 opacity-50 border border-gray-200'
+                    }`}
+                  >
+                    <div className="text-4xl mb-2">{achievement.icon}</div>
+                    <p className={`text-sm font-medium ${achievement.earned ? 'text-gray-800' : 'text-gray-500'}`}>
+                      {achievement.name}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Recent Activity */}
         {stats.recentAttempts.length > 0 && (
