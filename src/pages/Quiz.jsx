@@ -20,7 +20,8 @@ import {
   X as CloseIcon,
   Maximize2,
   Pencil,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -42,6 +43,8 @@ export default function Quiz() {
   const [startTime, setStartTime] = useState(null);
   const [attemptedCaseIds, setAttemptedCaseIds] = useState([]);
   const [allCasesCompleted, setAllCasesCompleted] = useState(false);
+  const [attemptCount, setAttemptCount] = useState(0);
+  const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
 
   // Zoom states
   const [showZoom, setShowZoom] = useState(false);
@@ -59,7 +62,6 @@ export default function Quiz() {
     const userData = await User.me();
     setUser(userData);
 
-    // Carregar todos os casos já respondidos pelo usuário
     const attempts = await QuizAttempt.filter({ user_email: userData.email });
     const attemptedIds = attempts.map(attempt => attempt.case_id);
     setAttemptedCaseIds(attemptedIds);
@@ -72,24 +74,20 @@ export default function Quiz() {
     setSelectedAnswers([]);
     setShowResult(false);
     setAllCasesCompleted(false);
+    setAttemptCount(0);
+    setShowCorrectAnswer(false);
 
-    // Buscar todos os casos disponíveis
     const allCases = await ECGCase.list();
-
-    // Filtrar casos que ainda não foram respondidos
     const unansweredCases = allCases.filter(c => !attemptedIds.includes(c.id));
 
     if (unansweredCases.length > 0) {
-      // Selecionar um caso aleatório entre os não respondidos
       const randomCase = unansweredCases[Math.floor(Math.random() * unansweredCases.length)];
       setCurrentCase(randomCase);
       setStartTime(Date.now());
     } else if (allCases.length > 0) {
-      // Todos os casos foram respondidos
       setAllCasesCompleted(true);
       setCurrentCase(null);
     } else {
-      // Não há casos cadastrados
       setCurrentCase(null);
     }
     
@@ -97,7 +95,7 @@ export default function Quiz() {
   };
 
   const handleAnswerToggle = (answer) => {
-    if (showResult) return;
+    if (showResult && isCorrect) return;
 
     if (currentCase.multiple_correct) {
       if (selectedAnswers.includes(answer)) {
@@ -111,7 +109,7 @@ export default function Quiz() {
   };
 
   const handleSubmitAnswer = async () => {
-    if (selectedAnswers.length === 0 || showResult) return;
+    if (selectedAnswers.length === 0) return;
 
     const correctAnswers = currentCase.correct_answers && currentCase.correct_answers.length > 0
       ? currentCase.correct_answers
@@ -130,29 +128,44 @@ export default function Quiz() {
     setIsCorrect(correct);
     setShowResult(true);
 
+    const newAttemptCount = attemptCount + 1;
+    setAttemptCount(newAttemptCount);
+
+    // Mostrar resposta correta após 3 tentativas erradas
+    if (!correct && newAttemptCount >= 3) {
+      setShowCorrectAnswer(true);
+    }
+
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);
     const pointsEarned = correct ? 10 : 0;
 
-    await QuizAttempt.create({
-      user_email: user.email,
-      case_id: currentCase.id,
-      user_answer: selectedAnswers.join(", "),
-      correct: correct,
-      time_spent: timeSpent,
-      points_earned: pointsEarned
-    });
-
-    // Adicionar caso atual à lista de casos respondidos
-    const updatedAttemptedIds = [...attemptedCaseIds, currentCase.id];
-    setAttemptedCaseIds(updatedAttemptedIds);
-
-    if (correct) {
-      await User.update(user.id, {
-        points: (user.points || 0) + pointsEarned,
-        level: Math.floor(((user.points || 0) + pointsEarned) / 100) + 1
+    // Se acertou ou já tentou 3 vezes, registrar no banco e adicionar à lista de respondidos
+    if (correct || newAttemptCount >= 3) {
+      await QuizAttempt.create({
+        user_email: user.email,
+        case_id: currentCase.id,
+        user_answer: selectedAnswers.join(", "),
+        correct: correct,
+        time_spent: timeSpent,
+        points_earned: pointsEarned
       });
-      setUser({ ...user, points: (user.points || 0) + pointsEarned });
+
+      const updatedAttemptedIds = [...attemptedCaseIds, currentCase.id];
+      setAttemptedCaseIds(updatedAttemptedIds);
+
+      if (correct) {
+        await User.update(user.id, {
+          points: (user.points || 0) + pointsEarned,
+          level: Math.floor(((user.points || 0) + pointsEarned) / 100) + 1
+        });
+        setUser({ ...user, points: (user.points || 0) + pointsEarned });
+      }
     }
+  };
+
+  const handleTryAgain = () => {
+    setShowResult(false);
+    setSelectedAnswers([]);
   };
 
   const handleResetProgress = async () => {
@@ -378,6 +391,11 @@ export default function Quiz() {
                     Múltiplas Respostas
                   </Badge>
                 )}
+                {attemptCount > 0 && (
+                  <Badge className="bg-amber-100 text-amber-800 border border-amber-200">
+                    Tentativa {attemptCount}/3
+                  </Badge>
+                )}
                 {!isPremium && (
                   <Badge className="bg-blue-100 text-blue-800 border border-blue-200">
                     Quiz Gratuito - Acesso Ilimitado
@@ -435,8 +453,9 @@ export default function Quiz() {
                 {currentCase.options.map((option, index) => {
                   const isSelected = selectedAnswers.includes(option);
                   const isCorrectAnswer = correctAnswers.includes(option);
-                  const showAsCorrect = showResult && isCorrectAnswer;
-                  const showAsIncorrect = showResult && isSelected && !isCorrectAnswer;
+                  const showAsCorrect = showResult && isCorrect && isCorrectAnswer;
+                  const showAsIncorrect = showResult && !isCorrect && showCorrectAnswer && isSelected && !isCorrectAnswer;
+                  const showAsCorrectAfterFail = showResult && !isCorrect && showCorrectAnswer && isCorrectAnswer;
 
                   return (
                     <motion.div
@@ -448,7 +467,7 @@ export default function Quiz() {
                       <Button
                         variant="outline"
                         className={`w-full justify-start text-left p-6 h-auto transition-all duration-300 ${
-                          showAsCorrect
+                          showAsCorrect || showAsCorrectAfterFail
                             ? 'bg-green-50 border-green-300 border-2'
                             : showAsIncorrect
                               ? 'bg-rose-50 border-rose-300 border-2'
@@ -457,11 +476,11 @@ export default function Quiz() {
                                 : 'hover:bg-purple-50 border-purple-100'
                         }`}
                         onClick={() => handleAnswerToggle(option)}
-                        disabled={showResult}
+                        disabled={showResult && (isCorrect || showCorrectAnswer)}
                       >
                         <div className="flex items-center gap-3 w-full">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            showAsCorrect
+                            showAsCorrect || showAsCorrectAfterFail
                               ? 'bg-green-300 border-2 border-green-400'
                               : showAsIncorrect
                                 ? 'bg-rose-300 border-2 border-rose-400'
@@ -469,7 +488,7 @@ export default function Quiz() {
                                   ? 'bg-purple-300 border-2 border-purple-400'
                                   : 'bg-gray-100'
                           }`}>
-                            {showAsCorrect && (
+                            {(showAsCorrect || showAsCorrectAfterFail) && (
                               <CheckCircle2 className="w-5 h-5 text-green-700" />
                             )}
                             {showAsIncorrect && (
@@ -501,77 +520,153 @@ export default function Quiz() {
               </Button>
             )}
 
-            {/* Result and Explanation */}
+            {/* Result */}
             <AnimatePresence>
               {showResult && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`p-6 rounded-xl ${
-                    isCorrect ? 'bg-green-50 border-2 border-green-300' : 'bg-rose-50 border-2 border-rose-300'
-                  }`}
                 >
-                  <div className="flex items-start gap-3 mb-4">
-                    {isCorrect ? (
-                      <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0 mt-1" />
-                    ) : (
-                      <XCircle className="w-6 h-6 text-rose-600 flex-shrink-0 mt-1" />
-                    )}
-                    <div>
-                      <h4 className={`font-bold text-lg mb-2 ${isCorrect ? 'text-green-800' : 'text-rose-800'}`}>
-                        {isCorrect ? '🎉 Correto!' : 'Incorreto'}
-                      </h4>
-                      {!isCorrect && (
-                        <div className="text-rose-800 mb-3">
-                          <strong>{currentCase.multiple_correct ? 'Respostas corretas:' : 'Resposta correta:'}</strong>
-                          <ul className="list-disc list-inside mt-1">
-                            {correctAnswers.map((ans, idx) => (
-                              <li key={idx}>{ans}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {isPremium && currentCase.explanation && (
-                    <div className="mt-4 pt-4 border-t border-green-200">
-                      <div className="flex items-start gap-2 mb-2">
-                        <Lightbulb className="w-5 h-5 text-amber-600 flex-shrink-0 mt-1" />
+                  {/* Resposta Correta */}
+                  {isCorrect && (
+                    <div className="p-6 rounded-xl bg-green-50 border-2 border-green-300">
+                      <div className="flex items-start gap-3 mb-4">
+                        <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0 mt-1" />
                         <div>
-                          <h5 className="font-semibold text-gray-800 mb-2">Explicação:</h5>
-                          <p className="text-gray-700 leading-relaxed">{currentCase.explanation}</p>
-
-                          {currentCase.key_findings && currentCase.key_findings.length > 0 && (
-                            <div className="mt-4">
-                              <h6 className="font-semibold text-gray-800 mb-2">Achados principais:</h6>
-                              <ul className="list-disc list-inside space-y-1 text-gray-700">
-                                {currentCase.key_findings.map((finding, i) => (
-                                  <li key={i}>{finding}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                          <h4 className="font-bold text-lg mb-2 text-green-800">
+                            🎉 Correto!
+                          </h4>
                         </div>
                       </div>
+
+                      {isPremium && currentCase.explanation && (
+                        <div className="mt-4 pt-4 border-t border-green-200">
+                          <div className="flex items-start gap-2 mb-2">
+                            <Lightbulb className="w-5 h-5 text-amber-600 flex-shrink-0 mt-1" />
+                            <div>
+                              <h5 className="font-semibold text-gray-800 mb-2">Explicação:</h5>
+                              <p className="text-gray-700 leading-relaxed">{currentCase.explanation}</p>
+
+                              {currentCase.key_findings && currentCase.key_findings.length > 0 && (
+                                <div className="mt-4">
+                                  <h6 className="font-semibold text-gray-800 mb-2">Achados principais:</h6>
+                                  <ul className="list-disc list-inside space-y-1 text-gray-700">
+                                    {currentCase.key_findings.map((finding, i) => (
+                                      <li key={i}>{finding}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {!isPremium && (
+                        <Alert className="mt-4 bg-amber-50 border-amber-200">
+                          <AlertDescription className="text-amber-900">
+                            <strong>💎 Versão Premium:</strong> Desbloqueie explicações detalhadas e análise completa de cada caso.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      <Button
+                        onClick={() => loadNextCase()}
+                        className="w-full mt-6 bg-gradient-to-r from-purple-200 to-pink-200 hover:from-purple-300 hover:to-pink-300 text-purple-900 gap-2 border border-purple-300"
+                      >
+                        Próximo Caso
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
                     </div>
                   )}
 
-                  {!isPremium && (
-                    <Alert className="mt-4 bg-amber-50 border-amber-200">
-                      <AlertDescription className="text-amber-900">
-                        <strong>💎 Versão Premium:</strong> Desbloqueie explicações detalhadas e análise completa de cada caso.
-                      </AlertDescription>
-                    </Alert>
+                  {/* Resposta Incorreta - Tente Novamente */}
+                  {!isCorrect && !showCorrectAnswer && (
+                    <div className="p-6 rounded-xl bg-orange-50 border-2 border-orange-300">
+                      <div className="flex items-start gap-3 mb-4">
+                        <AlertTriangle className="w-6 h-6 text-orange-600 flex-shrink-0 mt-1" />
+                        <div>
+                          <h4 className="font-bold text-lg mb-2 text-orange-800">
+                            Incorreto
+                          </h4>
+                          <p className="text-orange-700">
+                            Sua resposta não está correta. Tente novamente!
+                          </p>
+                          <p className="text-sm text-orange-600 mt-2">
+                            Você tem {3 - attemptCount} tentativa{3 - attemptCount !== 1 ? 's' : ''} restante{3 - attemptCount !== 1 ? 's' : ''}.
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button
+                        onClick={handleTryAgain}
+                        className="w-full mt-4 bg-orange-600 hover:bg-orange-700 text-white gap-2"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Tentar Novamente
+                      </Button>
+                    </div>
                   )}
 
-                  <Button
-                    onClick={() => loadNextCase()}
-                    className="w-full mt-6 bg-gradient-to-r from-purple-200 to-pink-200 hover:from-purple-300 hover:to-pink-300 text-purple-900 gap-2 border border-purple-300"
-                  >
-                    Próximo Caso
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
+                  {/* Resposta Incorreta - Mostrar Resposta Correta */}
+                  {!isCorrect && showCorrectAnswer && (
+                    <div className="p-6 rounded-xl bg-rose-50 border-2 border-rose-300">
+                      <div className="flex items-start gap-3 mb-4">
+                        <XCircle className="w-6 h-6 text-rose-600 flex-shrink-0 mt-1" />
+                        <div>
+                          <h4 className="font-bold text-lg mb-2 text-rose-800">
+                            Incorreto - Resposta Correta:
+                          </h4>
+                          <div className="text-rose-800 mb-3">
+                            <ul className="list-disc list-inside mt-1">
+                              {correctAnswers.map((ans, idx) => (
+                                <li key={idx} className="font-medium">{ans}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+
+                      {isPremium && currentCase.explanation && (
+                        <div className="mt-4 pt-4 border-t border-rose-200">
+                          <div className="flex items-start gap-2 mb-2">
+                            <Lightbulb className="w-5 h-5 text-amber-600 flex-shrink-0 mt-1" />
+                            <div>
+                              <h5 className="font-semibold text-gray-800 mb-2">Explicação:</h5>
+                              <p className="text-gray-700 leading-relaxed">{currentCase.explanation}</p>
+
+                              {currentCase.key_findings && currentCase.key_findings.length > 0 && (
+                                <div className="mt-4">
+                                  <h6 className="font-semibold text-gray-800 mb-2">Achados principais:</h6>
+                                  <ul className="list-disc list-inside space-y-1 text-gray-700">
+                                    {currentCase.key_findings.map((finding, i) => (
+                                      <li key={i}>{finding}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {!isPremium && (
+                        <Alert className="mt-4 bg-amber-50 border-amber-200">
+                          <AlertDescription className="text-amber-900">
+                            <strong>💎 Versão Premium:</strong> Desbloqueie explicações detalhadas e análise completa de cada caso.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      <Button
+                        onClick={() => loadNextCase()}
+                        className="w-full mt-6 bg-gradient-to-r from-purple-200 to-pink-200 hover:from-purple-300 hover:to-pink-300 text-purple-900 gap-2 border border-purple-300"
+                      >
+                        Próximo Caso
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
