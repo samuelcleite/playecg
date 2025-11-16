@@ -32,7 +32,9 @@ import {
   Trophy,
   Target,
   Zap,
-  Star
+  Star,
+  Flame,
+  BookOpen
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -47,21 +49,22 @@ const REQUIREMENT_TYPES = [
   { value: "custom", label: "Personalizado", icon: "✨" }
 ];
 
-// Função para gerar badge_id automaticamente a partir do nome
 const generateBadgeId = (name) => {
   return name
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // Remove acentos
-    .replace(/[^a-z0-9\s]/g, "") // Remove caracteres especiais
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, "")
     .trim()
-    .replace(/\s+/g, "_"); // Substitui espaços por underscore
+    .replace(/\s+/g, "_");
 };
 
 export default function AdminAchievements() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [achievements, setAchievements] = useState([]);
+  const [modules, setModules] = useState([]);
+  const [phases, setPhases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [editingAchievement, setEditingAchievement] = useState(null);
@@ -70,8 +73,11 @@ export default function AdminAchievements() {
     description: "",
     icon: "🏆",
     badge_id: "",
+    achievement_type: "intensity",
     requirement_type: "first_correct",
     requirement_value: 1,
+    module_id: "",
+    phase_id: "",
     order: 0,
     active: true
   });
@@ -79,6 +85,14 @@ export default function AdminAchievements() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (formData.module_id) {
+      loadPhases(formData.module_id);
+    } else {
+      setPhases([]);
+    }
+  }, [formData.module_id]);
 
   const loadData = async () => {
     const userData = await base44.auth.me();
@@ -90,7 +104,16 @@ export default function AdminAchievements() {
 
     const achievementsData = await base44.entities.Achievement.list("order");
     setAchievements(achievementsData);
+
+    const modulesData = await base44.entities.Module.list("order");
+    setModules(modulesData);
+
     setLoading(false);
+  };
+
+  const loadPhases = async (moduleId) => {
+    const phasesData = await base44.entities.Phase.filter({ module_id: moduleId }, "order");
+    setPhases(phasesData);
   };
 
   const handleOpenDialog = (achievement = null) => {
@@ -101,11 +124,17 @@ export default function AdminAchievements() {
         description: achievement.description || "",
         icon: achievement.icon || "🏆",
         badge_id: achievement.badge_id,
-        requirement_type: achievement.requirement_type,
+        achievement_type: achievement.achievement_type || "intensity",
+        requirement_type: achievement.requirement_type || "first_correct",
         requirement_value: achievement.requirement_value || 1,
+        module_id: achievement.module_id || "",
+        phase_id: achievement.phase_id || "",
         order: achievement.order || 0,
         active: achievement.active !== false
       });
+      if (achievement.module_id) {
+        loadPhases(achievement.module_id);
+      }
     } else {
       setEditingAchievement(null);
       setFormData({
@@ -113,8 +142,11 @@ export default function AdminAchievements() {
         description: "",
         icon: "🏆",
         badge_id: "",
+        achievement_type: "intensity",
         requirement_type: "first_correct",
         requirement_value: 1,
+        module_id: "",
+        phase_id: "",
         order: achievements.length,
         active: true
       });
@@ -136,9 +168,18 @@ export default function AdminAchievements() {
       return;
     }
 
+    if (formData.achievement_type === "specialization" && !formData.module_id) {
+      alert("Selecione um módulo para conquistas de especialização");
+      return;
+    }
+
     const dataToSave = {
       ...formData,
-      badge_id: formData.badge_id || generateBadgeId(formData.name)
+      badge_id: formData.badge_id || generateBadgeId(formData.name),
+      requirement_type: formData.achievement_type === "intensity" ? formData.requirement_type : null,
+      requirement_value: formData.achievement_type === "intensity" ? formData.requirement_value : null,
+      module_id: formData.achievement_type === "specialization" ? formData.module_id : null,
+      phase_id: formData.achievement_type === "specialization" ? formData.phase_id || null : null
     };
 
     if (editingAchievement) {
@@ -180,6 +221,17 @@ export default function AdminAchievements() {
     return REQUIREMENT_TYPES.find(t => t.value === type)?.label || type;
   };
 
+  const getModuleName = (moduleId) => {
+    return modules.find(m => m.id === moduleId)?.name || "Módulo";
+  };
+
+  const getPhaseName = (phaseId) => {
+    return phases.find(p => p.id === phaseId)?.name || "Fase";
+  };
+
+  const intensityAchievements = achievements.filter(a => a.achievement_type === "intensity");
+  const specializationAchievements = achievements.filter(a => a.achievement_type === "specialization");
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -199,7 +251,7 @@ export default function AdminAchievements() {
               Gerenciar Conquistas
             </h1>
             <p className="text-gray-600 mt-2">
-              Configure as conquistas disponíveis e seus requisitos
+              Configure conquistas de intensidade e especialização
             </p>
           </div>
           <Button
@@ -212,15 +264,39 @@ export default function AdminAchievements() {
         </div>
 
         {/* Stats */}
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-4 gap-6">
           <Card className="border-none shadow-lg bg-gradient-to-br from-purple-50 to-indigo-50">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Total de Conquistas</p>
+                  <p className="text-sm text-gray-600">Total</p>
                   <p className="text-3xl font-bold text-purple-600">{achievements.length}</p>
                 </div>
                 <Trophy className="w-10 h-10 text-purple-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-lg bg-gradient-to-br from-orange-50 to-red-50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Intensidade</p>
+                  <p className="text-3xl font-bold text-orange-600">{intensityAchievements.length}</p>
+                </div>
+                <Flame className="w-10 h-10 text-orange-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-lg bg-gradient-to-br from-blue-50 to-indigo-50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Especialização</p>
+                  <p className="text-3xl font-bold text-blue-600">{specializationAchievements.length}</p>
+                </div>
+                <BookOpen className="w-10 h-10 text-blue-400" />
               </div>
             </CardContent>
           </Card>
@@ -238,52 +314,128 @@ export default function AdminAchievements() {
               </div>
             </CardContent>
           </Card>
-
-          <Card className="border-none shadow-lg bg-gradient-to-br from-amber-50 to-orange-50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Inativas</p>
-                  <p className="text-3xl font-bold text-amber-600">
-                    {achievements.filter(a => !a.active).length}
-                  </p>
-                </div>
-                <Zap className="w-10 h-10 text-amber-400" />
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
-        {/* Achievements List */}
+        {/* Intensity Achievements */}
         <Card className="border-none shadow-lg">
           <CardHeader>
-            <CardTitle>Conquistas Cadastradas</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Flame className="w-6 h-6 text-orange-600" />
+              Conquistas de Intensidade
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {achievements.length === 0 ? (
-              <div className="text-center py-12">
-                <Award className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 mb-4">Nenhuma conquista cadastrada ainda</p>
-                <Button onClick={() => handleOpenDialog()} variant="outline">
-                  Criar Primeira Conquista
-                </Button>
+            {intensityAchievements.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                Nenhuma conquista de intensidade cadastrada
               </div>
             ) : (
               <div className="space-y-3">
-                {achievements.map((achievement, index) => (
+                {intensityAchievements.map((achievement, index) => (
                   <motion.div
                     key={achievement.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                   >
-                    <Card className={`border ${achievement.active ? 'border-purple-200 bg-white' : 'border-gray-200 bg-gray-50 opacity-60'}`}>
+                    <Card className={`border ${achievement.active ? 'border-orange-200 bg-white' : 'border-gray-200 bg-gray-50 opacity-60'}`}>
                       <CardContent className="p-6">
                         <div className="flex items-center gap-4">
-                          {/* Icon */}
                           <div className="text-5xl">{achievement.icon}</div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="text-lg font-bold text-gray-900">
+                                {achievement.name}
+                              </h3>
+                              {!achievement.active && (
+                                <Badge variant="outline" className="bg-gray-100">
+                                  Inativa
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-gray-600 text-sm mb-2">
+                              {achievement.description}
+                            </p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge className="bg-purple-100 text-purple-800">
+                                ID: {achievement.badge_id}
+                              </Badge>
+                              <Badge className="bg-orange-100 text-orange-800">
+                                {getRequirementLabel(achievement.requirement_type)}
+                                {achievement.requirement_value && `: ${achievement.requirement_value}`}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleReorder(achievement, "up")}
+                              disabled={index === 0}
+                            >
+                              <ArrowUp className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleReorder(achievement, "down")}
+                              disabled={index === intensityAchievements.length - 1}
+                            >
+                              <ArrowDown className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleOpenDialog(achievement)}
+                              className="border-blue-200 hover:bg-blue-50"
+                            >
+                              <Pencil className="w-4 h-4 text-blue-600" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleDelete(achievement.id)}
+                              className="border-red-200 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4 text-red-600" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-                          {/* Info */}
+        {/* Specialization Achievements */}
+        <Card className="border-none shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="w-6 h-6 text-blue-600" />
+              Conquistas de Especialização
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {specializationAchievements.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                Nenhuma conquista de especialização cadastrada
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {specializationAchievements.map((achievement, index) => (
+                  <motion.div
+                    key={achievement.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <Card className={`border ${achievement.active ? 'border-blue-200 bg-white' : 'border-gray-200 bg-gray-50 opacity-60'}`}>
+                      <CardContent className="p-6">
+                        <div className="flex items-center gap-4">
+                          <div className="text-5xl">{achievement.icon}</div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="text-lg font-bold text-gray-900">
@@ -303,13 +455,11 @@ export default function AdminAchievements() {
                                 ID: {achievement.badge_id}
                               </Badge>
                               <Badge className="bg-blue-100 text-blue-800">
-                                {getRequirementLabel(achievement.requirement_type)}
-                                {achievement.requirement_value && `: ${achievement.requirement_value}`}
+                                {getModuleName(achievement.module_id)}
+                                {achievement.phase_id && ` - ${getPhaseName(achievement.phase_id)}`}
                               </Badge>
                             </div>
                           </div>
-
-                          {/* Actions */}
                           <div className="flex items-center gap-2">
                             <Button
                               variant="outline"
@@ -323,7 +473,7 @@ export default function AdminAchievements() {
                               variant="outline"
                               size="icon"
                               onClick={() => handleReorder(achievement, "down")}
-                              disabled={index === achievements.length - 1}
+                              disabled={index === specializationAchievements.length - 1}
                             >
                               <ArrowDown className="w-4 h-4" />
                             </Button>
@@ -357,7 +507,7 @@ export default function AdminAchievements() {
 
       {/* Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingAchievement ? "Editar Conquista" : "Nova Conquista"}
@@ -365,6 +515,32 @@ export default function AdminAchievements() {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="achievement_type">Tipo de Conquista *</Label>
+              <Select
+                value={formData.achievement_type}
+                onValueChange={(value) => setFormData({ ...formData, achievement_type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="intensity">
+                    <div className="flex items-center gap-2">
+                      <Flame className="w-4 h-4" />
+                      Intensidade (baseada em requisitos gerais)
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="specialization">
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4" />
+                      Especialização (baseada em módulos/fases)
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome da Conquista *</Label>
@@ -393,9 +569,6 @@ export default function AdminAchievements() {
                 <p className="text-sm text-purple-900">
                   <strong>ID gerado automaticamente:</strong> <code className="bg-purple-100 px-2 py-1 rounded">{formData.badge_id || generateBadgeId(formData.name)}</code>
                 </p>
-                <p className="text-xs text-purple-700 mt-1">
-                  Este ID é usado internamente pelo sistema
-                </p>
               </div>
             )}
 
@@ -410,43 +583,87 @@ export default function AdminAchievements() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="requirement_type">Tipo de Requisito *</Label>
-                <Select
-                  value={formData.requirement_type}
-                  onValueChange={(value) => setFormData({ ...formData, requirement_type: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {REQUIREMENT_TYPES.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.icon} {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            {formData.achievement_type === "intensity" && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="requirement_type">Tipo de Requisito *</Label>
+                  <Select
+                    value={formData.requirement_type}
+                    onValueChange={(value) => setFormData({ ...formData, requirement_type: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REQUIREMENT_TYPES.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.icon} {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="requirement_value">Valor do Requisito</Label>
-                <Input
-                  id="requirement_value"
-                  type="number"
-                  value={formData.requirement_value}
-                  onChange={(e) => setFormData({ ...formData, requirement_value: parseInt(e.target.value) })}
-                  placeholder="Ex: 7, 80, 500"
-                />
-                <p className="text-xs text-gray-500">
-                  {formData.requirement_type === "accuracy" && "Percentual (0-100)"}
-                  {formData.requirement_type === "streak_days" && "Número de dias"}
-                  {formData.requirement_type === "level" && "Nível mínimo"}
-                  {formData.requirement_type === "points" && "Quantidade de pontos"}
-                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="requirement_value">Valor do Requisito</Label>
+                  <Input
+                    id="requirement_value"
+                    type="number"
+                    value={formData.requirement_value}
+                    onChange={(e) => setFormData({ ...formData, requirement_value: parseInt(e.target.value) })}
+                    placeholder="Ex: 7, 80, 500"
+                  />
+                </div>
               </div>
-            </div>
+            )}
+
+            {formData.achievement_type === "specialization" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="module_id">Módulo *</Label>
+                  <Select
+                    value={formData.module_id}
+                    onValueChange={(value) => setFormData({ ...formData, module_id: value, phase_id: "" })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um módulo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {modules.map((module) => (
+                        <SelectItem key={module.id} value={module.id}>
+                          {module.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {formData.module_id && (
+                  <div className="space-y-2">
+                    <Label htmlFor="phase_id">Fase (Opcional)</Label>
+                    <Select
+                      value={formData.phase_id}
+                      onValueChange={(value) => setFormData({ ...formData, phase_id: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todas as fases do módulo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={null}>Todas as fases</SelectItem>
+                        {phases.map((phase) => (
+                          <SelectItem key={phase.id} value={phase.id}>
+                            {phase.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500">
+                      Deixe vazio para conquistar ao completar todo o módulo
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center gap-2">
               <input

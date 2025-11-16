@@ -1,61 +1,84 @@
 import { base44 } from "@/api/base44Client";
 
 /**
- * Verifica se um usuário desbloqueou uma conquista específica
- * @param {Object} achievement - Conquista da entidade Achievement
- * @param {Object} user - Dados do usuário
- * @param {Object} stats - Estatísticas do usuário (attempts, accuracy, etc)
- * @param {number} streakDays - Dias consecutivos praticando
- * @returns {boolean} - Se a conquista foi desbloqueada
+ * Verifica se uma conquista específica foi desbloqueada pelo usuário
  */
-export function checkAchievement(achievement, user, stats, streakDays) {
-  if (!achievement.active) return false;
-
-  const reqValue = achievement.requirement_value || 0;
-
-  switch (achievement.requirement_type) {
-    case "first_correct":
-      return stats.correctAnswers > 0;
-
-    case "streak_days":
-      return streakDays >= reqValue;
-
-    case "accuracy":
-      return stats.accuracy >= reqValue && stats.totalAttempts >= 10;
-
-    case "level":
-      return (user?.level || 1) >= reqValue;
-
-    case "points":
-      return (user?.points || 0) >= reqValue;
-
-    case "completed_modules":
-      return stats.completedModules >= reqValue;
-
-    case "total_attempts":
-      return stats.totalAttempts >= reqValue;
-
-    case "custom":
-      // Para requisitos personalizados, verificar badges do usuário
-      return (user?.badges || []).includes(achievement.badge_id);
-
-    default:
-      return false;
+export async function checkAchievement(achievement, user, stats, streakDays) {
+  // Conquistas de Intensidade
+  if (achievement.achievement_type === "intensity") {
+    switch (achievement.requirement_type) {
+      case "first_correct":
+        return stats.correctAnswers >= 1;
+      
+      case "streak_days":
+        return streakDays >= (achievement.requirement_value || 0);
+      
+      case "accuracy":
+        return stats.accuracy >= (achievement.requirement_value || 0);
+      
+      case "level":
+        return (user.level || 1) >= (achievement.requirement_value || 0);
+      
+      case "points":
+        return (user.points || 0) >= (achievement.requirement_value || 0);
+      
+      case "completed_modules":
+        return stats.completedModules >= (achievement.requirement_value || 0);
+      
+      case "total_attempts":
+        return stats.totalAttempts >= (achievement.requirement_value || 0);
+      
+      case "custom":
+        // Conquistas personalizadas podem ter lógica específica
+        return false;
+      
+      default:
+        return false;
+    }
   }
+  
+  // Conquistas de Especialização
+  if (achievement.achievement_type === "specialization") {
+    if (!achievement.module_id) return false;
+    
+    // Se tem phase_id específica, verifica se aquela fase foi completada
+    if (achievement.phase_id) {
+      const phaseProgress = await base44.entities.UserProgress.filter({
+        user_email: user.email,
+        module_id: achievement.module_id,
+        phase_id: achievement.phase_id
+      });
+      
+      return phaseProgress.length > 0 && phaseProgress[0].completed === true;
+    }
+    
+    // Se não tem phase_id, verifica se o módulo inteiro foi completado
+    const moduleProgress = await base44.entities.UserProgress.filter({
+      user_email: user.email,
+      module_id: achievement.module_id
+    });
+    
+    return moduleProgress.length > 0 && moduleProgress[0].completed === true;
+  }
+  
+  return false;
 }
 
 /**
- * Carrega todas as conquistas e verifica quais o usuário desbloqueou
- * @param {Object} user - Dados do usuário
- * @param {Object} stats - Estatísticas do usuário
- * @param {number} streakDays - Dias consecutivos praticando
- * @returns {Array} - Array de conquistas com propriedade 'earned'
+ * Carrega todas as conquistas e verifica quais o usuário já desbloqueou
  */
 export async function loadUserAchievements(user, stats, streakDays) {
-  const achievements = await base44.entities.Achievement.filter({ active: true }, "order");
+  const allAchievements = await base44.entities.Achievement.filter({ active: true }, "order");
   
-  return achievements.map(achievement => ({
-    ...achievement,
-    earned: checkAchievement(achievement, user, stats, streakDays)
-  }));
+  const achievementsWithStatus = await Promise.all(
+    allAchievements.map(async (achievement) => {
+      const earned = await checkAchievement(achievement, user, stats, streakDays);
+      return {
+        ...achievement,
+        earned
+      };
+    })
+  );
+  
+  return achievementsWithStatus;
 }
