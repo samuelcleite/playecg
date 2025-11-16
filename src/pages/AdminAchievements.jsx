@@ -47,6 +47,17 @@ const REQUIREMENT_TYPES = [
   { value: "custom", label: "Personalizado", icon: "✨" }
 ];
 
+// Função para gerar badge_id automaticamente a partir do nome
+const generateBadgeId = (name) => {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+    .replace(/[^a-z0-9\s]/g, "") // Remove caracteres especiais
+    .trim()
+    .replace(/\s+/g, "_"); // Substitui espaços por underscore
+};
+
 export default function AdminAchievements() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -111,16 +122,29 @@ export default function AdminAchievements() {
     setShowDialog(true);
   };
 
+  const handleNameChange = (name) => {
+    setFormData({
+      ...formData,
+      name: name,
+      badge_id: editingAchievement ? formData.badge_id : generateBadgeId(name)
+    });
+  };
+
   const handleSave = async () => {
-    if (!formData.name || !formData.badge_id) {
-      alert("Preencha os campos obrigatórios");
+    if (!formData.name) {
+      alert("Preencha o nome da conquista");
       return;
     }
 
+    const dataToSave = {
+      ...formData,
+      badge_id: formData.badge_id || generateBadgeId(formData.name)
+    };
+
     if (editingAchievement) {
-      await base44.entities.Achievement.update(editingAchievement.id, formData);
+      await base44.entities.Achievement.update(editingAchievement.id, dataToSave);
     } else {
-      await base44.entities.Achievement.create(formData);
+      await base44.entities.Achievement.create(dataToSave);
     }
 
     setShowDialog(false);
@@ -347,7 +371,7 @@ export default function AdminAchievements() {
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => handleNameChange(e.target.value)}
                   placeholder="Ex: Primeira Vitória"
                 />
               </div>
@@ -364,18 +388,16 @@ export default function AdminAchievements() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="badge_id">ID do Badge *</Label>
-              <Input
-                id="badge_id"
-                value={formData.badge_id}
-                onChange={(e) => setFormData({ ...formData, badge_id: e.target.value })}
-                placeholder="Ex: first_correct, streak_7, level_5"
-              />
-              <p className="text-xs text-gray-500">
-                ID único para identificar esta conquista no sistema
-              </p>
-            </div>
+            {formData.name && (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                <p className="text-sm text-purple-900">
+                  <strong>ID gerado automaticamente:</strong> <code className="bg-purple-100 px-2 py-1 rounded">{formData.badge_id || generateBadgeId(formData.name)}</code>
+                </p>
+                <p className="text-xs text-purple-700 mt-1">
+                  Este ID é usado internamente pelo sistema
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="description">Descrição</Label>
