@@ -39,26 +39,44 @@ export async function checkAchievement(achievement, user, stats, streakDays) {
   
   // Conquistas de Especialização
   if (achievement.achievement_type === "specialization") {
-    if (!achievement.module_id) return false;
+    const moduleIds = achievement.module_ids || [];
+    const phaseIds = achievement.phase_ids || [];
     
-    // Se tem phase_id específica, verifica se aquela fase foi completada
-    if (achievement.phase_id) {
-      const phaseProgress = await base44.entities.UserProgress.filter({
-        user_email: user.email,
-        module_id: achievement.module_id,
-        phase_id: achievement.phase_id
-      });
-      
-      return phaseProgress.length > 0 && phaseProgress[0].completed === true;
+    // Se não tem requisitos, não pode ser conquistada
+    if (moduleIds.length === 0 && phaseIds.length === 0) {
+      return false;
     }
     
-    // Se não tem phase_id, verifica se o módulo inteiro foi completado
-    const moduleProgress = await base44.entities.UserProgress.filter({
-      user_email: user.email,
-      module_id: achievement.module_id
-    });
+    // Verificar se todas as fases especificadas foram completadas
+    if (phaseIds.length > 0) {
+      for (const phaseId of phaseIds) {
+        const phaseProgress = await base44.entities.UserProgress.filter({
+          user_email: user.email,
+          phase_id: phaseId
+        });
+        
+        if (phaseProgress.length === 0 || !phaseProgress[0].completed) {
+          return false; // Se alguma fase não foi completada, não conquistou
+        }
+      }
+    }
     
-    return moduleProgress.length > 0 && moduleProgress[0].completed === true;
+    // Verificar se todos os módulos especificados foram completados
+    if (moduleIds.length > 0) {
+      for (const moduleId of moduleIds) {
+        const moduleProgress = await base44.entities.UserProgress.filter({
+          user_email: user.email,
+          module_id: moduleId
+        });
+        
+        if (moduleProgress.length === 0 || !moduleProgress[0].completed) {
+          return false; // Se algum módulo não foi completado, não conquistou
+        }
+      }
+    }
+    
+    // Se chegou aqui, todos os requisitos foram cumpridos
+    return true;
   }
   
   return false;

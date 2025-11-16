@@ -34,7 +34,8 @@ import {
   Zap,
   Star,
   Flame,
-  BookOpen
+  BookOpen,
+  X
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -64,7 +65,7 @@ export default function AdminAchievements() {
   const [user, setUser] = useState(null);
   const [achievements, setAchievements] = useState([]);
   const [modules, setModules] = useState([]);
-  const [phases, setPhases] = useState([]);
+  const [allPhases, setAllPhases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [editingAchievement, setEditingAchievement] = useState(null);
@@ -76,8 +77,8 @@ export default function AdminAchievements() {
     achievement_type: "intensity",
     requirement_type: "first_correct",
     requirement_value: 1,
-    module_id: "",
-    phase_id: "",
+    module_ids: [],
+    phase_ids: [],
     order: 0,
     active: true
   });
@@ -85,14 +86,6 @@ export default function AdminAchievements() {
   useEffect(() => {
     loadData();
   }, []);
-
-  useEffect(() => {
-    if (formData.module_id) {
-      loadPhases(formData.module_id);
-    } else {
-      setPhases([]);
-    }
-  }, [formData.module_id]);
 
   const loadData = async () => {
     const userData = await base44.auth.me();
@@ -108,12 +101,10 @@ export default function AdminAchievements() {
     const modulesData = await base44.entities.Module.list("order");
     setModules(modulesData);
 
-    setLoading(false);
-  };
+    const phasesData = await base44.entities.Phase.list("order");
+    setAllPhases(phasesData);
 
-  const loadPhases = async (moduleId) => {
-    const phasesData = await base44.entities.Phase.filter({ module_id: moduleId }, "order");
-    setPhases(phasesData);
+    setLoading(false);
   };
 
   const handleOpenDialog = (achievement = null) => {
@@ -127,14 +118,11 @@ export default function AdminAchievements() {
         achievement_type: achievement.achievement_type || "intensity",
         requirement_type: achievement.requirement_type || "first_correct",
         requirement_value: achievement.requirement_value || 1,
-        module_id: achievement.module_id || "",
-        phase_id: achievement.phase_id || "",
+        module_ids: achievement.module_ids || [],
+        phase_ids: achievement.phase_ids || [],
         order: achievement.order || 0,
         active: achievement.active !== false
       });
-      if (achievement.module_id) {
-        loadPhases(achievement.module_id);
-      }
     } else {
       setEditingAchievement(null);
       setFormData({
@@ -145,8 +133,8 @@ export default function AdminAchievements() {
         achievement_type: "intensity",
         requirement_type: "first_correct",
         requirement_value: 1,
-        module_id: "",
-        phase_id: "",
+        module_ids: [],
+        phase_ids: [],
         order: achievements.length,
         active: true
       });
@@ -162,14 +150,44 @@ export default function AdminAchievements() {
     });
   };
 
+  const toggleModule = (moduleId) => {
+    const isSelected = formData.module_ids.includes(moduleId);
+    if (isSelected) {
+      setFormData({
+        ...formData,
+        module_ids: formData.module_ids.filter(id => id !== moduleId)
+      });
+    } else {
+      setFormData({
+        ...formData,
+        module_ids: [...formData.module_ids, moduleId]
+      });
+    }
+  };
+
+  const togglePhase = (phaseId) => {
+    const isSelected = formData.phase_ids.includes(phaseId);
+    if (isSelected) {
+      setFormData({
+        ...formData,
+        phase_ids: formData.phase_ids.filter(id => id !== phaseId)
+      });
+    } else {
+      setFormData({
+        ...formData,
+        phase_ids: [...formData.phase_ids, phaseId]
+      });
+    }
+  };
+
   const handleSave = async () => {
     if (!formData.name) {
       alert("Preencha o nome da conquista");
       return;
     }
 
-    if (formData.achievement_type === "specialization" && !formData.module_id) {
-      alert("Selecione um módulo para conquistas de especialização");
+    if (formData.achievement_type === "specialization" && formData.module_ids.length === 0 && formData.phase_ids.length === 0) {
+      alert("Selecione pelo menos um módulo ou fase para conquistas de especialização");
       return;
     }
 
@@ -178,8 +196,8 @@ export default function AdminAchievements() {
       badge_id: formData.badge_id || generateBadgeId(formData.name),
       requirement_type: formData.achievement_type === "intensity" ? formData.requirement_type : null,
       requirement_value: formData.achievement_type === "intensity" ? formData.requirement_value : null,
-      module_id: formData.achievement_type === "specialization" ? formData.module_id : null,
-      phase_id: formData.achievement_type === "specialization" ? formData.phase_id || null : null
+      module_ids: formData.achievement_type === "specialization" ? formData.module_ids : [],
+      phase_ids: formData.achievement_type === "specialization" ? formData.phase_ids : []
     };
 
     if (editingAchievement) {
@@ -226,7 +244,22 @@ export default function AdminAchievements() {
   };
 
   const getPhaseName = (phaseId) => {
-    return phases.find(p => p.id === phaseId)?.name || "Fase";
+    return allPhases.find(p => p.id === phaseId)?.name || "Fase";
+  };
+
+  const getRequirementsText = (achievement) => {
+    const moduleNames = (achievement.module_ids || []).map(id => getModuleName(id));
+    const phaseNames = (achievement.phase_ids || []).map(id => getPhaseName(id));
+    
+    const parts = [];
+    if (moduleNames.length > 0) {
+      parts.push(`Módulos: ${moduleNames.join(", ")}`);
+    }
+    if (phaseNames.length > 0) {
+      parts.push(`Fases: ${phaseNames.join(", ")}`);
+    }
+    
+    return parts.join(" | ");
   };
 
   const intensityAchievements = achievements.filter(a => a.achievement_type === "intensity");
@@ -455,8 +488,7 @@ export default function AdminAchievements() {
                                 ID: {achievement.badge_id}
                               </Badge>
                               <Badge className="bg-blue-100 text-blue-800">
-                                {getModuleName(achievement.module_id)}
-                                {achievement.phase_id && ` - ${getPhaseName(achievement.phase_id)}`}
+                                {getRequirementsText(achievement)}
                               </Badge>
                             </div>
                           </div>
@@ -620,48 +652,73 @@ export default function AdminAchievements() {
             {formData.achievement_type === "specialization" && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="module_id">Módulo *</Label>
-                  <Select
-                    value={formData.module_id}
-                    onValueChange={(value) => setFormData({ ...formData, module_id: value, phase_id: "" })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um módulo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {modules.map((module) => (
-                        <SelectItem key={module.id} value={module.id}>
+                  <Label>Módulos *</Label>
+                  <div className="border rounded-lg p-3 max-h-48 overflow-y-auto bg-gray-50">
+                    {modules.map((module) => (
+                      <div key={module.id} className="flex items-center gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          id={`module-${module.id}`}
+                          checked={formData.module_ids.includes(module.id)}
+                          onChange={() => toggleModule(module.id)}
+                          className="w-4 h-4 text-blue-600 rounded"
+                        />
+                        <Label htmlFor={`module-${module.id}`} className="cursor-pointer flex-1">
                           {module.name}
-                        </SelectItem>
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  {formData.module_ids.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {formData.module_ids.map((moduleId) => (
+                        <Badge key={moduleId} className="bg-blue-100 text-blue-800 gap-2">
+                          {getModuleName(moduleId)}
+                          <X
+                            className="w-3 h-3 cursor-pointer"
+                            onClick={() => toggleModule(moduleId)}
+                          />
+                        </Badge>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </div>
+                  )}
                 </div>
 
-                {formData.module_id && (
-                  <div className="space-y-2">
-                    <Label htmlFor="phase_id">Fase (Opcional)</Label>
-                    <Select
-                      value={formData.phase_id}
-                      onValueChange={(value) => setFormData({ ...formData, phase_id: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Todas as fases do módulo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={null}>Todas as fases</SelectItem>
-                        {phases.map((phase) => (
-                          <SelectItem key={phase.id} value={phase.id}>
-                            {phase.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-gray-500">
-                      Deixe vazio para conquistar ao completar todo o módulo
-                    </p>
+                <div className="space-y-2">
+                  <Label>Fases (Opcional)</Label>
+                  <div className="border rounded-lg p-3 max-h-48 overflow-y-auto bg-gray-50">
+                    {allPhases.map((phase) => (
+                      <div key={phase.id} className="flex items-center gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          id={`phase-${phase.id}`}
+                          checked={formData.phase_ids.includes(phase.id)}
+                          onChange={() => togglePhase(phase.id)}
+                          className="w-4 h-4 text-purple-600 rounded"
+                        />
+                        <Label htmlFor={`phase-${phase.id}`} className="cursor-pointer flex-1">
+                          {phase.name} ({getModuleName(phase.module_id)})
+                        </Label>
+                      </div>
+                    ))}
                   </div>
-                )}
+                  {formData.phase_ids.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {formData.phase_ids.map((phaseId) => (
+                        <Badge key={phaseId} className="bg-purple-100 text-purple-800 gap-2">
+                          {getPhaseName(phaseId)}
+                          <X
+                            className="w-3 h-3 cursor-pointer"
+                            onClick={() => togglePhase(phaseId)}
+                          />
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Deixe vazio para exigir apenas módulos completos
+                  </p>
+                </div>
               </div>
             )}
 
