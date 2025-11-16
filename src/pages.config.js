@@ -15,6 +15,7 @@ import ModulePhases from './pages/ModulePhases';
 import AdminPayments from './pages/AdminPayments';
 import AdminUsers from './pages/AdminUsers';
 import AdminAchievements from './pages/AdminAchievements';
+import Achievements from './pages/Achievements';
 import __Layout from './Layout.jsx';
 
 
@@ -36,6 +37,7 @@ export const PAGES = {
     "AdminPayments": AdminPayments,
     "AdminUsers": AdminUsers,
     "AdminAchievements": AdminAchievements,
+    "Achievements": Achievements,
 }
 
 export const pagesConfig = {
