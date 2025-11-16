@@ -117,12 +117,15 @@ export default function Dashboard() {
     const attempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", 100);
     const correctCount = attempts.filter(a => a.correct).length;
     
+    const progress = await base44.entities.UserProgress.filter({ user_email: userData.email });
+    const completedCount = progress.filter(p => p.completed).length;
+    
     const statsData = {
       totalAttempts: attempts.length,
       correctAnswers: correctCount,
       accuracy: attempts.length > 0 ? Math.round((correctCount / attempts.length) * 100) : 0,
       recentAttempts: attempts.slice(0, 5),
-      completedModules: 0
+      completedModules: completedCount
     };
 
     setStats(statsData);
@@ -329,15 +332,15 @@ export default function Dashboard() {
         </div>
 
         {/* Conquistas Atingidas */}
-        {earnedAchievements.length > 0 && (
-          <Card className="border border-purple-100 shadow-md">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-gray-800">
-                <Award className="w-6 h-6 text-purple-600" />
-                Conquistas Atingidas
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+        <Card className="border border-purple-100 shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-gray-800">
+              <Award className="w-6 h-6 text-purple-600" />
+              Conquistas Atingidas ({earnedAchievements.length}/{achievements.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {earnedAchievements.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {earnedAchievements.map((achievement, index) => (
                   <motion.div
@@ -345,19 +348,31 @@ export default function Dashboard() {
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: index * 0.05 }}
-                    className="p-4 rounded-xl text-center transition-all duration-300 bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-300"
+                    className="p-4 rounded-xl text-center transition-all duration-300 bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-300 shadow-md"
                   >
                     <div className="text-4xl mb-2">{achievement.icon}</div>
-                    <p className="text-sm font-medium text-gray-800 mb-1">
+                    <p className="text-sm font-semibold text-gray-800 mb-1">
                       {achievement.name}
                     </p>
                     <p className="text-xs text-gray-600">{achievement.description}</p>
                   </motion.div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Sparkles className="w-8 h-8 text-purple-600" />
+                </div>
+                <p className="text-gray-600 mb-2">
+                  Você ainda não desbloqueou nenhuma conquista
+                </p>
+                <p className="text-sm text-gray-500">
+                  Continue praticando para desbloquear suas primeiras conquistas!
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Recent Activity */}
         {stats.recentAttempts.length > 0 && (
