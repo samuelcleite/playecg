@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -13,9 +12,18 @@ import {
   ArrowRight,
   Trophy,
   Layers,
-  Target
+  Target,
+  BookOpen,
+  Lightbulb
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export default function ModulePhases() {
   const navigate = useNavigate();
@@ -24,6 +32,8 @@ export default function ModulePhases() {
   const [phases, setPhases] = useState([]);
   const [progress, setProgress] = useState({});
   const [loading, setLoading] = useState(true);
+  const [showGuideDialog, setShowGuideDialog] = useState(false);
+  const [selectedPhase, setSelectedPhase] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -83,7 +93,23 @@ export default function ModulePhases() {
     return Math.round((prog.completed_cases.length / totalCases) * 100);
   };
 
-  // Removed getDifficultyColor function
+  const handlePhaseClick = (phase) => {
+    const completionPercentage = getPhaseCompletion(phase.id, phase.total_cases);
+    
+    // Se o progresso é 0% e tem descrição, mostra o guia
+    if (completionPercentage === 0 && phase.description) {
+      setSelectedPhase(phase);
+      setShowGuideDialog(true);
+    } else {
+      // Navega direto para a fase
+      navigate(`${createPageUrl("ModuleDetail")}?module_id=${module.id}&phase_id=${phase.id}`);
+    }
+  };
+
+  const handleStartPhase = () => {
+    setShowGuideDialog(false);
+    navigate(`${createPageUrl("ModuleDetail")}?module_id=${module.id}&phase_id=${selectedPhase.id}`);
+  };
 
   if (loading) {
     return (
@@ -119,7 +145,6 @@ export default function ModulePhases() {
         <Card className="border-none shadow-lg bg-gradient-to-br from-purple-50 to-pink-50">
           <CardContent className="p-8">
             <div className="flex items-start gap-6">
-              {/* Removed difficulty-based coloring for module order icon */}
               <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-white text-3xl shadow-lg bg-gradient-to-br from-indigo-500 to-purple-600">
                 {module.order}
               </div>
@@ -127,7 +152,6 @@ export default function ModulePhases() {
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">{module.name}</h1>
                 <p className="text-gray-600 mb-4">{module.description}</p>
                 <div className="flex items-center gap-3">
-                  {/* Removed difficulty badge */}
                   <Badge className="bg-purple-100 text-purple-800">
                     {phases.length} fases
                   </Badge>
@@ -190,7 +214,12 @@ export default function ModulePhases() {
                                 <h3 className="text-xl font-bold text-gray-900 mb-1">
                                   {phase.name}
                                 </h3>
-                                <p className="text-gray-600">{phase.description}</p>
+                                {completionPercentage === 0 && phase.description && unlocked && (
+                                  <Badge className="bg-amber-100 text-amber-800 gap-1 mb-2">
+                                    <Lightbulb className="w-3 h-3" />
+                                    Guia disponível
+                                  </Badge>
+                                )}
                               </div>
                             </div>
 
@@ -229,7 +258,7 @@ export default function ModulePhases() {
 
                               {unlocked ? (
                                 <Button
-                                  onClick={() => navigate(`${createPageUrl("ModuleDetail")}?module_id=${module.id}&phase_id=${phase.id}`)}
+                                  onClick={() => handlePhaseClick(phase)}
                                   className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 gap-2"
                                 >
                                   {completed ? 'Revisar' : completionPercentage > 0 ? 'Continuar' : 'Começar'}
@@ -267,6 +296,59 @@ export default function ModulePhases() {
           </div>
         </div>
       </div>
+
+      {/* Guide Dialog */}
+      <Dialog open={showGuideDialog} onOpenChange={setShowGuideDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+                <BookOpen className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl">
+                  Bem-vindo à fase: {selectedPhase?.name}
+                </DialogTitle>
+                <DialogDescription>
+                  Leia o guia abaixo antes de começar
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="py-4">
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-6">
+              <div className="flex items-start gap-3 mb-4">
+                <Lightbulb className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
+                <div>
+                  <h4 className="font-bold text-lg text-amber-900 mb-2">
+                    Orientações para esta fase
+                  </h4>
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                    {selectedPhase?.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowGuideDialog(false)}
+            >
+              Ler depois
+            </Button>
+            <Button 
+              onClick={handleStartPhase}
+              className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 gap-2"
+            >
+              Começar Fase
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
