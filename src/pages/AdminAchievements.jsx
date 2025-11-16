@@ -262,6 +262,12 @@ export default function AdminAchievements() {
     return parts.join(" | ");
   };
 
+  // Agrupar fases por módulo
+  const phasesByModule = modules.map(module => ({
+    module,
+    phases: allPhases.filter(p => p.module_id === module.id)
+  })).filter(group => group.phases.length > 0);
+
   const intensityAchievements = achievements.filter(a => a.achievement_type === "intensity");
   const specializationAchievements = achievements.filter(a => a.achievement_type === "specialization");
 
@@ -652,7 +658,7 @@ export default function AdminAchievements() {
             {formData.achievement_type === "specialization" && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Módulos *</Label>
+                  <Label>Módulos</Label>
                   <div className="border rounded-lg p-3 max-h-48 overflow-y-auto bg-gray-50">
                     {modules.map((module) => (
                       <div key={module.id} className="flex items-center gap-2 mb-2">
@@ -685,34 +691,54 @@ export default function AdminAchievements() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Fases (Opcional)</Label>
-                  <div className="border rounded-lg p-3 max-h-48 overflow-y-auto bg-gray-50">
-                    {allPhases.map((phase) => (
-                      <div key={phase.id} className="flex items-center gap-2 mb-2">
-                        <input
-                          type="checkbox"
-                          id={`phase-${phase.id}`}
-                          checked={formData.phase_ids.includes(phase.id)}
-                          onChange={() => togglePhase(phase.id)}
-                          className="w-4 h-4 text-purple-600 rounded"
-                        />
-                        <Label htmlFor={`phase-${phase.id}`} className="cursor-pointer flex-1">
-                          {phase.name} ({getModuleName(phase.module_id)})
-                        </Label>
-                      </div>
-                    ))}
+                  <Label>Fases Específicas (Opcional)</Label>
+                  <div className="border rounded-lg p-3 max-h-64 overflow-y-auto bg-gray-50">
+                    {phasesByModule.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-4">
+                        Nenhuma fase cadastrada ainda
+                      </p>
+                    ) : (
+                      phasesByModule.map((group) => (
+                        <div key={group.module.id} className="mb-4 last:mb-0">
+                          <div className="font-semibold text-sm text-blue-700 mb-2 flex items-center gap-2">
+                            <BookOpen className="w-4 h-4" />
+                            {group.module.name}
+                          </div>
+                          <div className="space-y-1 pl-6 border-l-2 border-blue-200">
+                            {group.phases.map((phase) => (
+                              <div key={phase.id} className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  id={`phase-${phase.id}`}
+                                  checked={formData.phase_ids.includes(phase.id)}
+                                  onChange={() => togglePhase(phase.id)}
+                                  className="w-4 h-4 text-purple-600 rounded"
+                                />
+                                <Label htmlFor={`phase-${phase.id}`} className="cursor-pointer flex-1 text-sm">
+                                  {phase.name}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                   {formData.phase_ids.length > 0 && (
                     <div className="flex flex-wrap gap-2">
-                      {formData.phase_ids.map((phaseId) => (
-                        <Badge key={phaseId} className="bg-purple-100 text-purple-800 gap-2">
-                          {getPhaseName(phaseId)}
-                          <X
-                            className="w-3 h-3 cursor-pointer"
-                            onClick={() => togglePhase(phaseId)}
-                          />
-                        </Badge>
-                      ))}
+                      {formData.phase_ids.map((phaseId) => {
+                        const phase = allPhases.find(p => p.id === phaseId);
+                        return (
+                          <Badge key={phaseId} className="bg-purple-100 text-purple-800 gap-2">
+                            {getPhaseName(phaseId)}
+                            <span className="text-xs opacity-70">({getModuleName(phase?.module_id)})</span>
+                            <X
+                              className="w-3 h-3 cursor-pointer"
+                              onClick={() => togglePhase(phaseId)}
+                            />
+                          </Badge>
+                        );
+                      })}
                     </div>
                   )}
                   <p className="text-xs text-gray-500">
