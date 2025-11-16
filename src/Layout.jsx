@@ -81,6 +81,11 @@ export default function Layout({ children, currentPageName }) {
     icon: BookOpen
   }] : []),
   {
+    title: "Conquistas",
+    url: createPageUrl("Achievements"),
+    icon: Award
+  },
+  {
     title: "Perfil",
     url: createPageUrl("Profile"),
     icon: Trophy
