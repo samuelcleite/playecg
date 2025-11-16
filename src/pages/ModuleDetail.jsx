@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
@@ -24,7 +23,9 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
-  Pencil
+  Pencil,
+  AlertTriangle,
+  RefreshCw
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -39,6 +40,8 @@ export default function ModuleDetail() {
   const [isCorrect, setIsCorrect] = useState(false);
   const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [attemptCount, setAttemptCount] = useState(0);
+  const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
 
   // Zoom states
   const [showZoom, setShowZoom] = useState(false);
@@ -104,7 +107,7 @@ export default function ModuleDetail() {
   const currentCase = cases[currentCaseIndex];
 
   const handleAnswerToggle = (answer) => {
-    if (showResult) return;
+    if (showResult && (isCorrect || showCorrectAnswer)) return;
 
     if (currentCase.multiple_correct) {
       if (selectedAnswers.includes(answer)) {
@@ -118,7 +121,7 @@ export default function ModuleDetail() {
   };
 
   const handleSubmitAnswer = async () => {
-    if (selectedAnswers.length === 0 || showResult) return;
+    if (selectedAnswers.length === 0) return;
 
     const correctAnswers = currentCase.correct_answers && currentCase.correct_answers.length > 0
       ? currentCase.correct_answers
@@ -137,40 +140,56 @@ export default function ModuleDetail() {
     setIsCorrect(correct);
     setShowResult(true);
 
-    const pointsEarned = correct ? 15 : 5;
+    const newAttemptCount = attemptCount + 1;
+    setAttemptCount(newAttemptCount);
 
-    await base44.entities.QuizAttempt.create({
-      user_email: user.email,
-      case_id: currentCase.id,
-      user_answer: selectedAnswers.join(", "),
-      correct: correct,
-      points_earned: pointsEarned
-    });
-
-    if (!progress.completed_cases.includes(currentCase.id)) {
-      const updatedCompletedCases = [...progress.completed_cases, currentCase.id];
-      const newScore = progress.score + pointsEarned;
-      const moduleCompleted = updatedCompletedCases.length === cases.length;
-
-      await base44.entities.UserProgress.update(progress.id, {
-        completed_cases: updatedCompletedCases,
-        score: newScore,
-        completed: moduleCompleted
-      });
-
-      await base44.entities.User.update(user.id, {
-        points: (user.points || 0) + pointsEarned,
-        level: Math.floor(((user.points || 0) + pointsEarned) / 100) + 1
-      });
-
-      setProgress({
-        ...progress,
-        completed_cases: updatedCompletedCases,
-        score: newScore,
-        completed: moduleCompleted
-      });
-      setUser({ ...user, points: (user.points || 0) + pointsEarned });
+    // Mostrar resposta correta após 3 tentativas erradas
+    if (!correct && newAttemptCount >= 3) {
+      setShowCorrectAnswer(true);
     }
+
+    const pointsEarned = correct ? 15 : 0;
+
+    // Se acertou ou já tentou 3 vezes, registrar e avançar
+    if (correct || newAttemptCount >= 3) {
+      await base44.entities.QuizAttempt.create({
+        user_email: user.email,
+        case_id: currentCase.id,
+        user_answer: selectedAnswers.join(", "),
+        correct: correct,
+        points_earned: pointsEarned
+      });
+
+      if (!progress.completed_cases.includes(currentCase.id)) {
+        const updatedCompletedCases = [...progress.completed_cases, currentCase.id];
+        const newScore = progress.score + pointsEarned;
+        const moduleCompleted = updatedCompletedCases.length === cases.length;
+
+        await base44.entities.UserProgress.update(progress.id, {
+          completed_cases: updatedCompletedCases,
+          score: newScore,
+          completed: moduleCompleted
+        });
+
+        await base44.entities.User.update(user.id, {
+          points: (user.points || 0) + pointsEarned,
+          level: Math.floor(((user.points || 0) + pointsEarned) / 100) + 1
+        });
+
+        setProgress({
+          ...progress,
+          completed_cases: updatedCompletedCases,
+          score: newScore,
+          completed: moduleCompleted
+        });
+        setUser({ ...user, points: (user.points || 0) + pointsEarned });
+      }
+    }
+  };
+
+  const handleTryAgain = () => {
+    setShowResult(false);
+    setSelectedAnswers([]);
   };
 
   const handleNextCase = () => {
@@ -178,8 +197,9 @@ export default function ModuleDetail() {
       setCurrentCaseIndex(currentCaseIndex + 1);
       setSelectedAnswers([]);
       setShowResult(false);
+      setAttemptCount(0);
+      setShowCorrectAnswer(false);
     } else {
-      // Assuming module.id is available from the state after loadData
       navigate(`${createPageUrl("ModulePhases")}?id=${module.id}`);
     }
   };
@@ -192,7 +212,7 @@ export default function ModuleDetail() {
   const handleZoomOut = () => {
     setZoomLevel((prev) => {
       const newZoom = Math.max(prev - 0.5, 1);
-      if (newZoom <= 1.5) { // Reset position if zoom is near original
+      if (newZoom <= 1.5) {
         setPosition({ x: 0, y: 0 });
       }
       return newZoom;
@@ -266,7 +286,7 @@ export default function ModuleDetail() {
         setZoomLevel((prev) => {
           const newZoom = prev * scale;
           const clampedZoom = Math.max(1, Math.min(4, newZoom));
-          if (clampedZoom <= 1.5) { // Reset position if zoom is near original
+          if (clampedZoom <= 1.5) {
             setPosition({ x: 0, y: 0 });
           }
           return clampedZoom;
@@ -286,11 +306,11 @@ export default function ModuleDetail() {
 
   const handleWheel = (e) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1; // Negative deltaY means scroll up (zoom in)
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
     setZoomLevel((prev) => {
       const newZoom = prev + delta;
       const clampedZoom = Math.max(1, Math.min(4, newZoom));
-      if (clampedZoom <= 1.5) { // Reset position if zoom is near original
+      if (clampedZoom <= 1.5) {
         setPosition({ x: 0, y: 0 });
       }
       return clampedZoom;
@@ -340,7 +360,6 @@ export default function ModuleDetail() {
 
   const completionPercentage = Math.round((progress.completed_cases.length / cases.length) * 100);
   
-  // Obter respostas corretas (compatibilidade com versão antiga)
   const correctAnswers = currentCase.correct_answers && currentCase.correct_answers.length > 0
     ? currentCase.correct_answers
     : [currentCase.correct_diagnosis];
@@ -369,13 +388,18 @@ export default function ModuleDetail() {
           <CardContent className="p-6">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{module.name}</h1>
             <p className="text-gray-600 mb-4">{module.description}</p>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <Badge className="bg-blue-600">
                 Caso {currentCaseIndex + 1} de {cases.length}
               </Badge>
               <Badge className="bg-amber-600">
                 {progress.score} pontos
               </Badge>
+              {attemptCount > 0 && (
+                <Badge className="bg-orange-500">
+                  Tentativa {attemptCount}/3
+                </Badge>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -448,7 +472,7 @@ export default function ModuleDetail() {
               <h3 className="font-semibold text-gray-900 mb-4 text-xl">
                 {currentCase.title}
               </h3>
-              {currentCase.multiple_correct && ( // Only show this if multiple correct answers are expected
+              {currentCase.multiple_correct && (
                 <p className="text-gray-700 mb-4">
                   Selecione todas as respostas corretas:
                 </p>
@@ -456,15 +480,16 @@ export default function ModuleDetail() {
               {currentCase.options.map((option, index) => {
                 const isSelected = selectedAnswers.includes(option);
                 const isCorrectAnswer = correctAnswers.includes(option);
-                const showAsCorrect = showResult && isCorrectAnswer;
-                const showAsIncorrect = showResult && isSelected && !isCorrectAnswer;
+                const showAsCorrect = showResult && isCorrect && isCorrectAnswer;
+                const showAsIncorrect = showResult && !isCorrect && showCorrectAnswer && isSelected && !isCorrectAnswer;
+                const showAsCorrectAfterFail = showResult && !isCorrect && showCorrectAnswer && isCorrectAnswer;
 
                 return (
                   <Button
                     key={index}
                     variant="outline"
                     className={`w-full justify-start text-left p-6 h-auto transition-all duration-300 ${
-                      showAsCorrect
+                      showAsCorrect || showAsCorrectAfterFail
                         ? 'bg-green-50 border-green-500 border-2'
                         : showAsIncorrect
                           ? 'bg-red-50 border-red-500 border-2'
@@ -473,11 +498,11 @@ export default function ModuleDetail() {
                             : 'hover:bg-gray-50'
                     }`}
                     onClick={() => handleAnswerToggle(option)}
-                    disabled={showResult}
+                    disabled={showResult && (isCorrect || showCorrectAnswer)}
                   >
                     <div className="flex items-center gap-3 w-full">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        showAsCorrect
+                        showAsCorrect || showAsCorrectAfterFail
                           ? 'bg-green-500'
                           : showAsIncorrect
                             ? 'bg-red-500'
@@ -485,7 +510,7 @@ export default function ModuleDetail() {
                               ? 'bg-purple-500'
                               : 'bg-gray-200'
                       }`}>
-                        {showAsCorrect && (
+                        {(showAsCorrect || showAsCorrectAfterFail) && (
                           <CheckCircle2 className="w-5 h-5 text-white" />
                         )}
                         {showAsIncorrect && (
@@ -515,68 +540,135 @@ export default function ModuleDetail() {
               </Button>
             )}
 
-            {/* Result and Explanation */}
+            {/* Result */}
             <AnimatePresence>
               {showResult && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`p-6 rounded-xl ${
-                    isCorrect ? 'bg-green-50 border-2 border-green-200' : 'bg-red-50 border-2 border-red-200'
-                  }`}
                 >
-                  <div className="flex items-start gap-3 mb-4">
-                    {isCorrect ? (
-                      <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0 mt-1" />
-                    ) : (
-                      <XCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
-                    )}
-                    <div>
-                      <h4 className={`font-bold text-lg mb-2 ${isCorrect ? 'text-green-900' : 'text-red-900'}`}>
-                        {isCorrect ? '🎉 Correto! +15 pontos' : 'Incorreto - Mas você ganhou 5 pontos por tentar!'}
-                      </h4>
-                      {!isCorrect && (
-                        <div className="text-red-800 mb-3">
-                          <strong>{currentCase.multiple_correct ? 'Respostas corretas:' : 'Resposta correta:'}</strong>
-                          <ul className="list-disc list-inside mt-1">
-                            {correctAnswers.map((ans, idx) => (
-                              <li key={idx}>{ans}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {currentCase.explanation && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <div className="flex items-start gap-2 mb-2">
-                        <Lightbulb className="w-5 h-5 text-amber-600 flex-shrink-0 mt-1" />
+                  {/* Resposta Correta */}
+                  {isCorrect && (
+                    <div className="p-6 rounded-xl bg-green-50 border-2 border-green-200">
+                      <div className="flex items-start gap-3 mb-4">
+                        <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0 mt-1" />
                         <div>
-                          <h5 className="font-semibold text-gray-900 mb-2">Explicação:</h5>
-                          <p className="text-gray-700 leading-relaxed">{currentCase.explanation}</p>
-                          
-                          {currentCase.key_findings && currentCase.key_findings.length > 0 && (
-                            <div className="mt-4">
-                              <h6 className="font-semibold text-gray-900 mb-2">Achados principais:</h6>
-                              <ul className="list-disc list-inside space-y-1 text-gray-700">
-                                {currentCase.key_findings.map((finding, i) => (
-                                  <li key={i}>{finding}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                          <h4 className="font-bold text-lg mb-2 text-green-900">
+                            🎉 Correto! +15 pontos
+                          </h4>
                         </div>
                       </div>
+
+                      {currentCase.explanation && (
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                          <div className="flex items-start gap-2 mb-2">
+                            <Lightbulb className="w-5 h-5 text-amber-600 flex-shrink-0 mt-1" />
+                            <div>
+                              <h5 className="font-semibold text-gray-900 mb-2">Explicação:</h5>
+                              <p className="text-gray-700 leading-relaxed">{currentCase.explanation}</p>
+                              
+                              {currentCase.key_findings && currentCase.key_findings.length > 0 && (
+                                <div className="mt-4">
+                                  <h6 className="font-semibold text-gray-900 mb-2">Achados principais:</h6>
+                                  <ul className="list-disc list-inside space-y-1 text-gray-700">
+                                    {currentCase.key_findings.map((finding, i) => (
+                                      <li key={i}>{finding}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <Button
+                        onClick={handleNextCase}
+                        className="w-full mt-6 bg-purple-600 hover:bg-purple-700"
+                      >
+                        {currentCaseIndex < cases.length - 1 ? 'Próximo Caso' : 'Finalizar Fase'}
+                      </Button>
                     </div>
                   )}
 
-                  <Button
-                    onClick={handleNextCase}
-                    className="w-full mt-6 bg-purple-600 hover:bg-purple-700"
-                  >
-                    {currentCaseIndex < cases.length - 1 ? 'Próximo Caso' : 'Finalizar Fase'}
-                  </Button>
+                  {/* Resposta Incorreta - Tente Novamente */}
+                  {!isCorrect && !showCorrectAnswer && (
+                    <div className="p-6 rounded-xl bg-orange-50 border-2 border-orange-300">
+                      <div className="flex items-start gap-3 mb-4">
+                        <AlertTriangle className="w-6 h-6 text-orange-600 flex-shrink-0 mt-1" />
+                        <div>
+                          <h4 className="font-bold text-lg mb-2 text-orange-800">
+                            Incorreto
+                          </h4>
+                          <p className="text-orange-700">
+                            Sua resposta não está correta. Tente novamente!
+                          </p>
+                          <p className="text-sm text-orange-600 mt-2">
+                            Você tem {3 - attemptCount} tentativa{3 - attemptCount !== 1 ? 's' : ''} restante{3 - attemptCount !== 1 ? 's' : ''}.
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button
+                        onClick={handleTryAgain}
+                        className="w-full mt-4 bg-orange-600 hover:bg-orange-700 text-white gap-2"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Tentar Novamente
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Resposta Incorreta - Mostrar Resposta Correta */}
+                  {!isCorrect && showCorrectAnswer && (
+                    <div className="p-6 rounded-xl bg-red-50 border-2 border-red-200">
+                      <div className="flex items-start gap-3 mb-4">
+                        <XCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
+                        <div>
+                          <h4 className="font-bold text-lg mb-2 text-red-900">
+                            Incorreto - Resposta Correta:
+                          </h4>
+                          <div className="text-red-800 mb-3">
+                            <ul className="list-disc list-inside mt-1">
+                              {correctAnswers.map((ans, idx) => (
+                                <li key={idx} className="font-medium">{ans}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+
+                      {currentCase.explanation && (
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                          <div className="flex items-start gap-2 mb-2">
+                            <Lightbulb className="w-5 h-5 text-amber-600 flex-shrink-0 mt-1" />
+                            <div>
+                              <h5 className="font-semibold text-gray-900 mb-2">Explicação:</h5>
+                              <p className="text-gray-700 leading-relaxed">{currentCase.explanation}</p>
+                              
+                              {currentCase.key_findings && currentCase.key_findings.length > 0 && (
+                                <div className="mt-4">
+                                  <h6 className="font-semibold text-gray-900 mb-2">Achados principais:</h6>
+                                  <ul className="list-disc list-inside space-y-1 text-gray-700">
+                                    {currentCase.key_findings.map((finding, i) => (
+                                      <li key={i}>{finding}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <Button
+                        onClick={handleNextCase}
+                        className="w-full mt-6 bg-purple-600 hover:bg-purple-700"
+                      >
+                        {currentCaseIndex < cases.length - 1 ? 'Próximo Caso' : 'Finalizar Fase'}
+                      </Button>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
