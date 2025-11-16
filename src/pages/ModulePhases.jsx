@@ -324,13 +324,14 @@ export default function ModulePhases() {
             <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-6">
               <div className="flex items-start gap-3 mb-4">
                 <Lightbulb className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
-                <div>
+                <div className="flex-1">
                   <h4 className="font-bold text-lg text-amber-900 mb-2">
                     Orientações para esta fase
                   </h4>
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                    {phaseContent}
-                  </p>
+                  <div 
+                    className="text-gray-700 leading-relaxed prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: phaseContent }}
+                  />
                 </div>
               </div>
             </div>

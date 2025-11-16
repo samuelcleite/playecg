@@ -5,8 +5,9 @@ import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 import {
   Select,
   SelectContent,
@@ -127,6 +128,25 @@ export default function AdminContent() {
     phases: phases.filter(p => p.module_id === module.id)
   }));
 
+  const quillModules = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+      [{ 'color': [] }, { 'background': [] }],
+      ['link'],
+      ['clean']
+    ]
+  };
+
+  const quillFormats = [
+    'header',
+    'bold', 'italic', 'underline', 'strike',
+    'list', 'bullet',
+    'color', 'background',
+    'link'
+  ];
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -178,9 +198,7 @@ export default function AdminContent() {
                         Conteúdo do Módulo
                       </p>
                       {getContent(group.module.id) ? (
-                        <p className="text-sm text-gray-600 mt-1">
-                          {getContent(group.module.id).content.substring(0, 100)}...
-                        </p>
+                        <div className="text-sm text-gray-600 mt-1" dangerouslySetInnerHTML={{ __html: getContent(group.module.id).content.substring(0, 100) + '...' }} />
                       ) : (
                         <p className="text-sm text-gray-500 mt-1">Nenhum conteúdo cadastrado</p>
                       )}
@@ -210,9 +228,7 @@ export default function AdminContent() {
                           <div className="flex-1">
                             <p className="font-medium text-gray-900">{phase.name}</p>
                             {getContent(group.module.id, phase.id) ? (
-                              <p className="text-sm text-gray-600 mt-1">
-                                {getContent(group.module.id, phase.id).content.substring(0, 80)}...
-                              </p>
+                              <div className="text-sm text-gray-600 mt-1" dangerouslySetInnerHTML={{ __html: getContent(group.module.id, phase.id).content.substring(0, 80) + '...' }} />
                             ) : (
                               <p className="text-sm text-gray-500 mt-1">Nenhum conteúdo cadastrado</p>
                             )}
@@ -253,7 +269,7 @@ export default function AdminContent() {
 
       {/* Edit Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingContent ? "Editar Conteúdo" : "Adicionar Conteúdo"}
@@ -274,14 +290,17 @@ export default function AdminContent() {
               </div>
 
               <Label htmlFor="content">Conteúdo Educacional *</Label>
-              <Textarea
-                id="content"
-                value={contentText}
-                onChange={(e) => setContentText(e.target.value)}
-                placeholder="Digite o conteúdo que será exibido como orientação para os alunos..."
-                rows={15}
-                className="font-mono text-sm"
-              />
+              <div className="border rounded-md">
+                <ReactQuill
+                  theme="snow"
+                  value={contentText}
+                  onChange={setContentText}
+                  modules={quillModules}
+                  formats={quillFormats}
+                  placeholder="Digite o conteúdo que será exibido como orientação para os alunos..."
+                  style={{ minHeight: '300px' }}
+                />
+              </div>
               <p className="text-xs text-gray-500">
                 Este conteúdo será exibido como guia quando o usuário abrir {selectedPhaseId ? "esta fase" : "este módulo"} pela primeira vez.
               </p>
