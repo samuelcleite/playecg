@@ -1,8 +1,8 @@
-
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { calculateStreakDays } from "@/components/StreakCalculator";
 import { 
   Brain, 
   Trophy, 
@@ -14,7 +14,8 @@ import {
   Calendar,
   Award,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  Sparkles
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import { motion, AnimatePresence } from "framer-motion";
 export default function Dashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [streakDays, setStreakDays] = useState(0);
   const [stats, setStats] = useState({
     totalAttempts: 0,
     correctAnswers: 0,
@@ -45,17 +47,15 @@ export default function Dashboard() {
     const paymentId = urlParams.get('payment_id');
     const paymentSuccess = urlParams.get('payment');
     
-    // Se retornou com payment=success ou do Mercado Pago com pagamento aprovado
     if (paymentSuccess === 'success' || (collectionStatus === 'approved' && paymentId)) {
       setPaymentProcessing(true);
-      // Iniciar polling para verificar se o usuário foi atualizado para premium
       pollUserStatus();
     }
   };
 
   const pollUserStatus = async () => {
     let attempts = 0;
-    const maxAttempts = 20; // 20 tentativas = 40 segundos (2s de intervalo)
+    const maxAttempts = 20;
     
     const checkStatus = async () => {
       try {
@@ -66,10 +66,8 @@ export default function Dashboard() {
           setPaymentSuccess(true);
           setUser(userData);
           
-          // Limpar os parâmetros da URL
           window.history.replaceState({}, '', createPageUrl('Dashboard'));
           
-          // Esconder mensagem de sucesso após 5 segundos
           setTimeout(() => {
             setPaymentSuccess(false);
           }, 5000);
@@ -79,14 +77,12 @@ export default function Dashboard() {
         
         attempts++;
         if (attempts < maxAttempts) {
-          setTimeout(checkStatus, 2000); // Verificar novamente em 2 segundos
+          setTimeout(checkStatus, 2000);
         } else {
-          // Após 40 segundos, parar de tentar e mostrar mensagem
           setPaymentProcessing(false);
-          setPaymentSuccess(true); // Mostrar mensagem mesmo sem confirmação automática
+          setPaymentSuccess(true);
           window.history.replaceState({}, '', createPageUrl('Dashboard'));
           
-          // Recarregar dados
           loadData();
         }
       } catch (error) {
@@ -108,11 +104,14 @@ export default function Dashboard() {
     const userData = await base44.auth.me();
     setUser(userData);
 
-    // Verificar se o perfil foi completado
     if (!userData.profile_completed) {
       navigate(createPageUrl("CompleteProfile"));
       return;
     }
+
+    // Calcular streak_days a partir de QuizAttempt
+    const streak = await calculateStreakDays(userData.email);
+    setStreakDays(streak);
 
     const attempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", 100);
     const correctCount = attempts.filter(a => a.correct).length;
@@ -129,7 +128,7 @@ export default function Dashboard() {
 
   const badges = [
     { id: "first_correct", name: "Primeira Acerto", icon: "🎯", earned: (user?.badges || []).includes("first_correct") },
-    { id: "streak_7", name: "7 Dias Seguidos", icon: "🔥", earned: (user?.badges || []).includes("streak_7") },
+    { id: "streak_7", name: "7 Dias Seguidos", icon: "🔥", earned: streakDays >= 7 },
     { id: "level_5", name: "Nível 5", icon: "⭐", earned: (user?.level || 1) >= 5 },
     { id: "master", name: "Mestre do ECG", icon: "👑", earned: (user?.badges || []).includes("master") },
   ];
@@ -248,7 +247,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div className="text-purple-900">
                   <p className="text-sm font-medium opacity-90">Sequência</p>
-                  <p className="text-3xl font-bold mt-1">{user?.streak_days || 0} dias</p>
+                  <p className="text-3xl font-bold mt-1">{streakDays} dias</p>
                 </div>
                 <div className="w-12 h-12 bg-white/50 rounded-xl flex items-center justify-center">
                   <Zap className="w-6 h-6 text-purple-700" />

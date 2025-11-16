@@ -14,7 +14,7 @@ import AdminCouponStats from './pages/AdminCouponStats';
 import ModulePhases from './pages/ModulePhases';
 import AdminPayments from './pages/AdminPayments';
 import AdminUsers from './pages/AdminUsers';
-import Layout from './Layout.jsx';
+import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
@@ -39,5 +39,5 @@ export const PAGES = {
 export const pagesConfig = {
     mainPage: "Dashboard",
     Pages: PAGES,
-    Layout: Layout,
+    Layout: __Layout,
 };

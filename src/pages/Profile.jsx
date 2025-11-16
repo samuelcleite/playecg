@@ -1,6 +1,6 @@
-
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { calculateStreakDays } from "@/components/StreakCalculator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -36,6 +36,7 @@ import { motion } from "framer-motion";
 
 export default function Profile() {
   const [user, setUser] = useState(null);
+  const [streakDays, setStreakDays] = useState(0);
   const [stats, setStats] = useState({
     totalAttempts: 0,
     correctAnswers: 0,
@@ -71,6 +72,10 @@ export default function Profile() {
       city: userData.city || ""
     });
 
+    // Calcular streak_days a partir de QuizAttempt
+    const streak = await calculateStreakDays(userData.email);
+    setStreakDays(streak);
+
     const attempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email });
     const correctCount = attempts.filter(a => a.correct).length;
     
@@ -85,11 +90,10 @@ export default function Profile() {
       completedModules: completedCount
     });
 
-    // Carregar informações da assinatura se for premium
     if (userData.subscription_type === 'premium') {
       await loadSubscriptionInfo();
     } else {
-      setSubscriptionInfo(null); // Clear subscription info if no longer premium
+      setSubscriptionInfo(null);
     }
   };
 
@@ -116,8 +120,6 @@ export default function Profile() {
       } else {
         console.warn('⚠️ No subscription info available, using fallback data');
         
-        // Se não houver pagamentos mas o usuário é premium (ativado manualmente),
-        // usar dados da data de início da assinatura ou data de criação do usuário
         const startDate = user?.subscription_start_date 
           ? new Date(user.subscription_start_date)
           : new Date(user?.created_date);
@@ -126,7 +128,7 @@ export default function Profile() {
         nextRenewal.setDate(nextRenewal.getDate() + 30);
 
         setSubscriptionInfo({
-          amount: 10.00, // Preço padrão
+          amount: 10.00,
           lastRenewal: startDate,
           nextRenewal: nextRenewal,
           paymentMethod: 'Manual',
@@ -138,7 +140,6 @@ export default function Profile() {
     } catch (error) {
       console.error('❌ Error loading subscription info:', error);
       
-      // Em caso de erro, ainda mostrar informações básicas
       const startDate = new Date(user?.subscription_start_date || user?.created_date);
       const nextRenewal = new Date(startDate);
       nextRenewal.setDate(nextRenewal.getDate() + 30);
@@ -170,11 +171,10 @@ export default function Profile() {
         setCancelSuccess(true);
         setShowCancelDialog(false);
         
-        // Recarregar dados do usuário
         setTimeout(async () => {
           await loadData();
           setCancelSuccess(false);
-        }, 3000); // Display success message for 3 seconds
+        }, 3000);
       } else {
         setCancelError(response.data.error || 'Erro ao cancelar assinatura');
       }
@@ -201,7 +201,7 @@ export default function Profile() {
       name: "Disciplina", 
       icon: "🔥", 
       description: "7 dias consecutivos praticando",
-      earned: (user?.streak_days || 0) >= 7
+      earned: streakDays >= 7
     },
     { 
       id: "accuracy_80", 
@@ -568,7 +568,7 @@ export default function Profile() {
             <div className="text-center">
               <div className="text-6xl mb-4">🔥</div>
               <p className="text-4xl font-bold text-gray-900 mb-2">
-                {user?.streak_days || 0} dias
+                {streakDays} dias
               </p>
               <p className="text-gray-600">
                 Continue praticando para manter sua sequência!

@@ -1,8 +1,8 @@
-
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { User } from "@/entities/User";
+import { calculateStreakDays } from "@/components/StreakCalculator";
 import {
   Activity,
   Home,
@@ -18,10 +18,9 @@ import {
   Image,
   Ticket,
   BarChart3,
-  CreditCard, // Added CreditCard icon
-  Users // Added Users icon for "Gerenciar Usuários"
-} from
-"lucide-react";
+  CreditCard,
+  Users
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -35,8 +34,7 @@ import {
   SidebarFooter,
   SidebarProvider,
   SidebarTrigger
-} from
-"@/components/ui/sidebar";
+} from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -44,6 +42,7 @@ import { Separator } from "@/components/ui/separator";
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const [user, setUser] = React.useState(null);
+  const [streakDays, setStreakDays] = React.useState(0);
 
   React.useEffect(() => {
     loadUser();
@@ -53,6 +52,10 @@ export default function Layout({ children, currentPageName }) {
     try {
       const userData = await User.me();
       setUser(userData);
+      
+      // Calcular streak_days a partir de QuizAttempt
+      const streak = await calculateStreakDays(userData.email);
+      setStreakDays(streak);
     } catch (error) {
       console.error("Error loading user:", error);
     }
@@ -239,8 +242,8 @@ export default function Layout({ children, currentPageName }) {
               </>
             )}
 
-            {!isPremium &&
-            <div className="mt-4 mx-2">
+            {!isPremium && (
+              <div className="mt-4 mx-2">
                 <Link to={createPageUrl("Upgrade")}>
                   <div className="bg-gradient-to-r from-amber-100 to-orange-100 rounded-xl p-4 text-amber-900 shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer border border-amber-200">
                     <div className="flex items-center gap-2 mb-2">
@@ -253,27 +256,27 @@ export default function Layout({ children, currentPageName }) {
                   </div>
                 </Link>
               </div>
-            }
+            )}
 
-            {user &&
-            <div className="mt-4 mx-2 p-4 bg-purple-50 rounded-xl border border-purple-100">
+            {user && (
+              <div className="mt-4 mx-2 p-4 bg-purple-50 rounded-xl border border-purple-100">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-gray-700">Nível {user.level || 1}</span>
                   <Badge className="bg-purple-200 text-purple-800">{user.points || 0} pts</Badge>
                 </div>
                 <div className="h-2 bg-purple-100 rounded-full overflow-hidden">
                   <div
-                  className="h-full bg-gradient-to-r from-purple-300 to-pink-300 transition-all duration-500"
-                  style={{ width: `${(user.points || 0) % 100}%` }} />
-
+                    className="h-full bg-gradient-to-r from-purple-300 to-pink-300 transition-all duration-500"
+                    style={{ width: `${(user.points || 0) % 100}%` }}
+                  />
                 </div>
               </div>
-            }
+            )}
           </SidebarContent>
 
           <SidebarFooter className="border-t border-purple-100 p-4">
-            {user &&
-            <div className="space-y-3">
+            {user && (
+              <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-purple-200 to-pink-200 rounded-full flex items-center justify-center">
                     <span className="text-purple-700 font-semibold text-sm">
@@ -286,23 +289,23 @@ export default function Layout({ children, currentPageName }) {
                     </p>
                     <div className="flex items-center gap-2">
                       <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                      {isAdmin &&
-                    <Badge className="bg-pink-200 text-pink-800 text-xs">Admin</Badge>
-                    }
+                      {isAdmin && (
+                        <Badge className="bg-pink-200 text-pink-800 text-xs">Admin</Badge>
+                      )}
                     </div>
                   </div>
                 </div>
                 <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLogout}
-                className="w-full gap-2 border-purple-200 hover:bg-purple-50">
-
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="w-full gap-2 border-purple-200 hover:bg-purple-50"
+                >
                   <LogOut className="w-4 h-4" />
                   Sair
                 </Button>
               </div>
-            }
+            )}
           </SidebarFooter>
         </Sidebar>
 
