@@ -34,6 +34,7 @@ export default function ModulePhases() {
   const [loading, setLoading] = useState(true);
   const [showGuideDialog, setShowGuideDialog] = useState(false);
   const [selectedPhase, setSelectedPhase] = useState(null);
+  const [phaseContent, setPhaseContent] = useState("");
 
   useEffect(() => {
     loadData();
@@ -93,17 +94,26 @@ export default function ModulePhases() {
     return Math.round((prog.completed_cases.length / totalCases) * 100);
   };
 
-  const handlePhaseClick = (phase) => {
+  const handlePhaseClick = async (phase) => {
     const completionPercentage = getPhaseCompletion(phase.id, phase.total_cases);
     
-    // Se o progresso é 0% e tem descrição, mostra o guia
-    if (completionPercentage === 0 && phase.description) {
-      setSelectedPhase(phase);
-      setShowGuideDialog(true);
-    } else {
-      // Navega direto para a fase
-      navigate(`${createPageUrl("ModuleDetail")}?module_id=${module.id}&phase_id=${phase.id}`);
+    // Se o progresso é 0%, busca o conteúdo
+    if (completionPercentage === 0) {
+      const contents = await base44.entities.Content.filter({ 
+        module_id: module.id,
+        phase_id: phase.id
+      });
+      
+      if (contents.length > 0 && contents[0].content) {
+        setPhaseContent(contents[0].content);
+        setSelectedPhase(phase);
+        setShowGuideDialog(true);
+        return;
+      }
     }
+    
+    // Navega direto para a fase
+    navigate(`${createPageUrl("ModuleDetail")}?module_id=${module.id}&phase_id=${phase.id}`);
   };
 
   const handleStartPhase = () => {
@@ -214,12 +224,6 @@ export default function ModulePhases() {
                                 <h3 className="text-xl font-bold text-gray-900 mb-1">
                                   {phase.name}
                                 </h3>
-                                {completionPercentage === 0 && phase.description && unlocked && (
-                                  <Badge className="bg-amber-100 text-amber-800 gap-1 mb-2">
-                                    <Lightbulb className="w-3 h-3" />
-                                    Guia disponível
-                                  </Badge>
-                                )}
                               </div>
                             </div>
 
@@ -325,7 +329,7 @@ export default function ModulePhases() {
                     Orientações para esta fase
                   </h4>
                   <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                    {selectedPhase?.description}
+                    {phaseContent}
                   </p>
                 </div>
               </div>

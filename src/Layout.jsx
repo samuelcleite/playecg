@@ -20,7 +20,8 @@ import {
   BarChart3,
   CreditCard,
   Users,
-  Award
+  Award,
+  FileText
 } from "lucide-react";
 import {
   Sidebar,
@@ -112,6 +113,11 @@ export default function Layout({ children, currentPageName }) {
       title: "Gerenciar Casos",
       url: createPageUrl("AdminCases"),
       icon: FileEdit
+    },
+    {
+      title: "Gestão de Conteúdo",
+      url: createPageUrl("AdminContent"),
+      icon: FileText
     },
     {
       title: "Gerenciar Conquistas",

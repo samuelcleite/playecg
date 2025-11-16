@@ -16,6 +16,7 @@ import AdminPayments from './pages/AdminPayments';
 import AdminUsers from './pages/AdminUsers';
 import AdminAchievements from './pages/AdminAchievements';
 import Achievements from './pages/Achievements';
+import AdminContent from './pages/AdminContent';
 import __Layout from './Layout.jsx';
 
 
@@ -38,6 +39,7 @@ export const PAGES = {
     "AdminUsers": AdminUsers,
     "AdminAchievements": AdminAchievements,
     "Achievements": Achievements,
+    "AdminContent": AdminContent,
 }
 
 export const pagesConfig = {
