@@ -21,7 +21,9 @@ import {
   Maximize2,
   Pencil,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  Crown,
+  Lock
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -30,7 +32,10 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+
+const FREE_DAILY_LIMIT = 10;
 
 export default function Quiz() {
   const navigate = useNavigate();
@@ -45,6 +50,8 @@ export default function Quiz() {
   const [allCasesCompleted, setAllCasesCompleted] = useState(false);
   const [attemptCount, setAttemptCount] = useState(0);
   const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
+  const [dailyQuizCount, setDailyQuizCount] = useState(0);
+  const [dailyLimitReached, setDailyLimitReached] = useState(false);
 
   // Zoom states
   const [showZoom, setShowZoom] = useState(false);
@@ -61,6 +68,34 @@ export default function Quiz() {
   const loadData = async () => {
     const userData = await User.me();
     setUser(userData);
+
+    // Verificar limite diário para usuários gratuitos
+    if (userData.subscription_type !== "premium") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayISO = today.toISOString();
+
+      const allAttempts = await QuizAttempt.filter({ user_email: userData.email });
+      
+      // Contar quizzes únicos completados hoje
+      const todayAttempts = allAttempts.filter(attempt => {
+        const attemptDate = new Date(attempt.created_date);
+        attemptDate.setHours(0, 0, 0, 0);
+        return attemptDate.toISOString() === todayISO;
+      });
+
+      // Contar casos únicos (um caso = um quiz)
+      const uniqueCasesToday = new Set(todayAttempts.map(a => a.case_id));
+      const count = uniqueCasesToday.size;
+      
+      setDailyQuizCount(count);
+
+      if (count >= FREE_DAILY_LIMIT) {
+        setDailyLimitReached(true);
+        setLoading(false);
+        return;
+      }
+    }
 
     const attempts = await QuizAttempt.filter({ user_email: userData.email });
     const attemptedIds = attempts.map(attempt => attempt.case_id);
@@ -152,6 +187,16 @@ export default function Quiz() {
 
       const updatedAttemptedIds = [...attemptedCaseIds, currentCase.id];
       setAttemptedCaseIds(updatedAttemptedIds);
+
+      // Atualizar contador diário para usuários gratuitos
+      if (user.subscription_type !== "premium") {
+        const newCount = dailyQuizCount + 1;
+        setDailyQuizCount(newCount);
+        
+        if (newCount >= FREE_DAILY_LIMIT) {
+          setDailyLimitReached(true);
+        }
+      }
 
       if (correct) {
         await User.update(user.id, {
@@ -303,7 +348,7 @@ export default function Quiz() {
 
   const isPremium = user?.subscription_type === "premium";
 
-  const createPageUrl = (pageName) => {
+  const createPageUrlLocal = (pageName) => {
     if (pageName === "AdminCases" && currentCase?.id) {
       return `/admin/cases/${currentCase.id}/edit`;
     }
@@ -318,6 +363,55 @@ export default function Quiz() {
           <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
           <p className="text-gray-600">Carregando caso...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Daily limit reached for free users
+  if (dailyLimitReached && !isPremium) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <Card className="max-w-md border-2 border-amber-200 shadow-lg">
+          <CardContent className="p-8 text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-8 h-8 text-amber-600" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2 text-gray-900">Limite Diário Atingido</h2>
+            <p className="text-gray-600 mb-4">
+              Você completou {FREE_DAILY_LIMIT} quizzes hoje! 🎉
+            </p>
+            <p className="text-gray-600 mb-6">
+              Volte amanhã para continuar praticando ou faça upgrade para Premium e tenha acesso ilimitado.
+            </p>
+            
+            <Alert className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200">
+              <Crown className="w-5 h-5 text-amber-600" />
+              <AlertDescription className="text-amber-900 ml-2">
+                <strong>Com Premium você tem:</strong>
+                <ul className="list-disc list-inside mt-2 text-left space-y-1">
+                  <li>Quizzes ilimitados por dia</li>
+                  <li>Módulos estruturados</li>
+                  <li>Explicações detalhadas</li>
+                  <li>Gamificação completa</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
+
+            <div className="flex flex-col gap-3">
+              <Link to={createPageUrl("Upgrade")} className="w-full">
+                <Button className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2">
+                  <Crown className="w-5 h-5" />
+                  Fazer Upgrade Premium
+                </Button>
+              </Link>
+              <Link to={createPageUrl("Dashboard")} className="w-full">
+                <Button variant="outline" className="w-full">
+                  Voltar ao Dashboard
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -380,6 +474,27 @@ export default function Quiz() {
           </div>
         </div>
 
+        {/* Daily Limit Warning for Free Users */}
+        {!isPremium && dailyQuizCount > 0 && (
+          <Alert className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200">
+            <AlertDescription className="text-amber-900">
+              <div className="flex items-center justify-between">
+                <span>
+                  <strong>Quizzes hoje:</strong> {dailyQuizCount}/{FREE_DAILY_LIMIT}
+                </span>
+                {dailyQuizCount >= FREE_DAILY_LIMIT - 2 && (
+                  <Link to={createPageUrl("Upgrade")}>
+                    <Button size="sm" variant="outline" className="gap-2 border-amber-300 hover:bg-amber-100">
+                      <Crown className="w-4 h-4" />
+                      Ver Premium
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Case Card */}
         <Card className="border border-purple-100 shadow-lg">
           <CardContent className="p-8">
@@ -398,7 +513,7 @@ export default function Quiz() {
                 )}
                 {!isPremium && (
                   <Badge className="bg-blue-100 text-blue-800 border border-blue-200">
-                    Quiz Gratuito - Acesso Ilimitado
+                    Quiz Gratuito - {FREE_DAILY_LIMIT} por dia
                   </Badge>
                 )}
               </div>
@@ -406,7 +521,7 @@ export default function Quiz() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(`${createPageUrl("AdminCases")}?edit_case=${currentCase.id}`)}
+                  onClick={() => navigate(`${createPageUrlLocal("AdminCases")}?edit_case=${currentCase.id}`)}
                   className="gap-2 border-purple-200 hover:bg-purple-50"
                 >
                   <Pencil className="w-4 h-4" />
