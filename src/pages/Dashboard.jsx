@@ -127,12 +127,13 @@ export default function Dashboard() {
 
     setStats(statsData);
 
-    // Carregar conquistas dinâmicas
+    // Carregar todas as conquistas
     const userAchievements = await loadUserAchievements(userData, statsData, streak);
-    setAchievements(userAchievements.slice(0, 4)); // Mostrar apenas 4 no dashboard
+    setAchievements(userAchievements);
   };
 
   const isPremium = user?.subscription_type === "premium";
+  const earnedAchievements = achievements.filter(a => a.earned);
 
   return (
     <div className="min-h-screen p-6 md:p-8">
@@ -327,31 +328,31 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Badges */}
-        {achievements.length > 0 && (
+        {/* Conquistas Atingidas */}
+        {earnedAchievements.length > 0 && (
           <Card className="border border-purple-100 shadow-md">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-gray-800">
                 <Award className="w-6 h-6 text-purple-600" />
-                Conquistas
+                Conquistas Atingidas
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {achievements.map(achievement => (
-                  <div
+                {earnedAchievements.map((achievement, index) => (
+                  <motion.div
                     key={achievement.id}
-                    className={`p-4 rounded-xl text-center transition-all duration-300 ${
-                      achievement.earned 
-                        ? 'bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-300' 
-                        : 'bg-gray-50 opacity-50 border border-gray-200'
-                    }`}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="p-4 rounded-xl text-center transition-all duration-300 bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-300"
                   >
                     <div className="text-4xl mb-2">{achievement.icon}</div>
-                    <p className={`text-sm font-medium ${achievement.earned ? 'text-gray-800' : 'text-gray-500'}`}>
+                    <p className="text-sm font-medium text-gray-800 mb-1">
                       {achievement.name}
                     </p>
-                  </div>
+                    <p className="text-xs text-gray-600">{achievement.description}</p>
+                  </motion.div>
                 ))}
               </div>
             </CardContent>
