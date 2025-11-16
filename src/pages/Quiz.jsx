@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { User } from "@/entities/User";
 import { ECGCase } from "@/entities/ECGCase";
 import { QuizAttempt } from "@/entities/QuizAttempt";
@@ -13,12 +12,15 @@ import {
   ArrowRight,
   Loader2,
   Heart,
+  Clock,
   Lightbulb,
   ZoomIn,
   ZoomOut,
   RotateCcw,
+  X as CloseIcon,
   Maximize2,
-  Pencil
+  Pencil,
+  RefreshCw
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -33,11 +35,13 @@ export default function Quiz() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [currentCase, setCurrentCase] = useState(null);
-  const [selectedAnswers, setSelectedAnswers] = useState([]); // Changed from selectedAnswer to selectedAnswers array
+  const [selectedAnswers, setSelectedAnswers] = useState([]);
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [loading, setLoading] = useState(true);
   const [startTime, setStartTime] = useState(null);
+  const [attemptedCaseIds, setAttemptedCaseIds] = useState([]);
+  const [allCasesCompleted, setAllCasesCompleted] = useState(false);
 
   // Zoom states
   const [showZoom, setShowZoom] = useState(false);
@@ -54,55 +58,67 @@ export default function Quiz() {
   const loadData = async () => {
     const userData = await User.me();
     setUser(userData);
-    await loadNextCase();
+
+    // Carregar todos os casos já respondidos pelo usuário
+    const attempts = await QuizAttempt.filter({ user_email: userData.email });
+    const attemptedIds = attempts.map(attempt => attempt.case_id);
+    setAttemptedCaseIds(attemptedIds);
+
+    await loadNextCase(attemptedIds);
   };
 
-  const loadNextCase = async () => {
+  const loadNextCase = async (attemptedIds = attemptedCaseIds) => {
     setLoading(true);
-    setSelectedAnswers([]); // Reset selected answers
+    setSelectedAnswers([]);
     setShowResult(false);
+    setAllCasesCompleted(false);
 
-    // Buscar TODOS os casos disponíveis, independente de módulo/fase
-    // Usuários free têm acesso a todos os casos no modo quiz aleatório
-    const cases = await ECGCase.list();
+    // Buscar todos os casos disponíveis
+    const allCases = await ECGCase.list();
 
-    if (cases.length > 0) {
-      // Selecionar um caso completamente aleatório
-      const randomCase = cases[Math.floor(Math.random() * cases.length)];
+    // Filtrar casos que ainda não foram respondidos
+    const unansweredCases = allCases.filter(c => !attemptedIds.includes(c.id));
+
+    if (unansweredCases.length > 0) {
+      // Selecionar um caso aleatório entre os não respondidos
+      const randomCase = unansweredCases[Math.floor(Math.random() * unansweredCases.length)];
       setCurrentCase(randomCase);
       setStartTime(Date.now());
+    } else if (allCases.length > 0) {
+      // Todos os casos foram respondidos
+      setAllCasesCompleted(true);
+      setCurrentCase(null);
+    } else {
+      // Não há casos cadastrados
+      setCurrentCase(null);
     }
+    
     setLoading(false);
   };
 
-  const handleAnswerToggle = (answer) => { // Renamed from handleAnswer
+  const handleAnswerToggle = (answer) => {
     if (showResult) return;
 
     if (currentCase.multiple_correct) {
-      // Modo múltiplas respostas
       if (selectedAnswers.includes(answer)) {
         setSelectedAnswers(selectedAnswers.filter(a => a !== answer));
       } else {
         setSelectedAnswers([...selectedAnswers, answer]);
       }
     } else {
-      // Modo resposta única
       setSelectedAnswers([answer]);
     }
   };
 
-  const handleSubmitAnswer = async () => { // New function to submit answers
+  const handleSubmitAnswer = async () => {
     if (selectedAnswers.length === 0 || showResult) return;
 
-    // Obter respostas corretas (compatibilidade com versão antiga)
     const correctAnswers = currentCase.correct_answers && currentCase.correct_answers.length > 0
       ? currentCase.correct_answers
       : [currentCase.correct_diagnosis];
 
-    // Verificar se está correto
     let correct = false;
     if (currentCase.multiple_correct) {
-      // Todas as respostas selecionadas devem estar corretas E todas as corretas devem estar selecionadas
       const selectedSet = new Set(selectedAnswers);
       const correctSet = new Set(correctAnswers);
       correct = selectedSet.size === correctSet.size &&
@@ -120,11 +136,15 @@ export default function Quiz() {
     await QuizAttempt.create({
       user_email: user.email,
       case_id: currentCase.id,
-      user_answer: selectedAnswers.join(", "), // Store multiple answers as a comma-separated string
+      user_answer: selectedAnswers.join(", "),
       correct: correct,
       time_spent: timeSpent,
       points_earned: pointsEarned
     });
+
+    // Adicionar caso atual à lista de casos respondidos
+    const updatedAttemptedIds = [...attemptedCaseIds, currentCase.id];
+    setAttemptedCaseIds(updatedAttemptedIds);
 
     if (correct) {
       await User.update(user.id, {
@@ -135,6 +155,13 @@ export default function Quiz() {
     }
   };
 
+  const handleResetProgress = async () => {
+    setLoading(true);
+    setAllCasesCompleted(false);
+    setAttemptedCaseIds([]);
+    await loadNextCase([]);
+  };
+
   const handleZoomIn = () => {
     setZoomLevel((prev) => Math.min(prev + 0.5, 4));
   };
@@ -142,7 +169,6 @@ export default function Quiz() {
   const handleZoomOut = () => {
     setZoomLevel((prev) => {
       const newZoom = Math.max(prev - 0.5, 1);
-      // Reset position if zooming out past a certain point (e.g., 1.5 or 1)
       if (newZoom <= 1.5) {
         setPosition({ x: 0, y: 0 });
       }
@@ -155,7 +181,6 @@ export default function Quiz() {
     setPosition({ x: 0, y: 0 });
   };
 
-  // Mouse events
   const handleMouseDown = (e) => {
     if (zoomLevel > 1) {
       e.preventDefault();
@@ -181,7 +206,6 @@ export default function Quiz() {
     setIsDragging(false);
   };
 
-  // Touch events for mobile
   const getTouchDistance = (touches) => {
     const dx = touches[0].clientX - touches[1].clientX;
     const dy = touches[0].clientY - touches[1].clientY;
@@ -190,7 +214,6 @@ export default function Quiz() {
 
   const handleTouchStart = (e) => {
     if (e.touches.length === 1 && zoomLevel > 1) {
-      // Single touch for panning
       e.preventDefault();
       setIsDragging(true);
       setDragStart({
@@ -198,24 +221,21 @@ export default function Quiz() {
         y: e.touches[0].clientY - position.y
       });
     } else if (e.touches.length === 2) {
-      // Two fingers for pinch zoom
       e.preventDefault();
       const distance = getTouchDistance(e.touches);
       setLastTouchDistance(distance);
-      setIsDragging(false); // Stop dragging if pinch starts
+      setIsDragging(false);
     }
   };
 
   const handleTouchMove = (e) => {
     if (e.touches.length === 1 && isDragging && zoomLevel > 1) {
-      // Single touch panning
       e.preventDefault();
       setPosition({
         x: e.touches[0].clientX - dragStart.x,
         y: e.touches[0].clientY - dragStart.y
       });
     } else if (e.touches.length === 2) {
-      // Pinch zoom
       e.preventDefault();
       const distance = getTouchDistance(e.touches);
       if (lastTouchDistance > 0) {
@@ -223,14 +243,14 @@ export default function Quiz() {
         setZoomLevel((prev) => {
           const newZoom = prev * scale;
           const clampedZoom = Math.max(1, Math.min(4, newZoom));
-          if (clampedZoom <= 1.5) { // Reset if zooming out past 1.5
+          if (clampedZoom <= 1.5) {
             setPosition({ x: 0, y: 0 });
           }
           return clampedZoom;
         });
       }
       setLastTouchDistance(distance);
-      setIsDragging(false); // Ensure dragging is false during pinch
+      setIsDragging(false);
     }
   };
 
@@ -241,14 +261,13 @@ export default function Quiz() {
     }
   };
 
-  // Wheel event for desktop zoom
   const handleWheel = (e) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1; // Negative deltaY means scroll up (zoom in)
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
     setZoomLevel((prev) => {
       const newZoom = prev + delta;
       const clampedZoom = Math.max(1, Math.min(4, newZoom));
-      if (clampedZoom <= 1.5) { // Apply the same logic for wheel
+      if (clampedZoom <= 1.5) {
         setPosition({ x: 0, y: 0 });
       }
       return clampedZoom;
@@ -271,15 +290,12 @@ export default function Quiz() {
 
   const isPremium = user?.subscription_type === "premium";
 
-  // Placeholder for createPageUrl based on the outline's usage
-  // Assuming "AdminCases" for "Editar Caso" means navigating to the edit page for the current case.
   const createPageUrl = (pageName) => {
     if (pageName === "AdminCases" && currentCase?.id) {
       return `/admin/cases/${currentCase.id}/edit`;
     }
-    // Default fallback if pageName is not handled or currentCase.id is missing
     console.warn(`createPageUrl called with unhandled pageName: ${pageName}`);
-    return "/"; // Or a more appropriate default route for unknown pages
+    return "/";
   };
 
   if (loading) {
@@ -289,6 +305,29 @@ export default function Quiz() {
           <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
           <p className="text-gray-600">Carregando caso...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (allCasesCompleted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <Card className="max-w-md border-2 border-green-200 shadow-lg">
+          <CardContent className="p-8 text-center">
+            <div className="text-6xl mb-4">🎉</div>
+            <h2 className="text-2xl font-bold mb-2 text-gray-900">Parabéns!</h2>
+            <p className="text-gray-600 mb-6">
+              Você completou todos os casos de ECG disponíveis! Quer recomeçar e praticar novamente?
+            </p>
+            <Button
+              onClick={handleResetProgress}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white gap-2"
+            >
+              <RefreshCw className="w-5 h-5" />
+              Recomeçar Quiz
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -307,7 +346,6 @@ export default function Quiz() {
     );
   }
 
-  // Obter respostas corretas (compatibilidade com versão antiga)
   const correctAnswers = currentCase.correct_answers && currentCase.correct_answers.length > 0
     ? currentCase.correct_answers
     : [currentCase.correct_diagnosis];
@@ -528,7 +566,7 @@ export default function Quiz() {
                   )}
 
                   <Button
-                    onClick={loadNextCase}
+                    onClick={() => loadNextCase()}
                     className="w-full mt-6 bg-gradient-to-r from-purple-200 to-pink-200 hover:from-purple-300 hover:to-pink-300 text-purple-900 gap-2 border border-purple-300"
                   >
                     Próximo Caso
