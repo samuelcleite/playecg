@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { User } from "@/entities/User";
 import { ECGCase } from "@/entities/ECGCase";
 import { Module } from "@/entities/Module";
@@ -326,9 +325,14 @@ export default function AdminCases() {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Gerenciar Casos de ECG</h1>
-            <p className="text-gray-500 mt-1">Adicione e edite casos por módulo e fase</p>
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Gerenciar Casos de ECG</h1>
+              <p className="text-gray-500 mt-1">Adicione e edite casos por módulo e fase</p>
+            </div>
+            <Badge className="bg-purple-100 text-purple-800 text-lg px-4 py-2">
+              {cases.length} caso{cases.length !== 1 ? 's' : ''}
+            </Badge>
           </div>
           <Button
             onClick={() => handleOpenDialog()}
