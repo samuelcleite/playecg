@@ -723,23 +723,23 @@ export default function ModuleDetail() {
       {/* Zoom Dialog */}
       <Dialog open={showZoom} onOpenChange={closeZoom}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 border-purple-200">
-          <DialogHeader className="px-6 pt-6 pb-2">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="flex items-center gap-2 text-gray-800">
-                <Maximize2 className="w-5 h-5" />
+          <DialogHeader className="px-4 pt-4 pb-3 md:px-6 md:pt-6">
+            <div className="flex flex-col gap-3">
+              <DialogTitle className="flex items-center gap-2 text-gray-800 text-base md:text-lg">
+                <Maximize2 className="w-4 h-4 md:w-5 md:h-5" />
                 Visualização Ampliada
               </DialogTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 justify-center md:justify-start flex-wrap">
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={handleZoomOut}
                   disabled={zoomLevel <= 1}
-                  className="border-purple-200 hover:bg-purple-50"
+                  className="border-purple-200 hover:bg-purple-50 h-9 w-9"
                 >
                   <ZoomOut className="w-4 h-4" />
                 </Button>
-                <Badge variant="outline" className="px-3 border-purple-200">
+                <Badge variant="outline" className="px-3 py-1 border-purple-200">
                   {Math.round(zoomLevel * 100)}%
                 </Badge>
                 <Button
@@ -747,7 +747,7 @@ export default function ModuleDetail() {
                   size="icon"
                   onClick={handleZoomIn}
                   disabled={zoomLevel >= 4}
-                  className="border-purple-200 hover:bg-purple-50"
+                  className="border-purple-200 hover:bg-purple-50 h-9 w-9"
                 >
                   <ZoomIn className="w-4 h-4" />
                 </Button>
@@ -755,7 +755,7 @@ export default function ModuleDetail() {
                   variant="outline"
                   size="icon"
                   onClick={handleResetZoom}
-                  className="border-purple-200 hover:bg-purple-50"
+                  className="border-purple-200 hover:bg-purple-50 h-9 w-9"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </Button>
@@ -763,10 +763,10 @@ export default function ModuleDetail() {
             </div>
           </DialogHeader>
 
-          <div className="px-6 pb-6">
+          <div className="px-4 pb-4 md:px-6 md:pb-6">
             <div
               className="relative bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg overflow-hidden touch-none border border-purple-200"
-              style={{ height: '70vh' }}
+              style={{ height: '60vh' }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
