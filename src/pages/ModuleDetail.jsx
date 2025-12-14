@@ -25,7 +25,8 @@ import {
   RotateCcw,
   Pencil,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  AlertCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -50,6 +51,12 @@ export default function ModuleDetail() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [lastTouchDistance, setLastTouchDistance] = useState(0);
+
+  // Report Error states
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [reportErrorType, setReportErrorType] = useState("");
+  const [reportErrorDescription, setReportErrorDescription] = useState("");
+  const [reportingError, setReportingError] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -331,6 +338,32 @@ export default function ModuleDetail() {
     setLastTouchDistance(0);
   };
 
+  const handleReportError = async () => {
+    if (!reportErrorDescription.trim()) {
+      return;
+    }
+
+    setReportingError(true);
+    try {
+      await base44.functions.invoke('reportCaseError', {
+        case_id: currentCase.id,
+        case_title: currentCase.title,
+        error_description: reportErrorDescription,
+        error_type: reportErrorType
+      });
+
+      setShowReportDialog(false);
+      setReportErrorType("");
+      setReportErrorDescription("");
+      alert("Erro reportado com sucesso! Obrigado pelo feedback.");
+    } catch (error) {
+      console.error("Error reporting case:", error);
+      alert("Erro ao reportar. Tente novamente.");
+    } finally {
+      setReportingError(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -425,17 +458,28 @@ export default function ModuleDetail() {
                   </Badge>
                 )}
               </div>
-              {user?.role === "admin" && (
+              <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(`${createPageUrl("AdminCases")}?edit_case=${currentCase.id}`)}
-                  className="gap-2 border-purple-200 hover:bg-purple-50"
+                  onClick={() => setShowReportDialog(true)}
+                  className="gap-2 border-red-200 hover:bg-red-50 text-red-600"
                 >
-                  <Pencil className="w-4 h-4" />
-                  Editar Caso
+                  <AlertCircle className="w-4 h-4" />
+                  Reportar Erro
                 </Button>
-              )}
+                {user?.role === "admin" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`${createPageUrl("AdminCases")}?edit_case=${currentCase.id}`)}
+                    className="gap-2 border-purple-200 hover:bg-purple-50"
+                  >
+                    <Pencil className="w-4 h-4" />
+                    Editar Caso
+                  </Button>
+                )}
+              </div>
             </div>
 
             {/* Patient Info */}
@@ -762,6 +806,78 @@ export default function ModuleDetail() {
                   <span className="md:hidden">Use os botões acima ou dois dedos para aplicar zoom (pinch)</span>
                 </p>
               )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Report Error Dialog */}
+      <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="w-5 h-5" />
+              Reportar Erro no Caso
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">
+                Tipo de Erro
+              </label>
+              <select
+                value={reportErrorType}
+                onChange={(e) => setReportErrorType(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              >
+                <option value="">Selecione o tipo</option>
+                <option value="Imagem incorreta">Imagem incorreta</option>
+                <option value="Resposta incorreta">Resposta incorreta</option>
+                <option value="Explicação errada">Explicação errada</option>
+                <option value="Informação do paciente">Informação do paciente</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">
+                Descrição do Erro *
+              </label>
+              <textarea
+                value={reportErrorDescription}
+                onChange={(e) => setReportErrorDescription(e.target.value)}
+                placeholder="Descreva o erro encontrado..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 min-h-[100px]"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowReportDialog(false);
+                  setReportErrorType("");
+                  setReportErrorDescription("");
+                }}
+                disabled={reportingError}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleReportError}
+                disabled={!reportErrorDescription.trim() || reportingError}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {reportingError ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  "Enviar Reporte"
+                )}
+              </Button>
             </div>
           </div>
         </DialogContent>
