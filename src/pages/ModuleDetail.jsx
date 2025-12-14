@@ -532,7 +532,7 @@ export default function ModuleDetail() {
                   <Button
                     key={index}
                     variant="outline"
-                    className={`w-full justify-start text-left p-6 h-auto transition-all duration-300 ${
+                    className={`w-full justify-start text-left p-6 h-auto min-h-[60px] transition-all duration-300 ${
                       showAsCorrect || showAsCorrectAfterFail
                         ? 'bg-green-50 border-green-500 border-2'
                         : showAsIncorrect
@@ -544,8 +544,8 @@ export default function ModuleDetail() {
                     onClick={() => handleAnswerToggle(option)}
                     disabled={showResult && (isCorrect || showCorrectAnswer)}
                   >
-                    <div className="flex items-center gap-3 w-full">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    <div className="flex items-start gap-3 w-full">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
                         showAsCorrect || showAsCorrectAfterFail
                           ? 'bg-green-500'
                           : showAsIncorrect
@@ -564,7 +564,7 @@ export default function ModuleDetail() {
                           <CheckCircle2 className="w-5 h-5 text-white" />
                         )}
                       </div>
-                      <span className="flex-1 font-medium">{option}</span>
+                      <span className="flex-1 font-medium whitespace-normal break-words">{option}</span>
                     </div>
                   </Button>
                 );

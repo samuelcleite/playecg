@@ -625,7 +625,7 @@ export default function Quiz() {
                     >
                       <Button
                         variant="outline"
-                        className={`w-full justify-start text-left p-6 h-auto transition-all duration-300 ${
+                        className={`w-full justify-start text-left p-6 h-auto min-h-[60px] transition-all duration-300 ${
                           showAsCorrect || showAsCorrectAfterFail
                             ? 'bg-green-50 border-green-300 border-2'
                             : showAsIncorrect
@@ -637,8 +637,8 @@ export default function Quiz() {
                         onClick={() => handleAnswerToggle(option)}
                         disabled={showResult && (isCorrect || showCorrectAnswer)}
                       >
-                        <div className="flex items-center gap-3 w-full">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        <div className="flex items-start gap-3 w-full">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
                             showAsCorrect || showAsCorrectAfterFail
                               ? 'bg-green-300 border-2 border-green-400'
                               : showAsIncorrect
@@ -657,7 +657,7 @@ export default function Quiz() {
                               <CheckCircle2 className="w-5 h-5 text-purple-700" />
                             )}
                           </div>
-                          <span className="flex-1 font-medium text-gray-800">{option}</span>
+                          <span className="flex-1 font-medium text-gray-800 whitespace-normal break-words">{option}</span>
                         </div>
                       </Button>
                     </motion.div>
