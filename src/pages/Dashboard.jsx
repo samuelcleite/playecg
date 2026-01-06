@@ -135,6 +135,43 @@ export default function Dashboard() {
     // Carregar todas as conquistas
     const userAchievements = await loadUserAchievements(userData, statsData, streak);
     setAchievements(userAchievements);
+
+    // Buscar próxima fase não completada para usuários premium
+    if (userData.subscription_type === "premium") {
+      await findNextIncompletePhase(userData.email);
+    }
+  };
+
+  const findNextIncompletePhase = async (userEmail) => {
+    try {
+      const modules = await base44.entities.Module.list("order");
+      const phases = await base44.entities.Phase.list("order");
+      const userProgress = await base44.entities.UserProgress.filter({ user_email: userEmail });
+
+      // Procurar a primeira fase não completada
+      for (const module of modules) {
+        const modulePhasesOrdered = phases
+          .filter(p => p.module_id === module.id)
+          .sort((a, b) => a.order - b.order);
+
+        for (const phase of modulePhasesOrdered) {
+          const phaseProgress = userProgress.find(
+            p => p.module_id === module.id && p.phase_id === phase.id
+          );
+
+          if (!phaseProgress || !phaseProgress.completed) {
+            setNextIncompletePhase({
+              module,
+              phase,
+              progress: phaseProgress
+            });
+            return;
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error finding next incomplete phase:", error);
+    }
   };
 
   const isPremium = user?.subscription_type === "premium";
@@ -205,7 +242,41 @@ export default function Dashboard() {
           )}
         </div>
 
-
+        {/* Continue Learning CTA - Premium Only */}
+        {isPremium && nextIncompletePhase && (
+          <Link to={`${createPageUrl("ModuleDetail")}?module_id=${nextIncompletePhase.module.id}&phase_id=${nextIncompletePhase.phase.id}`}>
+            <Card className="border-2 border-indigo-300 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <BookOpen className="w-7 h-7 text-white" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge className="bg-indigo-200 text-indigo-900 border border-indigo-300">
+                          Continue de onde parou
+                        </Badge>
+                      </div>
+                      <h3 className="text-lg font-bold text-gray-900">
+                        {nextIncompletePhase.module.name} - {nextIncompletePhase.phase.name}
+                      </h3>
+                      {nextIncompletePhase.progress && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          {nextIncompletePhase.progress.completed_cases.length} de {nextIncompletePhase.phase.total_cases} casos completados
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white gap-2">
+                    Continuar
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
 
         {/* Main Actions */}
         <div className="grid md:grid-cols-2 gap-6">
