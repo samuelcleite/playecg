@@ -16,7 +16,8 @@ import {
   Award,
   Loader2,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  ArrowRight
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ export default function Dashboard() {
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [achievements, setAchievements] = useState([]);
+  const [nextIncompletePhase, setNextIncompletePhase] = useState(null);
 
   useEffect(() => {
     checkPaymentReturn();
