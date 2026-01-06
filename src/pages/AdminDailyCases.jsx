@@ -26,7 +26,9 @@ import {
   Trash2,
   Loader2,
   Search,
-  Sparkles
+  Sparkles,
+  FileText,
+  CheckCircle
 } from "lucide-react";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -465,10 +467,82 @@ export default function AdminDailyCases() {
               </Select>
             </div>
 
+            {formData.ecg_case_id && (() => {
+              const selectedCase = ecgCases.find(c => c.id === formData.ecg_case_id);
+              if (!selectedCase) return null;
+              
+              const correctAnswers = selectedCase.correct_answers && selectedCase.correct_answers.length > 0
+                ? selectedCase.correct_answers
+                : [selectedCase.correct_diagnosis];
+              
+              return (
+                <div className="space-y-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                  <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    Visualização do Caso Selecionado
+                  </h4>
+                  
+                  {selectedCase.image_url && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">Imagem do ECG:</p>
+                      <img 
+                        src={selectedCase.image_url} 
+                        alt="ECG" 
+                        className="w-full rounded-lg border border-gray-300"
+                      />
+                    </div>
+                  )}
+                  
+                  {selectedCase.patient_info && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-1">Informações do Paciente:</p>
+                      <p className="text-sm text-gray-600 bg-white p-2 rounded">{selectedCase.patient_info}</p>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Alternativas:</p>
+                    <div className="space-y-2">
+                      {selectedCase.options?.map((option, index) => {
+                        const isCorrect = correctAnswers.includes(option);
+                        return (
+                          <div 
+                            key={index}
+                            className={`p-3 rounded-lg border-2 ${
+                              isCorrect 
+                                ? 'bg-green-50 border-green-300' 
+                                : 'bg-white border-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              {isCorrect && (
+                                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                              )}
+                              <span className="text-sm text-gray-800">{option}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  {selectedCase.explanation && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-1">Explicação Original do Caso:</p>
+                      <p className="text-sm text-gray-600 bg-white p-3 rounded">{selectedCase.explanation}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">
-                Explicação Detalhada *
+                Explicação Detalhada para o Caso do Dia *
               </label>
+              <p className="text-xs text-gray-500 mb-2">
+                Escreva uma explicação mais rica e detalhada especificamente para o caso do dia
+              </p>
               <ReactQuill
                 value={formData.detailed_explanation}
                 onChange={(value) => setFormData({ ...formData, detailed_explanation: value })}
