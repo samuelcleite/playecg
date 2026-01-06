@@ -65,6 +65,11 @@ export default function Quiz() {
   const [reportErrorDescription, setReportErrorDescription] = useState("");
   const [reportingError, setReportingError] = useState(false);
 
+  // Content suggestion states
+  const [showContentSuggestionDialog, setShowContentSuggestionDialog] = useState(false);
+  const [suggestedModuleId, setSuggestedModuleId] = useState(null);
+  const [suggestedPhaseId, setSuggestedPhaseId] = useState(null);
+
   // Zoom states
   const [showZoom, setShowZoom] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -220,6 +225,25 @@ export default function Quiz() {
         correct: correct,
         time_spent: timeSpent
       });
+
+      // Verificar se o usuário errou 5 questões da mesma fase
+      if (!correct && currentCase.module_id && currentCase.phase_id) {
+        const incorrectAttemptsInPhase = await QuizAttempt.filter({
+          user_email: user.email,
+          module_id: currentCase.module_id,
+          phase_id: currentCase.phase_id,
+          correct: false
+        });
+
+        // Contar casos únicos errados nesta fase
+        const uniqueIncorrectCases = new Set(incorrectAttemptsInPhase.map(attempt => attempt.case_id));
+
+        if (uniqueIncorrectCases.size >= 5) {
+          setShowContentSuggestionDialog(true);
+          setSuggestedModuleId(currentCase.module_id);
+          setSuggestedPhaseId(currentCase.phase_id);
+        }
+      }
 
       const updatedAttemptedIds = [...attemptedCaseIds, currentCase.id];
       setAttemptedCaseIds(updatedAttemptedIds);
@@ -976,6 +1000,40 @@ export default function Quiz() {
                   <span className="md:hidden">Use os botões acima ou dois dedos para aplicar zoom (pinch)</span>
                 </p>
               )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Content Suggestion Dialog */}
+      <Dialog open={showContentSuggestionDialog} onOpenChange={setShowContentSuggestionDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-blue-600">
+              <BookOpen className="w-5 h-5" />
+              Sugestão de Estudo
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-gray-700">
+              Percebemos que você tem encontrado dificuldades em casos desta fase. Que tal revisar o conteúdo para fortalecer seu aprendizado?
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowContentSuggestionDialog(false);
+                  loadNextCase();
+                }}
+              >
+                Continuar Quiz
+              </Button>
+              <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${suggestedModuleId}&phase_id=${suggestedPhaseId}`}>
+                <Button onClick={() => setShowContentSuggestionDialog(false)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                  <BookOpen className="w-4 h-4 mr-2" />
+                  Revisar Conteúdo
+                </Button>
+              </Link>
             </div>
           </div>
         </DialogContent>
