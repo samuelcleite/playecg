@@ -19,6 +19,7 @@ import Profile from './pages/Profile';
 import Quiz from './pages/Quiz';
 import Upgrade from './pages/Upgrade';
 import AprendaECG from './pages/AprendaECG';
+import ConteudoECG from './pages/ConteudoECG';
 import __Layout from './Layout.jsx';
 
 
@@ -44,6 +45,7 @@ export const PAGES = {
     "Quiz": Quiz,
     "Upgrade": Upgrade,
     "AprendaECG": AprendaECG,
+    "ConteudoECG": ConteudoECG,
 }
 
 export const pagesConfig = {

@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   BookOpen,
   Loader2,
   Sparkles,
   FolderOpen,
-  Layers
+  Layers,
+  ChevronRight
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -100,22 +103,28 @@ export default function AprendaECG() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <Card className="border-2 border-amber-300 shadow-lg bg-gradient-to-br from-amber-50 to-orange-50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-2xl">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
-                    <Sparkles className="w-6 h-6 text-white" />
+            <Link to={`${createPageUrl("ConteudoECG")}?type=intro`}>
+              <Card className="border-2 border-amber-300 shadow-lg bg-gradient-to-br from-amber-50 to-orange-50 hover:shadow-xl transition-all cursor-pointer">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+                        <Sparkles className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900">
+                          Introdução ao ECG
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Fundamentos essenciais para começar
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-6 h-6 text-amber-600" />
                   </div>
-                  Introdução ao ECG
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div 
-                  className="prose prose-sm max-w-none text-gray-700"
-                  dangerouslySetInnerHTML={{ __html: introContent.content }}
-                />
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Link>
           </motion.div>
         )}
 
@@ -138,41 +147,46 @@ export default function AprendaECG() {
               >
                 <Card className="border-none shadow-lg">
                   <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 border-b">
-                    <CardTitle className="flex items-center gap-3 text-xl">
+                    <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">
                         {module.order}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <FolderOpen className="w-5 h-5 text-indigo-600" />
-                          {module.name}
+                          <h3 className="text-xl font-bold text-gray-900">{module.name}</h3>
                         </div>
                         {module.description && (
-                          <p className="text-sm text-gray-600 font-normal mt-1">
+                          <p className="text-sm text-gray-600 mt-1">
                             {module.description}
                           </p>
                         )}
                       </div>
-                    </CardTitle>
+                    </div>
                   </CardHeader>
-                  <CardContent className="pt-6 space-y-6">
-                    {/* Conteúdo Geral do Módulo */}
+                  <CardContent className="pt-6 space-y-3">
+                    {/* Link para Conteúdo Geral do Módulo */}
                     {moduleData.moduleContent && (
-                      <div>
-                        <Badge className="mb-3 bg-indigo-100 text-indigo-800">
-                          Conteúdo do Módulo
-                        </Badge>
-                        <div 
-                          className="prose prose-sm max-w-none text-gray-700 bg-indigo-50 p-4 rounded-lg"
-                          dangerouslySetInnerHTML={{ __html: moduleData.moduleContent.content }}
-                        />
-                      </div>
+                      <Link to={`${createPageUrl("ConteudoECG")}?type=module&module_id=${module.id}`}>
+                        <div className="p-4 border-2 border-indigo-200 rounded-lg hover:bg-indigo-50 transition-all cursor-pointer">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <BookOpen className="w-5 h-5 text-indigo-600" />
+                              <div>
+                                <p className="font-semibold text-gray-900">Conteúdo do Módulo</p>
+                                <p className="text-sm text-gray-600">Visão geral e fundamentos</p>
+                              </div>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-indigo-600" />
+                          </div>
+                        </div>
+                      </Link>
                     )}
 
-                    {/* Conteúdos por Fase */}
+                    {/* Links para Conteúdos por Fase */}
                     {moduleData.phaseContents.length > 0 && (
-                      <div className="space-y-4">
-                        <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-gray-900 flex items-center gap-2 mt-4 mb-2">
                           <Layers className="w-5 h-5 text-purple-600" />
                           Fases do Módulo
                         </h4>
@@ -184,15 +198,25 @@ export default function AprendaECG() {
                           if (!phaseContent) return null;
 
                           return (
-                            <div key={phase.id} className="border-l-4 border-purple-300 pl-4">
-                              <Badge className="mb-2 bg-purple-100 text-purple-800">
-                                Fase {phase.order}: {phase.name}
-                              </Badge>
-                              <div 
-                                className="prose prose-sm max-w-none text-gray-700 bg-purple-50 p-4 rounded-lg"
-                                dangerouslySetInnerHTML={{ __html: phaseContent.content }}
-                              />
-                            </div>
+                            <Link 
+                              key={phase.id}
+                              to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`}
+                            >
+                              <div className="p-4 border-2 border-purple-200 rounded-lg hover:bg-purple-50 transition-all cursor-pointer">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm">
+                                      {phase.order}
+                                    </div>
+                                    <div>
+                                      <p className="font-semibold text-gray-900">{phase.name}</p>
+                                      <p className="text-sm text-gray-600">Conteúdo da fase</p>
+                                    </div>
+                                  </div>
+                                  <ChevronRight className="w-5 h-5 text-purple-600" />
+                                </div>
+                              </div>
+                            </Link>
                           );
                         })}
                       </div>
