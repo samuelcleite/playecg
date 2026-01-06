@@ -36,6 +36,8 @@ export default function AdminDailyCases() {
   const [user, setUser] = useState(null);
   const [dailyCases, setDailyCases] = useState([]);
   const [ecgCases, setEcgCases] = useState([]);
+  const [modules, setModules] = useState([]);
+  const [phases, setPhases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [editingCase, setEditingCase] = useState(null);
@@ -64,12 +66,16 @@ export default function AdminDailyCases() {
 
   const loadData = async () => {
     setLoading(true);
-    const [cases, ecgs] = await Promise.all([
+    const [cases, ecgs, mods, phs] = await Promise.all([
       base44.entities.DailyCase.list('-date'),
-      base44.entities.ECGCase.list()
+      base44.entities.ECGCase.list(),
+      base44.entities.Module.list(),
+      base44.entities.Phase.list()
     ]);
     setDailyCases(cases);
     setEcgCases(ecgs);
+    setModules(mods);
+    setPhases(phs);
     setLoading(false);
   };
 
@@ -132,6 +138,30 @@ export default function AdminDailyCases() {
   const getEcgCaseTitle = (ecgCaseId) => {
     const ecgCase = ecgCases.find(c => c.id === ecgCaseId);
     return ecgCase ? ecgCase.title : 'Caso não encontrado';
+  };
+
+  const getModuleName = (moduleId) => {
+    const module = modules.find(m => m.id === moduleId);
+    return module ? module.name : null;
+  };
+
+  const getPhaseName = (phaseId) => {
+    const phase = phases.find(p => p.id === phaseId);
+    return phase ? phase.name : null;
+  };
+
+  const getEcgCaseDetails = (ecgCase) => {
+    if (!ecgCase) return '';
+    const moduleName = ecgCase.module_id ? getModuleName(ecgCase.module_id) : null;
+    const phaseName = ecgCase.phase_id ? getPhaseName(ecgCase.phase_id) : null;
+    
+    let details = ecgCase.title;
+    if (moduleName && phaseName) {
+      details += ` (${moduleName} - ${phaseName})`;
+    } else if (moduleName) {
+      details += ` (${moduleName})`;
+    }
+    return details;
   };
 
   const filteredCases = dailyCases.filter(dc => {
@@ -280,6 +310,16 @@ export default function AdminDailyCases() {
                           <h3 className="font-semibold text-gray-900 mb-1">
                             {getEcgCaseTitle(dailyCase.ecg_case_id)}
                           </h3>
+                          {(() => {
+                            const ecgCase = ecgCases.find(c => c.id === dailyCase.ecg_case_id);
+                            const moduleName = ecgCase?.module_id ? getModuleName(ecgCase.module_id) : null;
+                            const phaseName = ecgCase?.phase_id ? getPhaseName(ecgCase.phase_id) : null;
+                            return (moduleName || phaseName) && (
+                              <p className="text-xs text-gray-500 mb-1">
+                                {moduleName && phaseName ? `${moduleName} - ${phaseName}` : moduleName || phaseName}
+                              </p>
+                            );
+                          })()}
                           <p className="text-sm text-gray-600 line-clamp-2">
                             {dailyCase.detailed_explanation.replace(/<[^>]*>/g, '').substring(0, 150)}...
                           </p>
@@ -346,7 +386,7 @@ export default function AdminDailyCases() {
                 <SelectContent>
                   {ecgCases.map((ecgCase) => (
                     <SelectItem key={ecgCase.id} value={ecgCase.id}>
-                      {ecgCase.title}
+                      {getEcgCaseDetails(ecgCase)}
                     </SelectItem>
                   ))}
                 </SelectContent>
