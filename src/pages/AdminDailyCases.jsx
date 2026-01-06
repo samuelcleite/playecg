@@ -45,7 +45,9 @@ export default function AdminDailyCases() {
     date: '',
     ecg_case_id: '',
     detailed_explanation: '',
-    active: true
+    active: true,
+    selectedModule: '',
+    selectedPhase: ''
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [saving, setSaving] = useState(false);
@@ -82,11 +84,14 @@ export default function AdminDailyCases() {
   const handleOpenDialog = (dailyCase = null) => {
     if (dailyCase) {
       setEditingCase(dailyCase);
+      const ecgCase = ecgCases.find(c => c.id === dailyCase.ecg_case_id);
       setFormData({
         date: dailyCase.date,
         ecg_case_id: dailyCase.ecg_case_id,
         detailed_explanation: dailyCase.detailed_explanation,
-        active: dailyCase.active
+        active: dailyCase.active,
+        selectedModule: ecgCase?.module_id || '',
+        selectedPhase: ecgCase?.phase_id || ''
       });
     } else {
       setEditingCase(null);
@@ -94,7 +99,9 @@ export default function AdminDailyCases() {
         date: '',
         ecg_case_id: '',
         detailed_explanation: '',
-        active: true
+        active: true,
+        selectedModule: '',
+        selectedPhase: ''
       });
     }
     setShowDialog(true);
@@ -374,21 +381,86 @@ export default function AdminDailyCases() {
 
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">
+                Módulo
+              </label>
+              <Select
+                value={formData.selectedModule}
+                onValueChange={(value) => setFormData({ ...formData, selectedModule: value, selectedPhase: '', ecg_case_id: '' })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um módulo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem módulo específico</SelectItem>
+                  {modules.map((module) => (
+                    <SelectItem key={module.id} value={module.id}>
+                      {module.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.selectedModule && formData.selectedModule !== 'none' && (
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Fase
+                </label>
+                <Select
+                  value={formData.selectedPhase}
+                  onValueChange={(value) => setFormData({ ...formData, selectedPhase: value, ecg_case_id: '' })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma fase" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem fase específica</SelectItem>
+                    {phases
+                      .filter(p => p.module_id === formData.selectedModule)
+                      .sort((a, b) => a.order - b.order)
+                      .map((phase) => (
+                        <SelectItem key={phase.id} value={phase.id}>
+                          {phase.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">
                 Caso de ECG *
               </label>
               <Select
                 value={formData.ecg_case_id}
                 onValueChange={(value) => setFormData({ ...formData, ecg_case_id: value })}
+                disabled={!formData.selectedModule}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione um caso" />
+                  <SelectValue placeholder={!formData.selectedModule ? "Selecione um módulo primeiro" : "Selecione um caso"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {ecgCases.map((ecgCase) => (
-                    <SelectItem key={ecgCase.id} value={ecgCase.id}>
-                      {getEcgCaseDetails(ecgCase)}
-                    </SelectItem>
-                  ))}
+                  {ecgCases
+                    .filter(ecgCase => {
+                      if (formData.selectedModule === 'none') {
+                        return !ecgCase.module_id;
+                      }
+                      if (!formData.selectedModule) return false;
+                      if (ecgCase.module_id !== formData.selectedModule) return false;
+                      
+                      if (formData.selectedPhase === 'none') {
+                        return !ecgCase.phase_id;
+                      }
+                      if (formData.selectedPhase && ecgCase.phase_id !== formData.selectedPhase) return false;
+                      
+                      return true;
+                    })
+                    .map((ecgCase) => (
+                      <SelectItem key={ecgCase.id} value={ecgCase.id}>
+                        {ecgCase.title}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
