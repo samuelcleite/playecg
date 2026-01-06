@@ -502,28 +502,16 @@ export default function ModuleDetail() {
         {/* Module Info */}
         <Card className="border-none shadow-lg bg-gradient-to-br from-blue-50 to-indigo-50">
           <CardContent className="p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">{module.name}</h1>
-                <p className="text-gray-600 mb-4">{module.description}</p>
-                <div className="flex items-center gap-4 flex-wrap">
-                  <Badge className="bg-blue-600">
-                    Caso {currentCaseIndex + 1} de {cases.length}
-                  </Badge>
-                  {attemptCount > 0 && (
-                    <Badge className="bg-orange-500">
-                      Tentativa {attemptCount}/3
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              {phaseContent && (
-                <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`}>
-                  <Button variant="outline" className="gap-2 border-purple-200 hover:bg-purple-50">
-                    <BookOpen className="w-4 h-4" />
-                    Ver Conteúdo da Fase
-                  </Button>
-                </Link>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">{module.name}</h1>
+            <p className="text-gray-600 mb-4">{module.description}</p>
+            <div className="flex items-center gap-4 flex-wrap">
+              <Badge className="bg-blue-600">
+                Caso {currentCaseIndex + 1} de {cases.length}
+              </Badge>
+              {attemptCount > 0 && (
+                <Badge className="bg-orange-500">
+                  Tentativa {attemptCount}/3
+                </Badge>
               )}
             </div>
           </CardContent>
@@ -605,9 +593,19 @@ export default function ModuleDetail() {
 
             {/* Options */}
             <div className="space-y-3 mb-6">
-              <h3 className="font-semibold text-gray-900 mb-4 text-xl">
-                {currentCase.title}
-              </h3>
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <h3 className="font-semibold text-gray-900 text-xl flex-1">
+                  {currentCase.title}
+                </h3>
+                {phaseContent && (
+                  <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`}>
+                    <Button variant="outline" size="sm" className="gap-2 border-purple-200 hover:bg-purple-50">
+                      <BookOpen className="w-4 h-4" />
+                      Ver Conteúdo
+                    </Button>
+                  </Link>
+                )}
+              </div>
               {currentCase.multiple_correct && (
                 <p className="text-gray-700 mb-4">
                   Selecione todas as respostas corretas:
