@@ -25,7 +25,8 @@ import {
   AlertTriangle,
   Crown,
   Lock,
-  AlertCircle
+  AlertCircle,
+  BookOpen
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -71,6 +72,9 @@ export default function Quiz() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [lastTouchDistance, setLastTouchDistance] = useState(0);
+  
+  // Content state
+  const [caseContent, setCaseContent] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -135,6 +139,7 @@ export default function Quiz() {
     setAllCasesCompleted(false);
     setAttemptCount(0);
     setShowCorrectAnswer(false);
+    setCaseContent(null);
 
     const allCases = await ECGCase.list();
     const unansweredCases = allCases.filter(c => !attemptedIds.includes(c.id));
@@ -143,6 +148,13 @@ export default function Quiz() {
       const randomCase = unansweredCases[Math.floor(Math.random() * unansweredCases.length)];
       setCurrentCase(randomCase);
       setStartTime(Date.now());
+      
+      // Buscar conteúdo se o caso tiver módulo e fase
+      if (randomCase.module_id && randomCase.phase_id) {
+        const contents = await base44.entities.Content.list();
+        const content = contents.find(c => c.module_id === randomCase.module_id && c.phase_id === randomCase.phase_id);
+        setCaseContent(content);
+      }
     } else if (allCases.length > 0) {
       setAllCasesCompleted(true);
       setCurrentCase(null);
@@ -638,9 +650,19 @@ export default function Quiz() {
 
             {/* Options */}
             <div className="space-y-3 mb-6">
-              <h3 className="font-semibold text-gray-800 mb-4 text-xl">
-                {currentCase.title}
-              </h3>
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <h3 className="font-semibold text-gray-800 text-xl flex-1">
+                  {currentCase.title}
+                </h3>
+                {caseContent && (
+                  <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${currentCase.module_id}&phase_id=${currentCase.phase_id}`}>
+                    <Button variant="outline" size="sm" className="gap-2 border-purple-200 hover:bg-purple-50">
+                      <BookOpen className="w-4 h-4" />
+                      Tem dúvidas?
+                    </Button>
+                  </Link>
+                )}
+              </div>
               <AnimatePresence>
                 {currentCase.options.map((option, index) => {
                   const isSelected = selectedAnswers.includes(option);
