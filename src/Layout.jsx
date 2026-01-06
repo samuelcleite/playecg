@@ -21,7 +21,8 @@ import {
   CreditCard,
   Users,
   Award,
-  FileText
+  FileText,
+  Calendar
 } from "lucide-react";
 import {
   Sidebar,
@@ -118,6 +119,11 @@ export default function Layout({ children, currentPageName }) {
       title: "Gerenciar Casos",
       url: createPageUrl("AdminCases"),
       icon: FileEdit
+    },
+    {
+      title: "Casos do Dia",
+      url: createPageUrl("AdminDailyCases"),
+      icon: Calendar
     },
     {
       title: "Gestão de Conteúdo",

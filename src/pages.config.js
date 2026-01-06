@@ -20,6 +20,8 @@ import Modules from './pages/Modules';
 import Profile from './pages/Profile';
 import Quiz from './pages/Quiz';
 import Upgrade from './pages/Upgrade';
+import DailyCase from './pages/DailyCase';
+import AdminDailyCases from './pages/AdminDailyCases';
 import __Layout from './Layout.jsx';
 
 
@@ -46,6 +48,8 @@ export const PAGES = {
     "Profile": Profile,
     "Quiz": Quiz,
     "Upgrade": Upgrade,
+    "DailyCase": DailyCase,
+    "AdminDailyCases": AdminDailyCases,
 }
 
 export const pagesConfig = {

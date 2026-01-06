@@ -17,7 +17,8 @@ import {
   Loader2,
   CheckCircle2,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Star
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,8 @@ export default function Dashboard() {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [achievements, setAchievements] = useState([]);
   const [nextIncompletePhase, setNextIncompletePhase] = useState(null);
+  const [dailyCaseAvailable, setDailyCaseAvailable] = useState(false);
+  const [dailyCaseCompleted, setDailyCaseCompleted] = useState(false);
 
   useEffect(() => {
     checkPaymentReturn();
@@ -139,6 +142,21 @@ export default function Dashboard() {
     // Buscar próxima fase não completada para usuários premium
     if (userData.subscription_type === "premium") {
       await findNextIncompletePhase(userData.email);
+    }
+
+    // Verificar caso do dia
+    await checkDailyCase(userData.email);
+    };
+
+  const checkDailyCase = async (userEmail) => {
+    try {
+      const response = await base44.functions.invoke('getDailyCase', {});
+      if (response.data.success) {
+        setDailyCaseAvailable(true);
+        setDailyCaseCompleted(response.data.already_answered);
+      }
+    } catch (error) {
+      console.error("Error checking daily case:", error);
     }
   };
 
@@ -241,6 +259,42 @@ export default function Dashboard() {
             </Link>
           )}
         </div>
+
+        {/* Daily Case CTA */}
+        {dailyCaseAvailable && (
+          <Link to={createPageUrl("DailyCase")}>
+            <Card className="border-2 border-amber-300 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Star className="w-7 h-7 text-white" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge className="bg-amber-200 text-amber-900 border border-amber-300">
+                          {dailyCaseCompleted ? 'Completado hoje' : 'Novo desafio'}
+                        </Badge>
+                      </div>
+                      <h3 className="text-lg font-bold text-gray-900">
+                        Caso do Dia
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {dailyCaseCompleted 
+                          ? 'Reveja a explicação detalhada'
+                          : 'Desafio diário com explicação completa'}
+                      </p>
+                    </div>
+                  </div>
+                  <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2">
+                    {dailyCaseCompleted ? 'Ver Explicação' : 'Fazer Agora'}
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
 
         {/* Continue Learning CTA - Premium Only */}
         {isPremium && nextIncompletePhase && (
