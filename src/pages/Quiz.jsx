@@ -179,7 +179,6 @@ export default function Quiz() {
     }
 
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);
-    const pointsEarned = correct ? 10 : 0;
 
     // Se acertou ou já tentou 3 vezes, registrar no banco e adicionar à lista de respondidos
     if (correct || newAttemptCount >= 3) {
@@ -189,7 +188,7 @@ export default function Quiz() {
         user_answer: selectedAnswers.join(", "),
         correct: correct,
         time_spent: timeSpent,
-        points_earned: pointsEarned
+        points_earned: 0
       });
 
       const updatedAttemptedIds = [...attemptedCaseIds, currentCase.id];
@@ -203,14 +202,6 @@ export default function Quiz() {
         if (newCount >= FREE_DAILY_LIMIT) {
           setDailyLimitReached(true);
         }
-      }
-
-      if (correct) {
-        await User.update(user.id, {
-          points: (user.points || 0) + pointsEarned,
-          level: Math.floor(((user.points || 0) + pointsEarned) / 100) + 1
-        });
-        setUser({ ...user, points: (user.points || 0) + pointsEarned });
       }
     }
   };
