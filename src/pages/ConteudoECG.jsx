@@ -11,11 +11,15 @@ import {
   Sparkles,
   BookOpen,
   FolderOpen,
-  Layers
+  Layers,
+  Crown,
+  Lock
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function ConteudoECG() {
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState(null);
   const [module, setModule] = useState(null);
@@ -27,6 +31,9 @@ export default function ConteudoECG() {
   }, []);
 
   const loadContent = async () => {
+    const userData = await base44.auth.me();
+    setUser(userData);
+
     const urlParams = new URLSearchParams(window.location.search);
     const type = urlParams.get('type');
     const moduleId = urlParams.get('module_id');
@@ -78,6 +85,67 @@ export default function ConteudoECG() {
           <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
           <p className="text-gray-600">Carregando conteúdo...</p>
         </div>
+      </div>
+    );
+  }
+
+  const isPremium = user?.subscription_type === "premium";
+
+  if (!isPremium) {
+    return (
+      <div className="min-h-screen p-6 flex items-center justify-center">
+        <Card className="max-w-lg border-2 border-amber-200 shadow-xl">
+          <CardContent className="p-8 text-center">
+            <div className="w-20 h-20 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <Lock className="w-10 h-10 text-white" />
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Conteúdo Premium
+            </h2>
+            <p className="text-gray-600 mb-6 text-lg">
+              Este conteúdo educacional é exclusivo para usuários Premium.
+            </p>
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-6 mb-6">
+              <h3 className="font-bold text-gray-900 mb-3 flex items-center justify-center gap-2">
+                <Crown className="w-5 h-5 text-amber-600" />
+                Com Premium você tem acesso a:
+              </h3>
+              <ul className="text-left space-y-2 text-gray-700">
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-600 font-bold">✓</span>
+                  <span>Conteúdo educacional completo sobre ECG</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-600 font-bold">✓</span>
+                  <span>Módulos estruturados por tema</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-600 font-bold">✓</span>
+                  <span>Explicações detalhadas de cada fase</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-600 font-bold">✓</span>
+                  <span>Trilha de aprendizado progressiva</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-600 font-bold">✓</span>
+                  <span>Gamificação e conquistas avançadas</span>
+                </li>
+              </ul>
+            </div>
+            <div className="flex flex-col gap-3">
+              <Link to={createPageUrl("Upgrade")} className="w-full">
+                <Button className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-lg py-6 gap-2">
+                  <Crown className="w-5 h-5" />
+                  Assinar Premium
+                </Button>
+              </Link>
+              <Button variant="outline" onClick={() => navigate(createPageUrl("Dashboard"))}>
+                Voltar ao Dashboard
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
