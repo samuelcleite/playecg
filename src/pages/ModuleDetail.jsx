@@ -34,6 +34,7 @@ export default function ModuleDetail() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [module, setModule] = useState(null);
+  const [phase, setPhase] = useState(null);
   const [cases, setCases] = useState([]);
   const [currentCaseIndex, setCurrentCaseIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState([]);
@@ -82,6 +83,14 @@ export default function ModuleDetail() {
       return;
     }
     setModule(foundModule);
+
+    const phaseData = await base44.entities.Phase.list();
+    const foundPhase = phaseData.find(p => p.id === phaseId);
+    if (!foundPhase) {
+      navigate(createPageUrl("Modules"));
+      return;
+    }
+    setPhase(foundPhase);
 
     const casesData = await base44.entities.ECGCase.filter({ 
       module_id: moduleId,
@@ -167,19 +176,23 @@ export default function ModuleDetail() {
 
       if (!progress.completed_cases.includes(currentCase.id)) {
         const updatedCompletedCases = [...progress.completed_cases, currentCase.id];
-        const moduleCompleted = updatedCompletedCases.length === cases.length;
+        
+        // Contar apenas casos corretos para o total
+        const correctCasesCount = updatedCompletedCases.length;
+        const requiredCases = phase?.total_cases || cases.length;
+        const phaseCompleted = correctCasesCount >= requiredCases;
 
         await base44.entities.UserProgress.update(progress.id, {
           completed_cases: updatedCompletedCases,
           score: 0,
-          completed: moduleCompleted
+          completed: phaseCompleted
         });
 
         setProgress({
           ...progress,
           completed_cases: updatedCompletedCases,
           score: 0,
-          completed: moduleCompleted
+          completed: phaseCompleted
         });
       }
     }
@@ -382,7 +395,8 @@ export default function ModuleDetail() {
     );
   }
 
-  const completionPercentage = Math.round((progress.completed_cases.length / cases.length) * 100);
+  const requiredCases = phase?.total_cases || cases.length;
+  const completionPercentage = Math.round((progress.completed_cases.length / requiredCases) * 100);
   
   const correctAnswers = currentCase.correct_answers && currentCase.correct_answers.length > 0
     ? currentCase.correct_answers
