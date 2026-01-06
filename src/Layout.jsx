@@ -66,31 +66,36 @@ export default function Layout({ children, currentPageName }) {
   const isAdmin = user?.role === "admin";
 
   const navigationItems = [
-  {
-    title: "Dashboard",
-    url: createPageUrl("Dashboard"),
-    icon: Home
-  },
-  {
-    title: "Quiz",
-    url: createPageUrl("Quiz"),
-    icon: Brain
-  },
-  ...(isPremium ? [{
-    title: "Módulos",
-    url: createPageUrl("Modules"),
-    icon: BookOpen
-  }] : []),
-  {
-    title: "Conquistas",
-    url: createPageUrl("Achievements"),
-    icon: Award
-  },
-  {
-    title: "Perfil",
-    url: createPageUrl("Profile"),
-    icon: Trophy
-  }];
+    {
+      title: "Dashboard",
+      url: createPageUrl("Dashboard"),
+      icon: Home
+    },
+    {
+      title: "Quiz",
+      url: createPageUrl("Quiz"),
+      icon: Brain
+    },
+    ...(isPremium ? [{
+      title: "Módulos",
+      url: createPageUrl("Modules"),
+      icon: BookOpen
+    }] : []),
+    {
+      title: "Conquistas",
+      url: createPageUrl("Achievements"),
+      icon: Award
+    },
+    {
+      title: "Aprenda ECG",
+      url: createPageUrl("AprendaECG"),
+      icon: BookOpen
+    },
+    {
+      title: "Perfil",
+      url: createPageUrl("Profile"),
+      icon: Trophy
+    }];
 
 
   const educationItems = [
