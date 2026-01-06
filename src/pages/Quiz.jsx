@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
 import { User } from "@/entities/User";
 import { ECGCase } from "@/entities/ECGCase";
 import { QuizAttempt } from "@/entities/QuizAttempt";
@@ -37,6 +38,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
 const FREE_DAILY_LIMIT = 10;
+const FAILED_CASES_LIMIT = 3;
 
 export default function Quiz() {
   const navigate = useNavigate();
@@ -52,7 +54,9 @@ export default function Quiz() {
   const [attemptCount, setAttemptCount] = useState(0);
   const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
   const [dailyQuizCount, setDailyQuizCount] = useState(0);
+  const [dailyFailedCasesCount, setDailyFailedCasesCount] = useState(0);
   const [dailyLimitReached, setDailyLimitReached] = useState(false);
+  const [dailyStatsId, setDailyStatsId] = useState(null);
 
   // Report Error states
   const [showReportDialog, setShowReportDialog] = useState(false);
@@ -80,7 +84,7 @@ export default function Quiz() {
     if (userData.subscription_type !== "premium") {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const todayISO = today.toISOString();
+      const todayDate = today.toISOString().split('T')[0]; // YYYY-MM-DD
 
       const allAttempts = await QuizAttempt.filter({ user_email: userData.email });
       
@@ -88,7 +92,7 @@ export default function Quiz() {
       const todayAttempts = allAttempts.filter(attempt => {
         const attemptDate = new Date(attempt.created_date);
         attemptDate.setHours(0, 0, 0, 0);
-        return attemptDate.toISOString() === todayISO;
+        return attemptDate.toISOString().split('T')[0] === todayDate;
       });
 
       // Contar casos únicos (um caso = um quiz)
@@ -97,7 +101,20 @@ export default function Quiz() {
       
       setDailyQuizCount(count);
 
-      if (count >= FREE_DAILY_LIMIT) {
+      // Buscar DailyQuizStats para verificar casos falhados
+      const dailyStats = await base44.entities.DailyQuizStats.filter({ 
+        user_email: userData.email,
+        date: todayDate
+      });
+
+      let failedCount = 0;
+      if (dailyStats.length > 0) {
+        failedCount = dailyStats[0].failed_cases_ids?.length || 0;
+        setDailyStatsId(dailyStats[0].id);
+      }
+      setDailyFailedCasesCount(failedCount);
+
+      if (count >= FREE_DAILY_LIMIT || failedCount >= FAILED_CASES_LIMIT) {
         setDailyLimitReached(true);
         setLoading(false);
         return;
@@ -187,8 +204,7 @@ export default function Quiz() {
         case_id: currentCase.id,
         user_answer: selectedAnswers.join(", "),
         correct: correct,
-        time_spent: timeSpent,
-        points_earned: 0
+        time_spent: timeSpent
       });
 
       const updatedAttemptedIds = [...attemptedCaseIds, currentCase.id];
@@ -198,6 +214,38 @@ export default function Quiz() {
       if (user.subscription_type !== "premium") {
         const newCount = dailyQuizCount + 1;
         setDailyQuizCount(newCount);
+
+        // Se errou após 3 tentativas, atualizar DailyQuizStats
+        if (!correct && newAttemptCount >= 3) {
+          const today = new Date();
+          const todayDate = today.toISOString().split('T')[0];
+
+          if (dailyStatsId) {
+            // Atualizar registro existente
+            const currentStats = await base44.entities.DailyQuizStats.filter({ id: dailyStatsId });
+            if (currentStats.length > 0) {
+              const updatedFailedIds = [...(currentStats[0].failed_cases_ids || []), currentCase.id];
+              await base44.entities.DailyQuizStats.update(dailyStatsId, {
+                failed_cases_ids: updatedFailedIds
+              });
+              const newFailedCount = updatedFailedIds.length;
+              setDailyFailedCasesCount(newFailedCount);
+
+              if (newFailedCount >= FAILED_CASES_LIMIT) {
+                setDailyLimitReached(true);
+              }
+            }
+          } else {
+            // Criar novo registro
+            const newStats = await base44.entities.DailyQuizStats.create({
+              user_email: user.email,
+              date: todayDate,
+              failed_cases_ids: [currentCase.id]
+            });
+            setDailyStatsId(newStats.id);
+            setDailyFailedCasesCount(1);
+          }
+        }
         
         if (newCount >= FREE_DAILY_LIMIT) {
           setDailyLimitReached(true);
@@ -402,7 +450,9 @@ export default function Quiz() {
             </div>
             <h2 className="text-2xl font-bold mb-2 text-gray-900">Limite Diário Atingido</h2>
             <p className="text-gray-600 mb-4">
-              Você completou {FREE_DAILY_LIMIT} quizzes hoje! 🎉
+              {dailyFailedCasesCount >= FAILED_CASES_LIMIT 
+                ? `Você errou ${FAILED_CASES_LIMIT} casos após 3 tentativas hoje.`
+                : `Você completou ${FREE_DAILY_LIMIT} quizzes hoje! 🎉`}
             </p>
             <p className="text-gray-600 mb-6">
               Volte amanhã para continuar praticando ou faça upgrade para Premium e tenha acesso ilimitado.
