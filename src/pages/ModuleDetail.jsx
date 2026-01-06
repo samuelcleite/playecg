@@ -601,7 +601,7 @@ export default function ModuleDetail() {
                   <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`}>
                     <Button variant="outline" size="sm" className="gap-2 border-purple-200 hover:bg-purple-50">
                       <BookOpen className="w-4 h-4" />
-                      Ver Conteúdo
+                      Tem dúvidas?
                     </Button>
                   </Link>
                 )}
