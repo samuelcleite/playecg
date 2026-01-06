@@ -261,7 +261,7 @@ export default function Dashboard() {
         </div>
 
         {/* Daily Case CTA */}
-        {dailyCaseAvailable && (
+        {dailyCaseAvailable && !dailyCaseCompleted && (
           <Link to={createPageUrl("DailyCase")}>
             <Card className="border-2 border-amber-300 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50">
               <CardContent className="p-6">
@@ -273,21 +273,19 @@ export default function Dashboard() {
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <Badge className="bg-amber-200 text-amber-900 border border-amber-300">
-                          {dailyCaseCompleted ? 'Completado hoje' : 'Novo desafio'}
+                          Novo desafio
                         </Badge>
                       </div>
                       <h3 className="text-lg font-bold text-gray-900">
                         Caso do Dia
                       </h3>
                       <p className="text-sm text-gray-600 mt-1">
-                        {dailyCaseCompleted 
-                          ? 'Reveja a explicação detalhada'
-                          : 'Desafio diário com explicação completa'}
+                        Desafio diário com explicação completa
                       </p>
                     </div>
                   </div>
                   <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2">
-                    {dailyCaseCompleted ? 'Ver Explicação' : 'Fazer Agora'}
+                    Fazer Agora
                     <ArrowRight className="w-4 h-4" />
                   </Button>
                 </div>
