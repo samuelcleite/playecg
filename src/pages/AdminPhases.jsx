@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { User } from "@/entities/User";
 import { Module } from "@/entities/Module";
@@ -281,8 +280,6 @@ export default function AdminPhases() {
                           <p className="text-gray-600 mb-3">{phase.description}</p>
                           <div className="flex gap-4 text-sm text-gray-500">
                             <span>{phase.total_cases} casos</span>
-                            <span>•</span>
-                            <span>{phase.required_points} pontos necessários</span>
                           </div>
                         </div>
 
@@ -380,7 +377,7 @@ export default function AdminPhases() {
                 </Select>
               </div>
 
-              <div className="grid md:grid-cols-3 gap-4">
+              <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Ordem</Label>
                   <Input
@@ -398,16 +395,6 @@ export default function AdminPhases() {
                     min="0"
                     value={formData.total_cases}
                     onChange={(e) => setFormData({ ...formData, total_cases: parseInt(e.target.value) })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Pontos Necessários</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={formData.required_points}
-                    onChange={(e) => setFormData({ ...formData, required_points: parseInt(e.target.value) })}
                   />
                 </div>
               </div>
