@@ -203,64 +203,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="border-none shadow-md bg-gradient-to-br from-blue-100 to-blue-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="text-blue-900">
-                  <p className="text-sm font-medium opacity-90">Nível</p>
-                  <p className="text-3xl font-bold mt-1">{user?.level || 1}</p>
-                </div>
-                <div className="w-12 h-12 bg-white/50 rounded-xl flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-blue-700" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
-          <Card className="border-none shadow-md bg-gradient-to-br from-amber-100 to-orange-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="text-amber-900">
-                  <p className="text-sm font-medium opacity-90">Pontos</p>
-                  <p className="text-3xl font-bold mt-1">{user?.points || 0}</p>
-                </div>
-                <div className="w-12 h-12 bg-white/50 rounded-xl flex items-center justify-center">
-                  <Trophy className="w-6 h-6 text-amber-700" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-md bg-gradient-to-br from-green-100 to-emerald-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="text-green-900">
-                  <p className="text-sm font-medium opacity-90">Precisão</p>
-                  <p className="text-3xl font-bold mt-1">{stats.accuracy}%</p>
-                </div>
-                <div className="w-12 h-12 bg-white/50 rounded-xl flex items-center justify-center">
-                  <Target className="w-6 h-6 text-green-700" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-md bg-gradient-to-br from-purple-100 to-indigo-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="text-purple-900">
-                  <p className="text-sm font-medium opacity-90">Sequência</p>
-                  <p className="text-3xl font-bold mt-1">{streakDays} dias</p>
-                </div>
-                <div className="w-12 h-12 bg-white/50 rounded-xl flex items-center justify-center">
-                  <Zap className="w-6 h-6 text-purple-700" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Main Actions */}
         <div className="grid md:grid-cols-2 gap-6">

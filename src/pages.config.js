@@ -1,45 +1,47 @@
-import Dashboard from './pages/Dashboard';
-import Quiz from './pages/Quiz';
-import Modules from './pages/Modules';
-import ModuleDetail from './pages/ModuleDetail';
-import Profile from './pages/Profile';
-import Upgrade from './pages/Upgrade';
-import AdminCases from './pages/AdminCases';
-import AdminModules from './pages/AdminModules';
-import AdminPhases from './pages/AdminPhases';
-import AdminImages from './pages/AdminImages';
-import CompleteProfile from './pages/CompleteProfile';
-import AdminCoupons from './pages/AdminCoupons';
-import AdminCouponStats from './pages/AdminCouponStats';
-import ModulePhases from './pages/ModulePhases';
-import AdminPayments from './pages/AdminPayments';
-import AdminUsers from './pages/AdminUsers';
-import AdminAchievements from './pages/AdminAchievements';
 import Achievements from './pages/Achievements';
+import AdminAchievements from './pages/AdminAchievements';
+import AdminCases from './pages/AdminCases';
 import AdminContent from './pages/AdminContent';
+import AdminCouponStats from './pages/AdminCouponStats';
+import AdminCoupons from './pages/AdminCoupons';
+import AdminImages from './pages/AdminImages';
+import AdminModules from './pages/AdminModules';
+import AdminPayments from './pages/AdminPayments';
+import AdminPhases from './pages/AdminPhases';
+import AdminUsers from './pages/AdminUsers';
+import CompleteProfile from './pages/CompleteProfile';
+import Dashboard from './pages/Dashboard';
+import Home from './pages/Home';
+import ModuleDetail from './pages/ModuleDetail';
+import ModulePhases from './pages/ModulePhases';
+import Modules from './pages/Modules';
+import Profile from './pages/Profile';
+import Quiz from './pages/Quiz';
+import Upgrade from './pages/Upgrade';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
-    "Dashboard": Dashboard,
-    "Quiz": Quiz,
-    "Modules": Modules,
-    "ModuleDetail": ModuleDetail,
-    "Profile": Profile,
-    "Upgrade": Upgrade,
-    "AdminCases": AdminCases,
-    "AdminModules": AdminModules,
-    "AdminPhases": AdminPhases,
-    "AdminImages": AdminImages,
-    "CompleteProfile": CompleteProfile,
-    "AdminCoupons": AdminCoupons,
-    "AdminCouponStats": AdminCouponStats,
-    "ModulePhases": ModulePhases,
-    "AdminPayments": AdminPayments,
-    "AdminUsers": AdminUsers,
-    "AdminAchievements": AdminAchievements,
     "Achievements": Achievements,
+    "AdminAchievements": AdminAchievements,
+    "AdminCases": AdminCases,
     "AdminContent": AdminContent,
+    "AdminCouponStats": AdminCouponStats,
+    "AdminCoupons": AdminCoupons,
+    "AdminImages": AdminImages,
+    "AdminModules": AdminModules,
+    "AdminPayments": AdminPayments,
+    "AdminPhases": AdminPhases,
+    "AdminUsers": AdminUsers,
+    "CompleteProfile": CompleteProfile,
+    "Dashboard": Dashboard,
+    "Home": Home,
+    "ModuleDetail": ModuleDetail,
+    "ModulePhases": ModulePhases,
+    "Modules": Modules,
+    "Profile": Profile,
+    "Quiz": Quiz,
+    "Upgrade": Upgrade,
 }
 
 export const pagesConfig = {
