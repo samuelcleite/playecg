@@ -92,12 +92,6 @@ export default function ModuleDetail() {
     }
     setPhase(foundPhase);
 
-    const casesData = await base44.entities.ECGCase.filter({ 
-      module_id: moduleId,
-      phase_id: phaseId 
-    });
-    setCases(casesData);
-
     let progressData = await base44.entities.UserProgress.filter({ 
       user_email: userData.email, 
       module_id: moduleId,
@@ -117,7 +111,87 @@ export default function ModuleDetail() {
     }
 
     setProgress(progressData[0]);
+
+    // Selecionar e combinar casos (60% fase atual + 40% fases anteriores)
+    const combinedCases = await selectAndCombineCases(
+      moduleId, 
+      phaseId, 
+      foundPhase, 
+      phaseData, 
+      progressData[0].completed_cases
+    );
+    setCases(combinedCases);
+
     setLoading(false);
+  };
+
+  const selectAndCombineCases = async (moduleId, phaseId, currentPhase, allPhases, completedCaseIds) => {
+    // Identificar fases anteriores
+    const modulePhasesOrdered = allPhases
+      .filter(p => p.module_id === moduleId)
+      .sort((a, b) => a.order - b.order);
+    
+    const previousPhases = modulePhasesOrdered.filter(p => p.order < currentPhase.order);
+
+    // Buscar casos da fase atual
+    const currentPhaseCases = await base44.entities.ECGCase.filter({ 
+      module_id: moduleId,
+      phase_id: phaseId 
+    });
+
+    // Buscar casos de fases anteriores
+    let previousPhasesCases = [];
+    for (const prevPhase of previousPhases) {
+      const cases = await base44.entities.ECGCase.filter({
+        module_id: moduleId,
+        phase_id: prevPhase.id
+      });
+      previousPhasesCases = [...previousPhasesCases, ...cases];
+    }
+
+    // Filtrar casos já completados nesta sessão (fase atual)
+    const availableCurrentCases = currentPhaseCases.filter(c => !completedCaseIds.includes(c.id));
+    const availablePreviousCases = previousPhasesCases.filter(c => !completedCaseIds.includes(c.id));
+
+    // Calcular distribuição (60% atual + 40% anteriores)
+    const totalCasesForSession = currentPhase.total_cases || 10;
+    let numCasesFromCurrent = Math.round(totalCasesForSession * 0.6);
+    let numCasesFromPrevious = Math.round(totalCasesForSession * 0.4);
+
+    // Ajustar se não houver casos suficientes
+    if (availableCurrentCases.length < numCasesFromCurrent) {
+      numCasesFromCurrent = availableCurrentCases.length;
+      numCasesFromPrevious = Math.min(
+        totalCasesForSession - numCasesFromCurrent,
+        availablePreviousCases.length
+      );
+    }
+
+    if (availablePreviousCases.length < numCasesFromPrevious) {
+      numCasesFromPrevious = availablePreviousCases.length;
+      numCasesFromCurrent = Math.min(
+        totalCasesForSession - numCasesFromPrevious,
+        availableCurrentCases.length
+      );
+    }
+
+    // Selecionar casos aleatoriamente
+    const selectedCurrentCases = shuffleArray([...availableCurrentCases]).slice(0, numCasesFromCurrent);
+    const selectedPreviousCases = shuffleArray([...availablePreviousCases]).slice(0, numCasesFromPrevious);
+
+    // Combinar e embaralhar
+    const combinedCases = shuffleArray([...selectedCurrentCases, ...selectedPreviousCases]);
+
+    return combinedCases;
+  };
+
+  const shuffleArray = (array) => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
   };
 
   const currentCase = cases[currentCaseIndex];
