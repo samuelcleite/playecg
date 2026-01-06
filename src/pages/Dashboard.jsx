@@ -317,46 +317,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Activity */}
-        {stats.recentAttempts.length > 0 && (
-          <Card className="border border-blue-100 shadow-md">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-gray-800">
-                <Calendar className="w-6 h-6 text-blue-600" />
-                Atividade Recente
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {stats.recentAttempts.map((attempt, index) => (
-                  <div
-                    key={attempt.id}
-                    className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        attempt.correct ? 'bg-green-100 border-2 border-green-300' : 'bg-rose-100 border-2 border-rose-300'
-                      }`}>
-                        <span className={attempt.correct ? 'text-green-700' : 'text-rose-700'}>
-                          {attempt.correct ? '✓' : '✗'}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-800">Quiz #{stats.recentAttempts.length - index}</p>
-                        <p className="text-sm text-gray-500">
-                          {new Date(attempt.created_date).toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge className={attempt.correct ? 'bg-green-200 text-green-800 border border-green-300' : 'bg-rose-200 text-rose-800 border border-rose-300'}>
-                      {attempt.points_earned || 0} pts
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+
       </div>
     </div>
   );
