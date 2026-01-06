@@ -6,6 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   BookOpen,
   Loader2,
   Sparkles,
@@ -146,82 +152,88 @@ export default function AprendaECG() {
                 transition={{ delay: index * 0.1 }}
               >
                 <Card className="border-none shadow-lg">
-                  <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 border-b">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">
-                        {module.order}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <FolderOpen className="w-5 h-5 text-indigo-600" />
-                          <h3 className="text-xl font-bold text-gray-900">{module.name}</h3>
-                        </div>
-                        {module.description && (
-                          <p className="text-sm text-gray-600 mt-1">
-                            {module.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-6 space-y-3">
-                    {/* Link para Conteúdo Geral do Módulo */}
-                    {moduleData.moduleContent && (
-                      <Link to={`${createPageUrl("ConteudoECG")}?type=module&module_id=${module.id}`}>
-                        <div className="p-4 border-2 border-indigo-200 rounded-lg hover:bg-indigo-50 transition-all cursor-pointer">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <BookOpen className="w-5 h-5 text-indigo-600" />
-                              <div>
-                                <p className="font-semibold text-gray-900">Conteúdo do Módulo</p>
-                                <p className="text-sm text-gray-600">Visão geral e fundamentos</p>
-                              </div>
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="module" className="border-none">
+                      <AccordionTrigger className="hover:no-underline px-6 py-4 bg-gradient-to-r from-indigo-50 to-purple-50">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                            {module.order}
+                          </div>
+                          <div className="text-left">
+                            <div className="flex items-center gap-2">
+                              <FolderOpen className="w-5 h-5 text-indigo-600" />
+                              <h3 className="text-xl font-bold text-gray-900">{module.name}</h3>
                             </div>
-                            <ChevronRight className="w-5 h-5 text-indigo-600" />
+                            {module.description && (
+                              <p className="text-sm text-gray-600 mt-1">
+                                {module.description}
+                              </p>
+                            )}
                           </div>
                         </div>
-                      </Link>
-                    )}
-
-                    {/* Links para Conteúdos por Fase */}
-                    {moduleData.phaseContents.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="font-semibold text-gray-900 flex items-center gap-2 mt-4 mb-2">
-                          <Layers className="w-5 h-5 text-purple-600" />
-                          Fases do Módulo
-                        </h4>
-                        {modulePhasesOrdered.map(phase => {
-                          const phaseContent = moduleData.phaseContents.find(
-                            pc => pc.phase_id === phase.id
-                          );
-                          
-                          if (!phaseContent) return null;
-
-                          return (
-                            <Link 
-                              key={phase.id}
-                              to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`}
-                            >
-                              <div className="p-4 border-2 border-purple-200 rounded-lg hover:bg-purple-50 transition-all cursor-pointer">
+                      </AccordionTrigger>
+                      <AccordionContent className="px-6 pb-6 pt-4">
+                        <div className="space-y-3">
+                          {/* Link para Conteúdo Geral do Módulo */}
+                          {moduleData.moduleContent && (
+                            <Link to={`${createPageUrl("ConteudoECG")}?type=module&module_id=${module.id}`}>
+                              <div className="p-4 border-2 border-indigo-200 rounded-lg hover:bg-indigo-50 transition-all cursor-pointer">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm">
-                                      {phase.order}
-                                    </div>
+                                    <BookOpen className="w-5 h-5 text-indigo-600" />
                                     <div>
-                                      <p className="font-semibold text-gray-900">{phase.name}</p>
-                                      <p className="text-sm text-gray-600">Conteúdo da fase</p>
+                                      <p className="font-semibold text-gray-900">Conteúdo do Módulo</p>
+                                      <p className="text-sm text-gray-600">Visão geral e fundamentos</p>
                                     </div>
                                   </div>
-                                  <ChevronRight className="w-5 h-5 text-purple-600" />
+                                  <ChevronRight className="w-5 h-5 text-indigo-600" />
                                 </div>
                               </div>
                             </Link>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </CardContent>
+                          )}
+
+                          {/* Links para Conteúdos por Fase */}
+                          {moduleData.phaseContents.length > 0 && (
+                            <div className="space-y-2">
+                              <h4 className="font-semibold text-gray-900 flex items-center gap-2 mt-4 mb-2">
+                                <Layers className="w-5 h-5 text-purple-600" />
+                                Fases do Módulo
+                              </h4>
+                              {modulePhasesOrdered.map(phase => {
+                                const phaseContent = moduleData.phaseContents.find(
+                                  pc => pc.phase_id === phase.id
+                                );
+                                
+                                if (!phaseContent) return null;
+
+                                return (
+                                  <Link 
+                                    key={phase.id}
+                                    to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`}
+                                  >
+                                    <div className="p-4 border-2 border-purple-200 rounded-lg hover:bg-purple-50 transition-all cursor-pointer">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                          <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm">
+                                            {phase.order}
+                                          </div>
+                                          <div>
+                                            <p className="font-semibold text-gray-900">{phase.name}</p>
+                                            <p className="text-sm text-gray-600">Conteúdo da fase</p>
+                                          </div>
+                                        </div>
+                                        <ChevronRight className="w-5 h-5 text-purple-600" />
+                                      </div>
+                                    </div>
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </Card>
               </motion.div>
             );
