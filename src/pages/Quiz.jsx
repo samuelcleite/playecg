@@ -494,17 +494,9 @@ export default function Quiz() {
     <div className="min-h-screen p-6 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">Quiz de ECG</h1>
-            <p className="text-gray-500 mt-1">Analise o traçado e faça seu diagnóstico</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm text-gray-500">Seus pontos</p>
-              <p className="text-2xl font-bold text-purple-600">{user?.points || 0}</p>
-            </div>
-          </div>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Quiz de ECG</h1>
+          <p className="text-gray-500 mt-1">Analise o traçado e faça seu diagnóstico</p>
         </div>
 
         {/* Daily Limit Warning for Free Users */}

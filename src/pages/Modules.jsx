@@ -63,7 +63,7 @@ export default function Modules() {
   };
 
   const isModuleUnlocked = (module) => {
-    return (user?.points || 0) >= (module.required_points || 0);
+    return true; // Todos os módulos desbloqueados para usuários premium
   };
 
   const getCompletionPercentage = (moduleId, totalCases) => {
@@ -92,7 +92,7 @@ export default function Modules() {
         </div>
 
         {/* Stats Banner */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
+        <div className="grid md:grid-cols-2 gap-6 mb-12">
           <Card className="border-none shadow-lg bg-gradient-to-br from-blue-500 to-indigo-600">
             <CardContent className="p-6 text-white">
               <div className="flex items-center justify-between">
@@ -107,26 +107,16 @@ export default function Modules() {
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-lg bg-gradient-to-br from-amber-500 to-orange-500">
+          <Card className="border-none shadow-lg bg-gradient-to-br from-purple-500 to-pink-600">
             <CardContent className="p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm opacity-90">Pontuação Total</p>
-                  <p className="text-3xl font-bold mt-1">{user?.points || 0}</p>
+                  <p className="text-sm opacity-90">Total de Casos</p>
+                  <p className="text-3xl font-bold mt-1">
+                    {modules.reduce((sum, m) => sum + (m.total_cases || 0), 0)}
+                  </p>
                 </div>
-                <Star className="w-12 h-12 opacity-80" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-lg bg-gradient-to-br from-green-500 to-emerald-600">
-            <CardContent className="p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm opacity-90">Nível Atual</p>
-                  <p className="text-3xl font-bold mt-1">{user?.level || 1}</p>
-                </div>
-                <Zap className="w-12 h-12 opacity-80" />
+                <BookOpen className="w-12 h-12 opacity-80" />
               </div>
             </CardContent>
           </Card>
@@ -254,21 +244,14 @@ export default function Modules() {
                         {/* Action Button */}
                         <div className="flex items-center justify-between">
                           <div className="text-sm text-gray-500">
-                            {module.total_cases} casos • {module.required_points} pontos para desbloquear
+                            {module.total_cases} casos
                           </div>
-                          {unlocked ? (
-                            <Link to={`${createPageUrl("ModulePhases")}?id=${module.id}`}>
-                              <Button className="gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700">
-                                {completed ? 'Revisar' : 'Continuar'}
-                                <ArrowRight className="w-4 h-4" />
-                              </Button>
-                            </Link>
-                          ) : (
-                            <Button disabled className="gap-2">
-                              <Lock className="w-4 h-4" />
-                              Bloqueado
+                          <Link to={`${createPageUrl("ModulePhases")}?id=${module.id}`}>
+                            <Button className="gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700">
+                              {completed ? 'Revisar' : 'Continuar'}
+                              <ArrowRight className="w-4 h-4" />
                             </Button>
-                          )}
+                          </Link>
                         </div>
                       </div>
                     </div>

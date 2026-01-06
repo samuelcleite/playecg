@@ -85,7 +85,7 @@ export default function ModulePhases() {
   };
 
   const isPhaseUnlocked = (phase) => {
-    return (user?.points || 0) >= (phase.required_points || 0);
+    return true; // Todas as fases desbloqueadas para usuários premium
   };
 
   const getPhaseCompletion = (phaseId, totalCases) => {
@@ -145,10 +145,6 @@ export default function ModulePhases() {
             <ArrowLeft className="w-4 h-4" />
             Voltar aos Módulos
           </Button>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">Seus Pontos</p>
-            <p className="text-2xl font-bold text-purple-600">{user?.points || 0}</p>
-          </div>
         </div>
 
         {/* Module Header */}
@@ -252,28 +248,15 @@ export default function ModulePhases() {
                                   <Target className="w-4 h-4" />
                                   {phase.total_cases} casos
                                 </span>
-                                {phase.required_points > 0 && (
-                                  <span className="flex items-center gap-1">
-                                    <Trophy className="w-4 h-4" />
-                                    {phase.required_points} pontos
-                                  </span>
-                                )}
                               </div>
 
-                              {unlocked ? (
-                                <Button
-                                  onClick={() => handlePhaseClick(phase)}
-                                  className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 gap-2"
-                                >
-                                  {completed ? 'Revisar' : completionPercentage > 0 ? 'Continuar' : 'Começar'}
-                                  <ArrowRight className="w-4 h-4" />
-                                </Button>
-                              ) : (
-                                <Button disabled className="gap-2">
-                                  <Lock className="w-4 h-4" />
-                                  Bloqueado
-                                </Button>
-                              )}
+                              <Button
+                                onClick={() => handlePhaseClick(phase)}
+                                className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 gap-2"
+                              >
+                                {completed ? 'Revisar' : completionPercentage > 0 ? 'Continuar' : 'Começar'}
+                                <ArrowRight className="w-4 h-4" />
+                              </Button>
                             </div>
                           </div>
                         </div>

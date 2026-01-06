@@ -274,20 +274,7 @@ export default function Layout({ children, currentPageName }) {
               </div>
             )}
 
-            {user && (
-              <div className="mt-4 mx-2 p-4 bg-purple-50 rounded-xl border border-purple-100">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Nível {user.level || 1}</span>
-                  <Badge className="bg-purple-200 text-purple-800">{user.points || 0} pts</Badge>
-                </div>
-                <div className="h-2 bg-purple-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-purple-300 to-pink-300 transition-all duration-500"
-                    style={{ width: `${(user.points || 0) % 100}%` }}
-                  />
-                </div>
-              </div>
-            )}
+
           </SidebarContent>
 
           <SidebarFooter className="border-t border-purple-100 p-4">

@@ -155,8 +155,6 @@ export default function ModuleDetail() {
       setShowCorrectAnswer(true);
     }
 
-    const pointsEarned = correct ? 15 : 0;
-
     // Se acertou ou já tentou 3 vezes, registrar e avançar
     if (correct || newAttemptCount >= 3) {
       await base44.entities.QuizAttempt.create({
@@ -164,32 +162,25 @@ export default function ModuleDetail() {
         case_id: currentCase.id,
         user_answer: selectedAnswers.join(", "),
         correct: correct,
-        points_earned: pointsEarned
+        points_earned: 0
       });
 
       if (!progress.completed_cases.includes(currentCase.id)) {
         const updatedCompletedCases = [...progress.completed_cases, currentCase.id];
-        const newScore = progress.score + pointsEarned;
         const moduleCompleted = updatedCompletedCases.length === cases.length;
 
         await base44.entities.UserProgress.update(progress.id, {
           completed_cases: updatedCompletedCases,
-          score: newScore,
+          score: 0,
           completed: moduleCompleted
-        });
-
-        await base44.entities.User.update(user.id, {
-          points: (user.points || 0) + pointsEarned,
-          level: Math.floor(((user.points || 0) + pointsEarned) / 100) + 1
         });
 
         setProgress({
           ...progress,
           completed_cases: updatedCompletedCases,
-          score: newScore,
+          score: 0,
           completed: moduleCompleted
         });
-        setUser({ ...user, points: (user.points || 0) + pointsEarned });
       }
     }
   };
@@ -410,10 +401,6 @@ export default function ModuleDetail() {
             <ArrowLeft className="w-4 h-4" />
             Voltar às Fases
           </Button>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">Progresso da Fase</p>
-            <p className="text-2xl font-bold text-blue-600">{completionPercentage}%</p>
-          </div>
         </div>
 
         {/* Module Info */}
@@ -424,9 +411,6 @@ export default function ModuleDetail() {
             <div className="flex items-center gap-4 flex-wrap">
               <Badge className="bg-blue-600">
                 Caso {currentCaseIndex + 1} de {cases.length}
-              </Badge>
-              <Badge className="bg-amber-600">
-                {progress.score} pontos
               </Badge>
               {attemptCount > 0 && (
                 <Badge className="bg-orange-500">
@@ -598,7 +582,7 @@ export default function ModuleDetail() {
                         <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0 mt-1" />
                         <div>
                           <h4 className="font-bold text-lg mb-2 text-green-900">
-                            🎉 Correto! +15 pontos
+                            🎉 Correto!
                           </h4>
                         </div>
                       </div>
