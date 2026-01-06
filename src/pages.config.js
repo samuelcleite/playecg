@@ -9,7 +9,9 @@ import AdminModules from './pages/AdminModules';
 import AdminPayments from './pages/AdminPayments';
 import AdminPhases from './pages/AdminPhases';
 import AdminUsers from './pages/AdminUsers';
+import AprendaECG from './pages/AprendaECG';
 import CompleteProfile from './pages/CompleteProfile';
+import ConteudoECG from './pages/ConteudoECG';
 import Dashboard from './pages/Dashboard';
 import Home from './pages/Home';
 import ModuleDetail from './pages/ModuleDetail';
@@ -18,8 +20,6 @@ import Modules from './pages/Modules';
 import Profile from './pages/Profile';
 import Quiz from './pages/Quiz';
 import Upgrade from './pages/Upgrade';
-import AprendaECG from './pages/AprendaECG';
-import ConteudoECG from './pages/ConteudoECG';
 import __Layout from './Layout.jsx';
 
 
@@ -35,7 +35,9 @@ export const PAGES = {
     "AdminPayments": AdminPayments,
     "AdminPhases": AdminPhases,
     "AdminUsers": AdminUsers,
+    "AprendaECG": AprendaECG,
     "CompleteProfile": CompleteProfile,
+    "ConteudoECG": ConteudoECG,
     "Dashboard": Dashboard,
     "Home": Home,
     "ModuleDetail": ModuleDetail,
@@ -44,8 +46,6 @@ export const PAGES = {
     "Profile": Profile,
     "Quiz": Quiz,
     "Upgrade": Upgrade,
-    "AprendaECG": AprendaECG,
-    "ConteudoECG": ConteudoECG,
 }
 
 export const pagesConfig = {

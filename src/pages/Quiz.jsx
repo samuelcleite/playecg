@@ -214,6 +214,8 @@ export default function Quiz() {
       await QuizAttempt.create({
         user_email: user.email,
         case_id: currentCase.id,
+        module_id: currentCase.module_id,
+        phase_id: currentCase.phase_id,
         user_answer: selectedAnswers.join(", "),
         correct: correct,
         time_spent: timeSpent
