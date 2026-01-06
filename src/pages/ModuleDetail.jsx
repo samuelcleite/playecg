@@ -26,9 +26,11 @@ import {
   Pencil,
   AlertTriangle,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  BookOpen
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "react-router-dom";
 
 export default function ModuleDetail() {
   const navigate = useNavigate();
@@ -58,6 +60,7 @@ export default function ModuleDetail() {
   const [reportErrorType, setReportErrorType] = useState("");
   const [reportErrorDescription, setReportErrorDescription] = useState("");
   const [reportingError, setReportingError] = useState(false);
+  const [phaseContent, setPhaseContent] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -121,6 +124,11 @@ export default function ModuleDetail() {
       progressData[0].completed_cases
     );
     setCases(combinedCases);
+
+    // Buscar conteúdo da fase
+    const contents = await base44.entities.Content.list();
+    const phaseContentData = contents.find(c => c.module_id === moduleId && c.phase_id === phaseId);
+    setPhaseContent(phaseContentData);
 
     setLoading(false);
   };
@@ -494,16 +502,28 @@ export default function ModuleDetail() {
         {/* Module Info */}
         <Card className="border-none shadow-lg bg-gradient-to-br from-blue-50 to-indigo-50">
           <CardContent className="p-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">{module.name}</h1>
-            <p className="text-gray-600 mb-4">{module.description}</p>
-            <div className="flex items-center gap-4 flex-wrap">
-              <Badge className="bg-blue-600">
-                Caso {currentCaseIndex + 1} de {cases.length}
-              </Badge>
-              {attemptCount > 0 && (
-                <Badge className="bg-orange-500">
-                  Tentativa {attemptCount}/3
-                </Badge>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">{module.name}</h1>
+                <p className="text-gray-600 mb-4">{module.description}</p>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <Badge className="bg-blue-600">
+                    Caso {currentCaseIndex + 1} de {cases.length}
+                  </Badge>
+                  {attemptCount > 0 && (
+                    <Badge className="bg-orange-500">
+                      Tentativa {attemptCount}/3
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              {phaseContent && (
+                <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`}>
+                  <Button variant="outline" className="gap-2 border-purple-200 hover:bg-purple-50">
+                    <BookOpen className="w-4 h-4" />
+                    Ver Conteúdo da Fase
+                  </Button>
+                </Link>
               )}
             </div>
           </CardContent>
