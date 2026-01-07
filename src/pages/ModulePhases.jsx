@@ -68,16 +68,40 @@ export default function ModulePhases() {
     const phasesData = await base44.entities.Phase.filter({ module_id: moduleId }, "order");
     setPhases(phasesData);
 
-    const progressData = await base44.entities.UserProgress.filter({ 
-      user_email: userData.email, 
-      module_id: moduleId
+    // Calcular progresso a partir de QuizAttempt
+    const attempts = await base44.entities.QuizAttempt.filter({ 
+      user_email: userData.email,
+      module_id: moduleId,
+      quiz_type: "module"
     });
 
     const progressMap = {};
-    progressData.forEach(p => {
-      if (p.phase_id) {
-        progressMap[p.phase_id] = p;
-      }
+    phasesData.forEach(phase => {
+      const phaseAttempts = attempts.filter(a => a.phase_id === phase.id);
+      const attemptsByCase = {};
+      
+      phaseAttempts.forEach(att => {
+        if (!attemptsByCase[att.case_id]) {
+          attemptsByCase[att.case_id] = [];
+        }
+        attemptsByCase[att.case_id].push(att);
+      });
+
+      const completedCaseIds = [];
+      Object.keys(attemptsByCase).forEach(caseId => {
+        const caseAttempts = attemptsByCase[caseId];
+        const hasCorrect = caseAttempts.some(a => a.correct);
+        const hasThreeAttempts = caseAttempts.length >= 3;
+        
+        if (hasCorrect || hasThreeAttempts) {
+          completedCaseIds.push(caseId);
+        }
+      });
+
+      progressMap[phase.id] = {
+        completed_cases: completedCaseIds,
+        completed: completedCaseIds.length >= (phase.total_cases || 0)
+      };
     });
     setProgress(progressMap);
 
