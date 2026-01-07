@@ -68,36 +68,41 @@ export default function ModulePhases() {
     const phasesData = await base44.entities.Phase.filter({ module_id: moduleId }, "order");
     setPhases(phasesData);
 
-    // Calcular progresso a partir de QuizAttempt
-    const allAttempts = await base44.entities.QuizAttempt.filter({ 
-      user_email: userData.email,
-      quiz_type: "module"
-    });
-
+    // Calcular progresso a partir de QuizAttempt - busca direta por fase
     const progressMap = {};
     
     for (const phase of phasesData) {
-      // Filtrar tentativas desta fase específica
-      const phaseAttempts = allAttempts.filter(a => 
-        a.phase_id?.trim() === phase.id?.trim() && 
-        a.case_source === "current_phase"
-      );
-      
-      // Contar casos únicos que foram ACERTADOS
-      const correctCaseIds = new Set();
-      phaseAttempts.forEach(att => {
-        if (att.correct) {
-          correctCaseIds.add(att.case_id);
-        }
-      });
+      try {
+        // Buscar tentativas desta fase específica diretamente
+        const phaseAttempts = await base44.entities.QuizAttempt.filter({ 
+          user_email: userData.email,
+          phase_id: phase.id,
+          quiz_type: "module",
+          case_source: "current_phase"
+        });
+        
+        // Contar casos únicos que foram ACERTADOS
+        const correctCaseIds = new Set();
+        phaseAttempts.forEach(att => {
+          if (att.correct) {
+            correctCaseIds.add(att.case_id);
+          }
+        });
 
-      const correctCasesCount = correctCaseIds.size;
-      const isCompleted = correctCasesCount >= (phase.total_cases || 0);
+        const correctCasesCount = correctCaseIds.size;
+        const isCompleted = correctCasesCount >= (phase.total_cases || 0);
 
-      progressMap[phase.id] = {
-        correct_cases_count: correctCasesCount,
-        completed: isCompleted
-      };
+        progressMap[phase.id] = {
+          correct_cases_count: correctCasesCount,
+          completed: isCompleted
+        };
+      } catch (error) {
+        console.error(`Error loading progress for phase ${phase.id}:`, error);
+        progressMap[phase.id] = {
+          correct_cases_count: 0,
+          completed: false
+        };
+      }
     }
     
     setProgress(progressMap);
