@@ -116,7 +116,7 @@ export default function ModuleDetail() {
 
     setProgress(progressData[0]);
 
-    // Selecionar e combinar casos (60% fase atual + 40% fases anteriores)
+    // Selecionar e combinar casos (80% fase atual + 20% fases anteriores)
     const combinedCases = await selectAndCombineCases(
       moduleId, 
       phaseId, 
@@ -162,10 +162,10 @@ export default function ModuleDetail() {
     const availableCurrentCases = currentPhaseCases.filter(c => !completedCaseIds.includes(c.id));
     const availablePreviousCases = previousPhasesCases.filter(c => !completedCaseIds.includes(c.id));
 
-    // Calcular distribuição (60% atual + 40% anteriores)
+    // Calcular distribuição (80% atual + 20% anteriores)
     const totalCasesForSession = currentPhase.total_cases || 10;
-    let numCasesFromCurrent = Math.round(totalCasesForSession * 0.6);
-    let numCasesFromPrevious = Math.round(totalCasesForSession * 0.4);
+    let numCasesFromCurrent = Math.round(totalCasesForSession * 0.8);
+    let numCasesFromPrevious = Math.round(totalCasesForSession * 0.2);
 
     // Ajustar se não houver casos suficientes
     if (availableCurrentCases.length < numCasesFromCurrent) {
