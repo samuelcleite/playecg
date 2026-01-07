@@ -113,11 +113,11 @@ export default function Profile() {
     }
 
     const statsData = {
-      totalAttempts: attempts.length,
-      correctAnswers: correctCount,
-      accuracy: attempts.length > 0 ? Math.round((correctCount / attempts.length) * 100) : 0,
+      totalAttempts: attempts?.length || 0,
+      correctAnswers: correctCount || 0,
+      accuracy: attempts?.length > 0 ? Math.round((correctCount / attempts.length) * 100) : 0,
       totalPoints: userData.points || 0,
-      completedModules: completedPhasesCount
+      completedModules: completedPhasesCount || 0
     };
 
     setStats(statsData);

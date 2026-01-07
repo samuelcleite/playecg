@@ -58,7 +58,7 @@ export default function Modules() {
 
     const progressMap = {};
     modulesData.forEach(module => {
-      const modulePhasesCompleted = phases.filter(p => {
+      const modulePhasesCompleted = (phases || []).filter(p => {
         if (p.module_id !== module.id) return false;
 
         const phaseAttempts = attempts.filter(a => a.phase_id === p.id);
@@ -83,11 +83,13 @@ export default function Modules() {
         });
 
         return completedCases >= (p.total_cases || 0);
-      }).length;
+        }).length || 0;
 
-      progressMap[module.id] = {
-        completed: modulePhasesCompleted === phases.filter(p => p.module_id === module.id).length
-      };
+        const totalPhasesInModule = (phases || []).filter(p => p.module_id === module.id).length || 0;
+
+        progressMap[module.id] = {
+          completed: modulePhasesCompleted === totalPhasesInModule && totalPhasesInModule > 0
+        };
     });
     setProgress(progressMap);
 

@@ -155,11 +155,11 @@ export default function Dashboard() {
     }
 
     const statsData = {
-      totalAttempts: attempts.length,
-      correctAnswers: correctCount,
-      accuracy: attempts.length > 0 ? Math.round((correctCount / attempts.length) * 100) : 0,
-      recentAttempts: attempts.slice(0, 5),
-      completedModules: completedPhasesCount
+      totalAttempts: attempts?.length || 0,
+      correctAnswers: correctCount || 0,
+      accuracy: attempts?.length > 0 ? Math.round((correctCount / attempts.length) * 100) : 0,
+      recentAttempts: attempts?.slice(0, 5) || [],
+      completedModules: completedPhasesCount || 0
     };
 
     setStats(statsData);
