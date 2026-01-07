@@ -69,9 +69,12 @@ export default function ModulePhases() {
     setPhases(phasesData);
 
     // Calcular progresso - buscar todas as tentativas do usuário de uma vez
+    console.log(`\n🔍 BUSCANDO TENTATIVAS DO USUÁRIO: ${userData.email}`);
     const allUserAttempts = await base44.entities.QuizAttempt.filter({ 
       user_email: userData.email
     });
+    console.log(`📊 Total de tentativas retornadas: ${allUserAttempts.length}`);
+    console.log(`📋 Primeiras 3 tentativas:`, allUserAttempts.slice(0, 3));
     
     // Agrupar tentativas por fase
     const attemptsByPhase = {};
@@ -83,6 +86,9 @@ export default function ModulePhases() {
         attemptsByPhase[att.phase_id].push(att);
       }
     });
+    
+    console.log(`📦 Fases com tentativas encontradas:`, Object.keys(attemptsByPhase).length);
+    console.log(`🔑 IDs das fases:`, Object.keys(attemptsByPhase));
     
     // Calcular progresso para cada fase
     const progressMap = {};
