@@ -69,17 +69,9 @@ export default function ModulePhases() {
     setPhases(phasesData);
 
     // Calcular progresso - buscar todas as tentativas do usuário de uma vez
-    console.log(`\n🔍 BUSCANDO TENTATIVAS DO USUÁRIO: ${userData.email}`);
-    console.log(`📧 Email type:`, typeof userData.email);
-    console.log(`📧 Email value:`, JSON.stringify(userData.email));
-    
-    // Buscar todas as tentativas sem filtro e depois filtrar manualmente
-    const allAttempts = await base44.entities.QuizAttempt.list("-created_date", 1000);
-    console.log(`📊 Total de tentativas no sistema: ${allAttempts.length}`);
-    
-    const allUserAttempts = allAttempts.filter(att => att.user_email === userData.email);
-    console.log(`📊 Total de tentativas do usuário: ${allUserAttempts.length}`);
-    console.log(`📋 Primeiras 3 tentativas:`, allUserAttempts.slice(0, 3));
+    const allUserAttempts = await base44.entities.QuizAttempt.filter({ 
+      user_email: userData.email
+    });
     
     // Agrupar tentativas por fase
     const attemptsByPhase = {};
@@ -92,26 +84,16 @@ export default function ModulePhases() {
       }
     });
     
-    console.log(`📦 Fases com tentativas encontradas:`, Object.keys(attemptsByPhase).length);
-    console.log(`🔑 IDs das fases:`, Object.keys(attemptsByPhase));
-    
     // Calcular progresso para cada fase
     const progressMap = {};
     phasesData.forEach(phase => {
-      console.log(`\n=== CALCULANDO PROGRESSO DA FASE ===`);
-      console.log(`Phase ID: ${phase.id}`);
-      console.log(`Phase Name: ${phase.name}`);
-      console.log(`Total Cases na Fase: ${phase.total_cases}`);
-      
       const phaseAttempts = attemptsByPhase[phase.id] || [];
-      console.log(`Total de tentativas para esta fase (todas): ${phaseAttempts.length}`);
       
       // Filtrar apenas tentativas da fase atual com case_source = "current_phase"
       const currentPhaseAttempts = phaseAttempts.filter(att => 
         att.quiz_type === "module" && 
         att.case_source === "current_phase"
       );
-      console.log(`Tentativas filtradas (quiz_type=module, case_source=current_phase): ${currentPhaseAttempts.length}`);
       
       // Agrupar tentativas por case_id
       const attemptsByCase = {};
