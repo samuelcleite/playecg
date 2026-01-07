@@ -74,15 +74,34 @@ export default function ModulePhases() {
     // Filtrar apenas tentativas deste usuário
     const userAttempts = allAttempts.filter(att => att.user_email === userData.email);
     
+    console.log(`\n🔍 DEBUG - ANÁLISE COMPLETA`);
+    console.log(`Total de tentativas do usuário: ${userAttempts.length}`);
+    if (userAttempts.length > 0) {
+      console.log(`Exemplo de tentativa:`, userAttempts[0]);
+      console.log(`Quiz types presentes:`, [...new Set(userAttempts.map(a => a.quiz_type))]);
+      console.log(`Case sources presentes:`, [...new Set(userAttempts.map(a => a.case_source))]);
+      console.log(`Phase IDs presentes:`, [...new Set(userAttempts.map(a => a.phase_id))]);
+    }
+    
     // Calcular progresso para cada fase
     const progressMap = {};
     phasesData.forEach(phase => {
-      // Filtrar tentativas desta fase específica
-      const phaseAttempts = userAttempts.filter(att => 
+      console.log(`\n--- Fase: ${phase.name} (${phase.id}) ---`);
+      
+      // Filtrar tentativas desta fase (SEM filtros de tipo)
+      const phaseAttemptsAll = userAttempts.filter(att => att.phase_id === phase.id);
+      console.log(`Tentativas totais na fase: ${phaseAttemptsAll.length}`);
+      
+      // Filtrar tentativas desta fase com filtros originais
+      const phaseAttemptsFiltered = userAttempts.filter(att => 
         att.phase_id === phase.id && 
         att.quiz_type === "module" && 
         att.case_source === "current_phase"
       );
+      console.log(`Tentativas filtradas (module + current_phase): ${phaseAttemptsFiltered.length}`);
+      
+      // Usar TODAS as tentativas da fase para calcular progresso
+      const phaseAttempts = phaseAttemptsAll;
       
       // Agrupar por case_id
       const caseAttemptsMap = {};
@@ -93,16 +112,21 @@ export default function ModulePhases() {
         caseAttemptsMap[att.case_id].push(att);
       });
       
+      console.log(`Casos únicos encontrados: ${Object.keys(caseAttemptsMap).length}`);
+      
       // Contar casos completados (acertou OU 3+ tentativas)
       let completedCount = 0;
-      Object.values(caseAttemptsMap).forEach(attempts => {
+      Object.entries(caseAttemptsMap).forEach(([caseId, attempts]) => {
         const hasCorrect = attempts.some(a => a.correct);
         const hasThreeAttempts = attempts.length >= 3;
         
         if (hasCorrect || hasThreeAttempts) {
           completedCount++;
+          console.log(`  ✓ Case ${caseId}: correto=${hasCorrect}, tentativas=${attempts.length}`);
         }
       });
+
+      console.log(`Casos completados: ${completedCount}/${phase.total_cases}`);
 
       const totalCases = phase.total_cases || 0;
       const percentage = totalCases > 0 ? Math.round((completedCount / totalCases) * 100) : 0;
