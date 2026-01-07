@@ -18,10 +18,10 @@ import Dashboard from './pages/Dashboard';
 import Home from './pages/Home';
 import ModuleDetail from './pages/ModuleDetail';
 import ModulePhases from './pages/ModulePhases';
+import Modules from './pages/Modules';
 import Profile from './pages/Profile';
 import Quiz from './pages/Quiz';
 import Upgrade from './pages/Upgrade';
-import Modules from './pages/Modules';
 import __Layout from './Layout.jsx';
 
 
@@ -46,10 +46,10 @@ export const PAGES = {
     "Home": Home,
     "ModuleDetail": ModuleDetail,
     "ModulePhases": ModulePhases,
+    "Modules": Modules,
     "Profile": Profile,
     "Quiz": Quiz,
     "Upgrade": Upgrade,
-    "Modules": Modules,
 }
 
 export const pagesConfig = {
