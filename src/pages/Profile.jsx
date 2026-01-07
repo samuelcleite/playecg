@@ -80,15 +80,44 @@ export default function Profile() {
     const attempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email });
     const correctCount = attempts.filter(a => a.correct).length;
     
-    const progress = await base44.entities.UserProgress.filter({ user_email: userData.email });
-    const completedCount = progress.filter(p => p.completed).length;
+    // Calcular módulos completados a partir de QuizAttempt
+    const phases = await base44.entities.Phase.list();
+    const moduleAttempts = attempts.filter(a => a.quiz_type === "module");
+    
+    let completedPhasesCount = 0;
+    for (const phase of phases) {
+      const phaseAttempts = moduleAttempts.filter(a => a.phase_id === phase.id);
+      const attemptsByCase = {};
+      
+      phaseAttempts.forEach(att => {
+        if (!attemptsByCase[att.case_id]) {
+          attemptsByCase[att.case_id] = [];
+        }
+        attemptsByCase[att.case_id].push(att);
+      });
+      
+      let completedCases = 0;
+      Object.keys(attemptsByCase).forEach(caseId => {
+        const caseAttempts = attemptsByCase[caseId];
+        const hasCorrect = caseAttempts.some(a => a.correct);
+        const hasThreeAttempts = caseAttempts.length >= 3;
+        
+        if (hasCorrect || hasThreeAttempts) {
+          completedCases++;
+        }
+      });
+      
+      if (completedCases >= (phase.total_cases || 0)) {
+        completedPhasesCount++;
+      }
+    }
 
     const statsData = {
       totalAttempts: attempts.length,
       correctAnswers: correctCount,
       accuracy: attempts.length > 0 ? Math.round((correctCount / attempts.length) * 100) : 0,
       totalPoints: userData.points || 0,
-      completedModules: completedCount
+      completedModules: completedPhasesCount
     };
 
     setStats(statsData);
