@@ -77,30 +77,25 @@ export default function ModulePhases() {
 
     const progressMap = {};
     phasesData.forEach(phase => {
-      const phaseAttempts = attempts.filter(a => a.phase_id === phase.id);
-      const attemptsByCase = {};
+      // Filtrar apenas tentativas da fase atual (não os 20% aleatórios)
+      const phaseAttempts = attempts.filter(a => 
+        a.phase_id === phase.id && 
+        a.case_source === "current_phase"
+      );
       
+      // Contar casos únicos que foram ACERTADOS
+      const correctCaseIds = new Set();
       phaseAttempts.forEach(att => {
-        if (!attemptsByCase[att.case_id]) {
-          attemptsByCase[att.case_id] = [];
+        if (att.correct) {
+          correctCaseIds.add(att.case_id);
         }
-        attemptsByCase[att.case_id].push(att);
       });
 
-      const completedCaseIds = [];
-      Object.keys(attemptsByCase).forEach(caseId => {
-        const caseAttempts = attemptsByCase[caseId];
-        const hasCorrect = caseAttempts.some(a => a.correct);
-        const hasThreeAttempts = caseAttempts.length >= 3;
-        
-        if (hasCorrect || hasThreeAttempts) {
-          completedCaseIds.push(caseId);
-        }
-      });
+      const correctCasesCount = correctCaseIds.size;
 
       progressMap[phase.id] = {
-        completed_cases: completedCaseIds,
-        completed: completedCaseIds.length >= (phase.total_cases || 0)
+        correct_cases_count: correctCasesCount,
+        completed: correctCasesCount >= (phase.total_cases || 0)
       };
     });
     setProgress(progressMap);
@@ -114,8 +109,8 @@ export default function ModulePhases() {
 
   const getPhaseCompletion = (phaseId, totalCases) => {
     const prog = progress[phaseId];
-    if (!prog || !prog.completed_cases || !totalCases) return 0;
-    return Math.round((prog.completed_cases.length / totalCases) * 100);
+    if (!prog || !totalCases) return 0;
+    return Math.round((prog.correct_cases_count / totalCases) * 100);
   };
 
   const handlePhaseClick = async (phase) => {
