@@ -68,42 +68,49 @@ export default function ModulePhases() {
     const phasesData = await base44.entities.Phase.filter({ module_id: moduleId }, "order");
     setPhases(phasesData);
 
-    // Calcular progresso a partir de QuizAttempt - busca direta por fase
-    const progressMap = {};
+    // Calcular progresso - buscar todas as tentativas do usuário de uma vez
+    const allUserAttempts = await base44.entities.QuizAttempt.filter({ 
+      user_email: userData.email
+    });
     
-    for (const phase of phasesData) {
-      try {
-        // Buscar tentativas desta fase específica diretamente
-        const phaseAttempts = await base44.entities.QuizAttempt.filter({ 
-          user_email: userData.email,
-          phase_id: phase.id,
-          quiz_type: "module",
-          case_source: "current_phase"
-        });
-        
-        // Contar casos únicos que foram ACERTADOS
-        const correctCaseIds = new Set();
-        phaseAttempts.forEach(att => {
-          if (att.correct) {
-            correctCaseIds.add(att.case_id);
-          }
-        });
-
-        const correctCasesCount = correctCaseIds.size;
-        const isCompleted = correctCasesCount >= (phase.total_cases || 0);
-
-        progressMap[phase.id] = {
-          correct_cases_count: correctCasesCount,
-          completed: isCompleted
-        };
-      } catch (error) {
-        console.error(`Error loading progress for phase ${phase.id}:`, error);
-        progressMap[phase.id] = {
-          correct_cases_count: 0,
-          completed: false
-        };
+    // Agrupar tentativas por fase
+    const attemptsByPhase = {};
+    allUserAttempts.forEach(att => {
+      if (att.phase_id) {
+        if (!attemptsByPhase[att.phase_id]) {
+          attemptsByPhase[att.phase_id] = [];
+        }
+        attemptsByPhase[att.phase_id].push(att);
       }
-    }
+    });
+    
+    // Calcular progresso para cada fase
+    const progressMap = {};
+    phasesData.forEach(phase => {
+      const phaseAttempts = attemptsByPhase[phase.id] || [];
+      
+      // Filtrar apenas tentativas da fase atual com case_source = "current_phase"
+      const currentPhaseAttempts = phaseAttempts.filter(att => 
+        att.quiz_type === "module" && 
+        att.case_source === "current_phase"
+      );
+      
+      // Contar casos únicos que foram ACERTADOS
+      const correctCaseIds = new Set();
+      currentPhaseAttempts.forEach(att => {
+        if (att.correct) {
+          correctCaseIds.add(att.case_id);
+        }
+      });
+
+      const correctCasesCount = correctCaseIds.size;
+      const isCompleted = correctCasesCount >= (phase.total_cases || 0);
+
+      progressMap[phase.id] = {
+        correct_cases_count: correctCasesCount,
+        completed: isCompleted
+      };
+    });
     
     setProgress(progressMap);
 
