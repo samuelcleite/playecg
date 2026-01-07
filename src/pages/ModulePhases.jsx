@@ -102,28 +102,40 @@ export default function ModulePhases() {
       );
       console.log(`Tentativas filtradas (quiz_type=module, case_source=current_phase): ${currentPhaseAttempts.length}`);
       
-      // Contar casos únicos que foram ACERTADOS
-      const correctCaseIds = new Set();
+      // Agrupar tentativas por case_id
+      const attemptsByCase = {};
       currentPhaseAttempts.forEach(att => {
-        if (att.correct) {
-          correctCaseIds.add(att.case_id);
-          console.log(`  ✓ Case ${att.case_id} correto adicionado`);
+        if (!attemptsByCase[att.case_id]) {
+          attemptsByCase[att.case_id] = [];
+        }
+        attemptsByCase[att.case_id].push(att);
+      });
+      
+      // Contar casos completados (acertou OU tentou 3+ vezes)
+      let completedCasesCount = 0;
+      Object.keys(attemptsByCase).forEach(caseId => {
+        const caseAttempts = attemptsByCase[caseId];
+        const hasCorrect = caseAttempts.some(a => a.correct);
+        const hasThreeAttempts = caseAttempts.length >= 3;
+        
+        if (hasCorrect || hasThreeAttempts) {
+          completedCasesCount++;
+          console.log(`  ✓ Case ${caseId} completado (correto: ${hasCorrect}, tentativas: ${caseAttempts.length})`);
         }
       });
 
-      const correctCasesCount = correctCaseIds.size;
       const completionPercentage = phase.total_cases > 0 
-        ? Math.round((correctCasesCount / phase.total_cases) * 100)
+        ? Math.round((completedCasesCount / phase.total_cases) * 100)
         : 0;
-      const isCompleted = correctCasesCount >= (phase.total_cases || 0);
+      const isCompleted = completedCasesCount >= (phase.total_cases || 0);
 
-      console.log(`Casos corretos únicos: ${correctCasesCount}`);
+      console.log(`Casos completados: ${completedCasesCount}/${phase.total_cases}`);
       console.log(`Completion Percentage: ${completionPercentage}%`);
       console.log(`Fase Completa: ${isCompleted}`);
       console.log(`===================================\n`);
 
       progressMap[phase.id] = {
-        correct_cases_count: correctCasesCount,
+        correct_cases_count: completedCasesCount,
         completed: isCompleted
       };
     });
