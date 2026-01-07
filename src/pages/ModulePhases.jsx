@@ -69,17 +69,17 @@ export default function ModulePhases() {
     setPhases(phasesData);
 
     // Calcular progresso a partir de QuizAttempt
-    const attempts = await base44.entities.QuizAttempt.filter({ 
+    const allAttempts = await base44.entities.QuizAttempt.filter({ 
       user_email: userData.email,
-      module_id: moduleId,
       quiz_type: "module"
     });
 
     const progressMap = {};
-    phasesData.forEach(phase => {
-      // Filtrar apenas tentativas da fase atual (não os 20% aleatórios)
-      const phaseAttempts = attempts.filter(a => 
-        a.phase_id === phase.id && 
+    
+    for (const phase of phasesData) {
+      // Filtrar tentativas desta fase específica
+      const phaseAttempts = allAttempts.filter(a => 
+        a.phase_id?.trim() === phase.id?.trim() && 
         a.case_source === "current_phase"
       );
       
@@ -98,7 +98,8 @@ export default function ModulePhases() {
         correct_cases_count: correctCasesCount,
         completed: isCompleted
       };
-    });
+    }
+    
     setProgress(progressMap);
 
     setLoading(false);
