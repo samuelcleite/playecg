@@ -70,10 +70,15 @@ export default function ModulePhases() {
 
     // Calcular progresso - buscar todas as tentativas do usuário de uma vez
     console.log(`\n🔍 BUSCANDO TENTATIVAS DO USUÁRIO: ${userData.email}`);
-    const allUserAttempts = await base44.entities.QuizAttempt.filter({ 
-      user_email: userData.email
-    });
-    console.log(`📊 Total de tentativas retornadas: ${allUserAttempts.length}`);
+    console.log(`📧 Email type:`, typeof userData.email);
+    console.log(`📧 Email value:`, JSON.stringify(userData.email));
+    
+    // Buscar todas as tentativas sem filtro e depois filtrar manualmente
+    const allAttempts = await base44.entities.QuizAttempt.list("-created_date", 1000);
+    console.log(`📊 Total de tentativas no sistema: ${allAttempts.length}`);
+    
+    const allUserAttempts = allAttempts.filter(att => att.user_email === userData.email);
+    console.log(`📊 Total de tentativas do usuário: ${allUserAttempts.length}`);
     console.log(`📋 Primeiras 3 tentativas:`, allUserAttempts.slice(0, 3));
     
     // Agrupar tentativas por fase
