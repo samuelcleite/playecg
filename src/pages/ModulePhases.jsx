@@ -68,62 +68,48 @@ export default function ModulePhases() {
     const phasesData = await base44.entities.Phase.filter({ module_id: moduleId }, "order");
     setPhases(phasesData);
 
-    // Calcular progresso - buscar todas as tentativas do usuário de uma vez
-    const allUserAttempts = await base44.entities.QuizAttempt.filter({ 
-      user_email: userData.email
-    });
+    // Calcular progresso - buscar TODAS as tentativas do sistema e filtrar manualmente
+    const allAttempts = await base44.entities.QuizAttempt.list("-created_date", 5000);
     
-    // Agrupar tentativas por fase
-    const attemptsByPhase = {};
-    allUserAttempts.forEach(att => {
-      if (att.phase_id) {
-        if (!attemptsByPhase[att.phase_id]) {
-          attemptsByPhase[att.phase_id] = [];
-        }
-        attemptsByPhase[att.phase_id].push(att);
-      }
-    });
+    // Filtrar apenas tentativas deste usuário
+    const userAttempts = allAttempts.filter(att => att.user_email === userData.email);
     
     // Calcular progresso para cada fase
     const progressMap = {};
     phasesData.forEach(phase => {
-      const phaseAttempts = attemptsByPhase[phase.id] || [];
-      
-      // Filtrar apenas tentativas da fase atual com case_source = "current_phase"
-      const currentPhaseAttempts = phaseAttempts.filter(att => 
+      // Filtrar tentativas desta fase específica
+      const phaseAttempts = userAttempts.filter(att => 
+        att.phase_id === phase.id && 
         att.quiz_type === "module" && 
         att.case_source === "current_phase"
       );
       
-      // Agrupar tentativas por case_id
-      const attemptsByCase = {};
-      currentPhaseAttempts.forEach(att => {
-        if (!attemptsByCase[att.case_id]) {
-          attemptsByCase[att.case_id] = [];
+      // Agrupar por case_id
+      const caseAttemptsMap = {};
+      phaseAttempts.forEach(att => {
+        if (!caseAttemptsMap[att.case_id]) {
+          caseAttemptsMap[att.case_id] = [];
         }
-        attemptsByCase[att.case_id].push(att);
+        caseAttemptsMap[att.case_id].push(att);
       });
       
-      // Contar casos completados (acertou OU tentou 3+ vezes)
-      let completedCasesCount = 0;
-      Object.keys(attemptsByCase).forEach(caseId => {
-        const caseAttempts = attemptsByCase[caseId];
-        const hasCorrect = caseAttempts.some(a => a.correct);
-        const hasThreeAttempts = caseAttempts.length >= 3;
+      // Contar casos completados (acertou OU 3+ tentativas)
+      let completedCount = 0;
+      Object.values(caseAttemptsMap).forEach(attempts => {
+        const hasCorrect = attempts.some(a => a.correct);
+        const hasThreeAttempts = attempts.length >= 3;
         
         if (hasCorrect || hasThreeAttempts) {
-          completedCasesCount++;
+          completedCount++;
         }
       });
 
-      const completionPercentage = phase.total_cases > 0 
-        ? Math.round((completedCasesCount / phase.total_cases) * 100)
-        : 0;
-      const isCompleted = completedCasesCount >= (phase.total_cases || 0);
+      const totalCases = phase.total_cases || 0;
+      const percentage = totalCases > 0 ? Math.round((completedCount / totalCases) * 100) : 0;
 
       progressMap[phase.id] = {
-        correct_cases_count: completedCasesCount,
-        completed: isCompleted
+        correct_cases_count: completedCount,
+        completed: completedCount >= totalCases && totalCases > 0
       };
     });
     
