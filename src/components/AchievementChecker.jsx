@@ -47,30 +47,78 @@ export async function checkAchievement(achievement, user, stats, streakDays) {
       return false;
     }
     
+    // Buscar todas as tentativas do usuário de módulos
+    const attempts = await base44.entities.QuizAttempt.filter({
+      user_email: user.email,
+      quiz_type: "module"
+    });
+    
     // Verificar se todas as fases especificadas foram completadas
     if (phaseIds.length > 0) {
       for (const phaseId of phaseIds) {
-        const phaseProgress = await base44.entities.UserProgress.filter({
-          user_email: user.email,
-          phase_id: phaseId
+        const phase = await base44.entities.Phase.list();
+        const currentPhase = phase.find(p => p.id === phaseId);
+        if (!currentPhase) return false;
+        
+        const phaseAttempts = attempts.filter(a => a.phase_id === phaseId);
+        const attemptsByCase = {};
+        
+        phaseAttempts.forEach(att => {
+          if (!attemptsByCase[att.case_id]) {
+            attemptsByCase[att.case_id] = [];
+          }
+          attemptsByCase[att.case_id].push(att);
         });
         
-        if (phaseProgress.length === 0 || !phaseProgress[0].completed) {
-          return false; // Se alguma fase não foi completada, não conquistou
+        let completedCases = 0;
+        Object.keys(attemptsByCase).forEach(caseId => {
+          const caseAttempts = attemptsByCase[caseId];
+          const hasCorrect = caseAttempts.some(a => a.correct);
+          const hasThreeAttempts = caseAttempts.length >= 3;
+          
+          if (hasCorrect || hasThreeAttempts) {
+            completedCases++;
+          }
+        });
+        
+        if (completedCases < (currentPhase.total_cases || 0)) {
+          return false;
         }
       }
     }
     
     // Verificar se todos os módulos especificados foram completados
     if (moduleIds.length > 0) {
+      const phases = await base44.entities.Phase.list();
+      
       for (const moduleId of moduleIds) {
-        const moduleProgress = await base44.entities.UserProgress.filter({
-          user_email: user.email,
-          module_id: moduleId
-        });
+        const modulePhasesAll = phases.filter(p => p.module_id === moduleId);
         
-        if (moduleProgress.length === 0 || !moduleProgress[0].completed) {
-          return false; // Se algum módulo não foi completado, não conquistou
+        for (const phase of modulePhasesAll) {
+          const phaseAttempts = attempts.filter(a => a.phase_id === phase.id);
+          const attemptsByCase = {};
+          
+          phaseAttempts.forEach(att => {
+            if (!attemptsByCase[att.case_id]) {
+              attemptsByCase[att.case_id] = [];
+            }
+            attemptsByCase[att.case_id].push(att);
+          });
+          
+          let completedCases = 0;
+          Object.keys(attemptsByCase).forEach(caseId => {
+            const caseAttempts = attemptsByCase[caseId];
+            const hasCorrect = caseAttempts.some(a => a.correct);
+            const hasThreeAttempts = caseAttempts.length >= 3;
+            
+            if (hasCorrect || hasThreeAttempts) {
+              completedCases++;
+            }
+          });
+          
+          if (completedCases < (phase.total_cases || 0)) {
+            return false;
+          }
         }
       }
     }
