@@ -104,7 +104,12 @@ export default function ModulePhases() {
   };
 
   const isPhaseUnlocked = (phase) => {
-    return true; // Todas as fases desbloqueadas para usuários premium
+    // Primeira fase sempre desbloqueada
+    if (phase.order === 1) return true;
+    
+    // Verificar se todas as fases anteriores foram completadas
+    const previousPhases = phases.filter(p => p.order < phase.order);
+    return previousPhases.every(p => progress[p.id]?.completed);
   };
 
   const getPhaseCompletion = (phaseId, totalCases) => {
@@ -237,8 +242,13 @@ export default function ModulePhases() {
                             <div className="flex items-start justify-between mb-3">
                               <div>
                                 <h3 className="text-xl font-bold text-gray-900 mb-1">
-                                  {phase.name}
+                                  {unlocked ? phase.name : `Fase ${phase.order}`}
                                 </h3>
+                                {!unlocked && (
+                                  <p className="text-sm text-gray-500 mt-1">
+                                    Complete as fases anteriores para desbloquear
+                                  </p>
+                                )}
                               </div>
                             </div>
 
