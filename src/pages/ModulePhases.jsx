@@ -113,7 +113,6 @@ export default function ModulePhases() {
         
         if (hasCorrect || hasThreeAttempts) {
           completedCasesCount++;
-          console.log(`  ✓ Case ${caseId} completado (correto: ${hasCorrect}, tentativas: ${caseAttempts.length})`);
         }
       });
 
@@ -121,11 +120,6 @@ export default function ModulePhases() {
         ? Math.round((completedCasesCount / phase.total_cases) * 100)
         : 0;
       const isCompleted = completedCasesCount >= (phase.total_cases || 0);
-
-      console.log(`Casos completados: ${completedCasesCount}/${phase.total_cases}`);
-      console.log(`Completion Percentage: ${completionPercentage}%`);
-      console.log(`Fase Completa: ${isCompleted}`);
-      console.log(`===================================\n`);
 
       progressMap[phase.id] = {
         correct_cases_count: completedCasesCount,
