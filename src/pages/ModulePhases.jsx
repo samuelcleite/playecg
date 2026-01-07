@@ -114,7 +114,7 @@ export default function ModulePhases() {
 
   const getPhaseCompletion = (phaseId, totalCases) => {
     const prog = progress[phaseId];
-    if (!prog || !totalCases) return 0;
+    if (!prog || !prog.completed_cases || !totalCases) return 0;
     return Math.round((prog.completed_cases.length / totalCases) * 100);
   };
 
