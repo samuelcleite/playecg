@@ -223,7 +223,8 @@ export default function Quiz() {
         phase_id: currentCase.phase_id,
         user_answer: selectedAnswers.join(", "),
         correct: correct,
-        time_spent: timeSpent
+        time_spent: timeSpent,
+        quiz_type: "random"
       });
 
       // Verificar se o usuário errou 5 questões da mesma fase
