@@ -279,13 +279,20 @@ export default function ModulePhases() {
                                 </span>
                               </div>
 
-                              <Button
-                                onClick={() => handlePhaseClick(phase)}
-                                className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 gap-2"
-                              >
-                                {completed ? 'Revisar' : completionPercentage > 0 ? 'Continuar' : 'Começar'}
-                                <ArrowRight className="w-4 h-4" />
-                              </Button>
+                              {unlocked ? (
+                                <Button
+                                  onClick={() => handlePhaseClick(phase)}
+                                  className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 gap-2"
+                                >
+                                  {completed ? 'Revisar' : completionPercentage > 0 ? 'Continuar' : 'Começar'}
+                                  <ArrowRight className="w-4 h-4" />
+                                </Button>
+                              ) : (
+                                <Button disabled className="gap-2 bg-gray-300 cursor-not-allowed">
+                                  <Lock className="w-4 h-4" />
+                                  Bloqueado
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </div>
