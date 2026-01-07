@@ -92,18 +92,13 @@ export default function ModulePhases() {
       });
 
       const correctCasesCount = correctCaseIds.size;
-      console.log(`Phase: ${phase.name} (ID: ${phase.id})`);
-      console.log(`Total cases for phase: ${phase.total_cases}`);
-      console.log(`Correct cases counted: ${correctCasesCount}`);
       const isCompleted = correctCasesCount >= (phase.total_cases || 0);
-      console.log(`Is phase completed: ${isCompleted}`);
 
       progressMap[phase.id] = {
         correct_cases_count: correctCasesCount,
         completed: isCompleted
       };
     });
-    console.log('Final progress map:', progressMap);
     setProgress(progressMap);
 
     setLoading(false);
