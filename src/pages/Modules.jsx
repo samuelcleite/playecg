@@ -106,7 +106,7 @@ export default function Modules() {
   const getCompletionPercentage = (moduleId, totalCases) => {
     const prog = progress[moduleId];
     if (!prog || !totalCases) return 0;
-    return Math.round((prog.completed_cases.length / totalCases) * 100);
+    return prog.completed ? 100 : 0;
   };
 
   const handleOpenIntro = () => {
@@ -136,7 +136,7 @@ export default function Modules() {
                 <div>
                   <p className="text-sm opacity-90">Módulos Completos</p>
                   <p className="text-3xl font-bold mt-1">
-                    {Object.values(progress).filter(p => p.completed).length}/{modules.length}
+                   {Object.values(progress).filter(p => p?.completed).length}/{modules?.length || 0}
                   </p>
                 </div>
                 <Trophy className="w-12 h-12 opacity-80" />
@@ -150,7 +150,7 @@ export default function Modules() {
                 <div>
                   <p className="text-sm opacity-90">Total de Casos</p>
                   <p className="text-3xl font-bold mt-1">
-                    {modules.reduce((sum, m) => sum + (m.total_cases || 0), 0)}
+                   {modules?.reduce((sum, m) => sum + (m?.total_cases || 0), 0) || 0}
                   </p>
                 </div>
                 <BookOpen className="w-12 h-12 opacity-80" />
@@ -298,7 +298,7 @@ export default function Modules() {
             );
           })}
 
-          {modules.length === 0 && (
+          {modules?.length === 0 && (
             <Card className="border-none shadow-lg">
               <CardContent className="p-12 text-center">
                 <Trophy className="w-16 h-16 text-gray-400 mx-auto mb-4" />
