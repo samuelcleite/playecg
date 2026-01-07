@@ -61,6 +61,7 @@ export default function ModuleDetail() {
   const [reportErrorDescription, setReportErrorDescription] = useState("");
   const [reportingError, setReportingError] = useState(false);
   const [phaseContent, setPhaseContent] = useState(null);
+  const [showPhaseCompletion, setShowPhaseCompletion] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -276,6 +277,11 @@ export default function ModuleDetail() {
           score: 0,
           completed: phaseCompleted
         });
+
+        // Se completou a fase, mostrar tela de conclusão
+        if (phaseCompleted) {
+          setShowPhaseCompletion(true);
+        }
       }
     }
   };
@@ -457,6 +463,60 @@ export default function ModuleDetail() {
           <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-gray-600">Carregando módulo...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Tela de conclusão da fase
+  if (showPhaseCompletion) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <Card className="max-w-2xl border-none shadow-2xl">
+          <CardContent className="p-12 text-center">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", duration: 0.6 }}
+            >
+              <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <Trophy className="w-12 h-12 text-white" />
+              </div>
+            </motion.div>
+            
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <h2 className="text-4xl font-bold mb-4 text-gray-900">
+                🎉 Parabéns!
+              </h2>
+              <h3 className="text-2xl font-semibold mb-2 text-gray-800">
+                Fase Concluída!
+              </h3>
+              <p className="text-xl text-gray-600 mb-6">
+                Você completou a fase <span className="font-bold text-purple-600">{phase?.name}</span> do módulo <span className="font-bold text-blue-600">{module?.name}</span>
+              </p>
+              
+              <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-6 mb-8">
+                <p className="text-lg text-gray-700 mb-2">
+                  <span className="font-bold text-2xl text-green-600">{progress.completed_cases.length}</span> casos completados
+                </p>
+                <p className="text-sm text-gray-600">
+                  Continue sua jornada nas próximas fases!
+                </p>
+              </div>
+
+              <Button
+                onClick={() => navigate(`${createPageUrl("ModulePhases")}?id=${module.id}`)}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-6 text-lg font-semibold"
+                size="lg"
+              >
+                Ver Todas as Fases
+              </Button>
+            </motion.div>
+          </CardContent>
+        </Card>
       </div>
     );
   }

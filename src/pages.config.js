@@ -4,6 +4,7 @@ import AdminCases from './pages/AdminCases';
 import AdminContent from './pages/AdminContent';
 import AdminCouponStats from './pages/AdminCouponStats';
 import AdminCoupons from './pages/AdminCoupons';
+import AdminDailyCases from './pages/AdminDailyCases';
 import AdminImages from './pages/AdminImages';
 import AdminModules from './pages/AdminModules';
 import AdminPayments from './pages/AdminPayments';
@@ -12,6 +13,7 @@ import AdminUsers from './pages/AdminUsers';
 import AprendaECG from './pages/AprendaECG';
 import CompleteProfile from './pages/CompleteProfile';
 import ConteudoECG from './pages/ConteudoECG';
+import DailyCase from './pages/DailyCase';
 import Dashboard from './pages/Dashboard';
 import Home from './pages/Home';
 import ModuleDetail from './pages/ModuleDetail';
@@ -20,8 +22,6 @@ import Modules from './pages/Modules';
 import Profile from './pages/Profile';
 import Quiz from './pages/Quiz';
 import Upgrade from './pages/Upgrade';
-import DailyCase from './pages/DailyCase';
-import AdminDailyCases from './pages/AdminDailyCases';
 import __Layout from './Layout.jsx';
 
 
@@ -32,6 +32,7 @@ export const PAGES = {
     "AdminContent": AdminContent,
     "AdminCouponStats": AdminCouponStats,
     "AdminCoupons": AdminCoupons,
+    "AdminDailyCases": AdminDailyCases,
     "AdminImages": AdminImages,
     "AdminModules": AdminModules,
     "AdminPayments": AdminPayments,
@@ -40,6 +41,7 @@ export const PAGES = {
     "AprendaECG": AprendaECG,
     "CompleteProfile": CompleteProfile,
     "ConteudoECG": ConteudoECG,
+    "DailyCase": DailyCase,
     "Dashboard": Dashboard,
     "Home": Home,
     "ModuleDetail": ModuleDetail,
@@ -48,8 +50,6 @@ export const PAGES = {
     "Profile": Profile,
     "Quiz": Quiz,
     "Upgrade": Upgrade,
-    "DailyCase": DailyCase,
-    "AdminDailyCases": AdminDailyCases,
 }
 
 export const pagesConfig = {
