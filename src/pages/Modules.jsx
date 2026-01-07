@@ -49,10 +49,45 @@ export default function Modules() {
     const modulesData = await base44.entities.Module.list("order");
     setModules(modulesData);
 
-    const progressData = await base44.entities.UserProgress.filter({ user_email: userData.email });
+    // Calcular progresso a partir de QuizAttempt
+    const phases = await base44.entities.Phase.list();
+    const attempts = await base44.entities.QuizAttempt.filter({ 
+      user_email: userData.email,
+      quiz_type: "module"
+    });
+
     const progressMap = {};
-    progressData.forEach(p => {
-      progressMap[p.module_id] = p;
+    modulesData.forEach(module => {
+      const modulePhasesCompleted = phases.filter(p => {
+        if (p.module_id !== module.id) return false;
+
+        const phaseAttempts = attempts.filter(a => a.phase_id === p.id);
+        const attemptsByCase = {};
+        
+        phaseAttempts.forEach(att => {
+          if (!attemptsByCase[att.case_id]) {
+            attemptsByCase[att.case_id] = [];
+          }
+          attemptsByCase[att.case_id].push(att);
+        });
+
+        let completedCases = 0;
+        Object.keys(attemptsByCase).forEach(caseId => {
+          const caseAttempts = attemptsByCase[caseId];
+          const hasCorrect = caseAttempts.some(a => a.correct);
+          const hasThreeAttempts = caseAttempts.length >= 3;
+          
+          if (hasCorrect || hasThreeAttempts) {
+            completedCases++;
+          }
+        });
+
+        return completedCases >= (p.total_cases || 0);
+      }).length;
+
+      progressMap[module.id] = {
+        completed: modulePhasesCompleted === phases.filter(p => p.module_id === module.id).length
+      };
     });
     setProgress(progressMap);
 

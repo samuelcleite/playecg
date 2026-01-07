@@ -42,10 +42,11 @@ export default function ModuleDetail() {
   const [selectedAnswers, setSelectedAnswers] = useState([]);
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-  const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [attemptCount, setAttemptCount] = useState(0);
   const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
+  const [completedCasesCount, setCompletedCasesCount] = useState(0);
+  const [sessionCompletedCases, setSessionCompletedCases] = useState([]);
 
   // Zoom states
   const [showZoom, setShowZoom] = useState(false);
@@ -96,25 +97,37 @@ export default function ModuleDetail() {
     }
     setPhase(foundPhase);
 
-    let progressData = await base44.entities.UserProgress.filter({ 
-      user_email: userData.email, 
+    // Buscar tentativas do usuário nesta fase para calcular progresso
+    const attempts = await base44.entities.QuizAttempt.filter({ 
+      user_email: userData.email,
       module_id: moduleId,
-      phase_id: phaseId
+      phase_id: phaseId,
+      quiz_type: "module"
     });
 
-    if (progressData.length === 0) {
-      const newProgress = await base44.entities.UserProgress.create({
-        user_email: userData.email,
-        module_id: moduleId,
-        phase_id: phaseId,
-        completed_cases: [],
-        score: 0,
-        completed: false
-      });
-      progressData = [newProgress];
-    }
+    // Calcular casos únicos completados (acertou ou esgotou tentativas)
+    const completedCaseIds = [];
+    const attemptsByCase = {};
 
-    setProgress(progressData[0]);
+    attempts.forEach(att => {
+      if (!attemptsByCase[att.case_id]) {
+        attemptsByCase[att.case_id] = [];
+      }
+      attemptsByCase[att.case_id].push(att);
+    });
+
+    // Um caso é considerado completado se: acertou ou tem 3+ tentativas
+    Object.keys(attemptsByCase).forEach(caseId => {
+      const caseAttempts = attemptsByCase[caseId];
+      const hasCorrect = caseAttempts.some(a => a.correct);
+      const hasThreeAttempts = caseAttempts.length >= 3;
+      
+      if (hasCorrect || hasThreeAttempts) {
+        completedCaseIds.push(caseId);
+      }
+    });
+
+    setCompletedCasesCount(completedCaseIds.length);
 
     // Selecionar e combinar casos (80% fase atual + 20% fases anteriores)
     const combinedCases = await selectAndCombineCases(
@@ -122,7 +135,7 @@ export default function ModuleDetail() {
       phaseId, 
       foundPhase, 
       phaseData, 
-      progressData[0].completed_cases
+      completedCaseIds
     );
     setCases(combinedCases);
 
@@ -184,9 +197,14 @@ export default function ModuleDetail() {
       );
     }
 
-    // Selecionar casos aleatoriamente
-    const selectedCurrentCases = shuffleArray([...availableCurrentCases]).slice(0, numCasesFromCurrent);
-    const selectedPreviousCases = shuffleArray([...availablePreviousCases]).slice(0, numCasesFromPrevious);
+    // Selecionar casos aleatoriamente e marcar a origem
+    const selectedCurrentCases = shuffleArray([...availableCurrentCases])
+      .slice(0, numCasesFromCurrent)
+      .map(c => ({ ...c, caseSource: 'current_phase' }));
+    
+    const selectedPreviousCases = shuffleArray([...availablePreviousCases])
+      .slice(0, numCasesFromPrevious)
+      .map(c => ({ ...c, caseSource: 'previous_phase' }));
 
     // Combinar e embaralhar
     const combinedCases = shuffleArray([...selectedCurrentCases, ...selectedPreviousCases]);
@@ -247,36 +265,30 @@ export default function ModuleDetail() {
       setShowCorrectAnswer(true);
     }
 
-    // Se acertou ou já tentou 3 vezes, registrar e avançar
+    // Se acertou ou já tentou 3 vezes, registrar
     if (correct || newAttemptCount >= 3) {
       await base44.entities.QuizAttempt.create({
         user_email: user.email,
         case_id: currentCase.id,
+        module_id: currentCase.module_id,
+        phase_id: currentCase.phase_id,
         user_answer: selectedAnswers.join(", "),
         correct: correct,
-        points_earned: 0
+        quiz_type: "module",
+        case_source: currentCase.caseSource
       });
 
-      if (!progress.completed_cases.includes(currentCase.id)) {
-        const updatedCompletedCases = [...progress.completed_cases, currentCase.id];
+      // Verificar se já completou esse caso nesta sessão
+      if (!sessionCompletedCases.includes(currentCase.id)) {
+        const updatedSessionCompleted = [...sessionCompletedCases, currentCase.id];
+        setSessionCompletedCases(updatedSessionCompleted);
         
-        // Contar apenas casos corretos para o total
-        const correctCasesCount = updatedCompletedCases.length;
+        const newCompletedCount = completedCasesCount + 1;
+        setCompletedCasesCount(newCompletedCount);
+
+        // Verificar se a fase foi completada
         const requiredCases = phase?.total_cases || cases.length;
-        const phaseCompleted = correctCasesCount >= requiredCases;
-
-        await base44.entities.UserProgress.update(progress.id, {
-          completed_cases: updatedCompletedCases,
-          score: 0,
-          completed: phaseCompleted
-        });
-
-        setProgress({
-          ...progress,
-          completed_cases: updatedCompletedCases,
-          score: 0,
-          completed: phaseCompleted
-        });
+        const phaseCompleted = newCompletedCount >= requiredCases;
 
         // Se completou a fase, mostrar tela de conclusão
         if (phaseCompleted) {
@@ -500,7 +512,7 @@ export default function ModuleDetail() {
               
               <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-6 mb-8">
                 <p className="text-lg text-gray-700 mb-2">
-                  <span className="font-bold text-2xl text-green-600">{progress.completed_cases.length}</span> casos completados
+                  <span className="font-bold text-2xl text-green-600">{completedCasesCount}</span> casos completados
                 </p>
                 <p className="text-sm text-gray-600">
                   Continue sua jornada nas próximas fases!
@@ -538,7 +550,7 @@ export default function ModuleDetail() {
   }
 
   const requiredCases = phase?.total_cases || cases.length;
-  const completionPercentage = Math.round((progress.completed_cases.length / requiredCases) * 100);
+  const completionPercentage = Math.round((completedCasesCount / requiredCases) * 100);
   
   const correctAnswers = currentCase.correct_answers && currentCase.correct_answers.length > 0
     ? currentCase.correct_answers

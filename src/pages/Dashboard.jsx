@@ -121,16 +121,45 @@ export default function Dashboard() {
 
     const attempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", 100);
     const correctCount = attempts.filter(a => a.correct).length;
-    
-    const progress = await base44.entities.UserProgress.filter({ user_email: userData.email });
-    const completedCount = progress.filter(p => p.completed).length;
-    
+
+    // Calcular módulos completados a partir de QuizAttempt
+    const phases = await base44.entities.Phase.list();
+    const moduleAttempts = attempts.filter(a => a.quiz_type === "module");
+
+    let completedPhasesCount = 0;
+    for (const phase of phases) {
+      const phaseAttempts = moduleAttempts.filter(a => a.phase_id === phase.id);
+      const attemptsByCase = {};
+
+      phaseAttempts.forEach(att => {
+        if (!attemptsByCase[att.case_id]) {
+          attemptsByCase[att.case_id] = [];
+        }
+        attemptsByCase[att.case_id].push(att);
+      });
+
+      let completedCases = 0;
+      Object.keys(attemptsByCase).forEach(caseId => {
+        const caseAttempts = attemptsByCase[caseId];
+        const hasCorrect = caseAttempts.some(a => a.correct);
+        const hasThreeAttempts = caseAttempts.length >= 3;
+
+        if (hasCorrect || hasThreeAttempts) {
+          completedCases++;
+        }
+      });
+
+      if (completedCases >= (phase.total_cases || 0)) {
+        completedPhasesCount++;
+      }
+    }
+
     const statsData = {
       totalAttempts: attempts.length,
       correctAnswers: correctCount,
       accuracy: attempts.length > 0 ? Math.round((correctCount / attempts.length) * 100) : 0,
       recentAttempts: attempts.slice(0, 5),
-      completedModules: completedCount
+      completedModules: completedPhasesCount
     };
 
     setStats(statsData);
@@ -164,7 +193,10 @@ export default function Dashboard() {
     try {
       const modules = await base44.entities.Module.list("order");
       const phases = await base44.entities.Phase.list("order");
-      const userProgress = await base44.entities.UserProgress.filter({ user_email: userEmail });
+      const attempts = await base44.entities.QuizAttempt.filter({ 
+        user_email: userEmail,
+        quiz_type: "module"
+      });
 
       // Procurar a primeira fase não completada
       for (const module of modules) {
@@ -173,15 +205,36 @@ export default function Dashboard() {
           .sort((a, b) => a.order - b.order);
 
         for (const phase of modulePhasesOrdered) {
-          const phaseProgress = userProgress.find(
-            p => p.module_id === module.id && p.phase_id === phase.id
+          const phaseAttempts = attempts.filter(
+            a => a.module_id === module.id && a.phase_id === phase.id
           );
 
-          if (!phaseProgress || !phaseProgress.completed) {
+          const attemptsByCase = {};
+          phaseAttempts.forEach(att => {
+            if (!attemptsByCase[att.case_id]) {
+              attemptsByCase[att.case_id] = [];
+            }
+            attemptsByCase[att.case_id].push(att);
+          });
+
+          let completedCases = 0;
+          Object.keys(attemptsByCase).forEach(caseId => {
+            const caseAttempts = attemptsByCase[caseId];
+            const hasCorrect = caseAttempts.some(a => a.correct);
+            const hasThreeAttempts = caseAttempts.length >= 3;
+
+            if (hasCorrect || hasThreeAttempts) {
+              completedCases++;
+            }
+          });
+
+          const phaseCompleted = completedCases >= (phase.total_cases || 0);
+
+          if (!phaseCompleted) {
             setNextIncompletePhase({
               module,
               phase,
-              progress: phaseProgress
+              completedCases
             });
             return;
           }
@@ -313,11 +366,9 @@ export default function Dashboard() {
                       <h3 className="text-lg font-bold text-gray-900">
                         {nextIncompletePhase.module.name} - {nextIncompletePhase.phase.name}
                       </h3>
-                      {nextIncompletePhase.progress && (
-                        <p className="text-sm text-gray-600 mt-1">
-                          {nextIncompletePhase.progress.completed_cases.length} de {nextIncompletePhase.phase.total_cases} casos completados
-                        </p>
-                      )}
+                      <p className="text-sm text-gray-600 mt-1">
+                        {nextIncompletePhase.completedCases} de {nextIncompletePhase.phase.total_cases} casos completados
+                      </p>
                     </div>
                   </div>
                   <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white gap-2">
