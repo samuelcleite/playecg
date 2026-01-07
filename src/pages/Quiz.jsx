@@ -459,13 +459,7 @@ export default function Quiz() {
     }
   };
 
-  const createPageUrlLocal = (pageName) => {
-    if (pageName === "AdminCases" && currentCase?.id) {
-      return `/admin/cases/${currentCase.id}/edit`;
-    }
-    console.warn(`createPageUrl called with unhandled pageName: ${pageName}`);
-    return "/";
-  };
+
 
   if (loading) {
     return (
@@ -636,7 +630,7 @@ export default function Quiz() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate(`${createPageUrlLocal("AdminCases")}?edit_case=${currentCase.id}`)}
+                    onClick={() => navigate(`${createPageUrl("AdminCases")}?edit_case=${currentCase.id}`)}
                     className="gap-2 border-purple-200 hover:bg-purple-50"
                   >
                     <Pencil className="w-4 h-4" />
