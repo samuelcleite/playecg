@@ -100,7 +100,12 @@ export default function Modules() {
   };
 
   const isModuleUnlocked = (module) => {
-    return true; // Todos os módulos desbloqueados para usuários premium
+    // Primeiro módulo sempre desbloqueado
+    if (module.order === 1) return true;
+    
+    // Verificar se todos os módulos anteriores foram completados
+    const previousModules = modules.filter(m => m.order < module.order);
+    return previousModules.every(m => progress[m.id]?.completed);
   };
 
   const getCompletionPercentage = (moduleId, totalCases) => {
@@ -283,12 +288,19 @@ export default function Modules() {
                           <div className="text-sm text-gray-500">
                             {module.total_cases} casos
                           </div>
-                          <Link to={`${createPageUrl("ModulePhases")}?id=${module.id}`}>
-                            <Button className="gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700">
-                              {completed ? 'Revisar' : 'Continuar'}
-                              <ArrowRight className="w-4 h-4" />
+                          {unlocked ? (
+                            <Link to={`${createPageUrl("ModulePhases")}?id=${module.id}`}>
+                              <Button className="gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700">
+                                {completed ? 'Revisar' : 'Continuar'}
+                                <ArrowRight className="w-4 h-4" />
+                              </Button>
+                            </Link>
+                          ) : (
+                            <Button disabled className="gap-2 bg-gray-300 cursor-not-allowed">
+                              <Lock className="w-4 h-4" />
+                              Bloqueado
                             </Button>
-                          </Link>
+                          )}
                         </div>
                       </div>
                     </div>
