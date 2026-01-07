@@ -259,11 +259,9 @@ export default function Modules() {
                         <div className="flex items-start justify-between mb-3">
                           <div>
                             <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                              {unlocked ? module.name : `Módulo ${module.order}`}
+                              {module.name}
                             </h3>
-                            <p className="text-gray-600">
-                              {unlocked ? module.description : "Complete os módulos anteriores para desbloquear"}
-                            </p>
+                            <p className="text-gray-600">{module.description}</p>
                           </div>
                         </div>
 
