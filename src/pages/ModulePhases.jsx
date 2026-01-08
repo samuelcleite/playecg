@@ -52,6 +52,8 @@ export default function ModulePhases() {
     const userData = await base44.auth.me();
     setUser(userData);
 
+    console.log('👤 Usuário logado:', userData.email);
+
     if (userData.subscription_type !== "premium") {
       navigate(createPageUrl("Upgrade"));
       return;
@@ -64,17 +66,31 @@ export default function ModulePhases() {
       return;
     }
     setModule(foundModule);
+    console.log('📦 Módulo selecionado:', foundModule.name, 'ID:', moduleId);
 
     const phasesData = await base44.entities.Phase.filter({ module_id: moduleId }, "order");
     setPhases(phasesData);
+    console.log('📋 Fases do módulo:', phasesData.map(p => p.name));
 
-    // Calcular progresso diretamente de QuizAttempt
-    const attempts = await base44.entities.QuizAttempt.filter({ 
-      user_email: userData.email,
-      quiz_type: "module"
+    // Primeiro, buscar TODAS as tentativas do usuário (sem filtro de tipo)
+    console.log('🔍 Buscando todas as tentativas...');
+    const allAttempts = await base44.entities.QuizAttempt.filter({ 
+      user_email: userData.email
     });
+    console.log('📊 Total de tentativas (todos os tipos):', allAttempts.length);
+    
+    if (allAttempts.length > 0) {
+      console.log('📝 Exemplo de tentativa:', allAttempts[0]);
+      console.log('📊 Distribuição por tipo:', {
+        module: allAttempts.filter(a => a.quiz_type === 'module').length,
+        random: allAttempts.filter(a => a.quiz_type === 'random').length,
+        daily: allAttempts.filter(a => a.quiz_type === 'daily').length
+      });
+    }
 
-    console.log('📊 Total de tentativas do usuário:', attempts.length);
+    // Agora filtrar apenas tentativas do tipo "module"
+    const attempts = allAttempts.filter(a => a.quiz_type === 'module');
+    console.log('🎯 Tentativas tipo "module":', attempts.length);
     console.log('🎯 Fases encontradas:', phasesData.length);
 
     // Mapear progresso por phase_id
