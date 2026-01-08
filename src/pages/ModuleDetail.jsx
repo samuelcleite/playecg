@@ -172,8 +172,16 @@ export default function ModuleDetail() {
     }
 
     // Filtrar casos já completados nesta sessão (fase atual)
-    const availableCurrentCases = currentPhaseCases.filter(c => !completedCaseIds.includes(c.id));
-    const availablePreviousCases = previousPhasesCases.filter(c => !completedCaseIds.includes(c.id));
+    let availableCurrentCases = currentPhaseCases.filter(c => !completedCaseIds.includes(c.id));
+    let availablePreviousCases = previousPhasesCases.filter(c => !completedCaseIds.includes(c.id));
+
+    // Se não houver casos disponíveis (usuário já fez todos), permitir repetir
+    if (availableCurrentCases.length === 0 && currentPhaseCases.length > 0) {
+      availableCurrentCases = currentPhaseCases;
+    }
+    if (availablePreviousCases.length === 0 && previousPhasesCases.length > 0) {
+      availablePreviousCases = previousPhasesCases;
+    }
 
     // Calcular distribuição (80% atual + 20% anteriores)
     const totalCasesForSession = currentPhase.total_cases || 10;
