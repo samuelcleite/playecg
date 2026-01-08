@@ -71,14 +71,25 @@ export default function ModulePhases() {
     // Calcular progresso diretamente de QuizAttempt
     const attempts = await base44.entities.QuizAttempt.filter({ 
       user_email: userData.email,
-      module_id: moduleId,
       quiz_type: "module"
     });
+
+    console.log('📊 Total de tentativas do usuário:', attempts.length);
+    console.log('🎯 Fases encontradas:', phasesData.length);
 
     // Mapear progresso por phase_id
     const progressMap = {};
     phasesData.forEach(phase => {
-      const phaseAttempts = attempts.filter(a => a.phase_id === phase.id);
+      const phaseAttempts = attempts.filter(a => 
+        a.phase_id === phase.id && a.module_id === moduleId
+      );
+      
+      console.log(`📝 Fase ${phase.name}:`, {
+        phase_id: phase.id,
+        total_attempts: phaseAttempts.length,
+        total_cases_required: phase.total_cases
+      });
+
       const attemptsByCase = {};
       
       phaseAttempts.forEach(att => {
@@ -101,12 +112,19 @@ export default function ModulePhases() {
 
       const isCompleted = completedCases >= (phase.total_cases || 0);
       
+      console.log(`✅ Progresso fase ${phase.name}:`, {
+        completedCases,
+        isCompleted,
+        percentage: phase.total_cases ? Math.round((completedCases / phase.total_cases) * 100) : 0
+      });
+      
       progressMap[phase.id] = {
         correct_cases_count: completedCases,
         completed: isCompleted
       };
     });
     
+    console.log('🎯 Mapa de progresso final:', progressMap);
     setProgress(progressMap);
 
     setLoading(false);
