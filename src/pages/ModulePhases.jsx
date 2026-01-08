@@ -98,7 +98,7 @@ export default function ModulePhases() {
     
     // Verificar se todas as fases anteriores foram completadas
     const previousPhases = phases.filter(p => p.order < phase.order);
-    return previousPhases.every(p => progress[p.id]?.completed);
+    return previousPhases.every(p => progress[p.id]?.completed === true);
   };
 
   const getPhaseCompletion = (phaseId, totalCases) => {
