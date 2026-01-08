@@ -52,6 +52,8 @@ export default function ModulePhases() {
     const userData = await base44.auth.me();
     setUser(userData);
 
+    console.log('👤 Usuário logado:', userData.email);
+
     if (userData.subscription_type !== "premium") {
       navigate(createPageUrl("Upgrade"));
       return;
@@ -64,23 +66,48 @@ export default function ModulePhases() {
       return;
     }
     setModule(foundModule);
+    console.log('📦 Módulo selecionado:', foundModule.name, 'ID:', moduleId);
 
     const phasesData = await base44.entities.Phase.filter({ module_id: moduleId }, "order");
     setPhases(phasesData);
+    console.log('📋 Fases do módulo:', phasesData.length, 'fases');
 
     // Calcular progresso diretamente de QuizAttempt (sem limite para pegar todas)
+    console.log('🔍 Buscando TODAS as tentativas do usuário...');
     const allUserAttempts = await base44.entities.QuizAttempt.filter({ 
       user_email: userData.email
     }, "-created_date", 1000);
     
+    console.log('📊 Total de tentativas retornadas:', allUserAttempts.length);
+    console.log('📊 Distribuição por tipo:', {
+      module: allUserAttempts.filter(a => a.quiz_type === 'module').length,
+      random: allUserAttempts.filter(a => a.quiz_type === 'random').length,
+      daily: allUserAttempts.filter(a => a.quiz_type === 'daily').length
+    });
+    
     const attempts = allUserAttempts.filter(a => a.quiz_type === "module");
+    console.log('🎯 Tentativas tipo "module":', attempts.length);
+    
+    if (attempts.length > 0) {
+      console.log('📝 Exemplo de tentativa tipo module:', attempts[0]);
+      console.log('📊 Module IDs nas tentativas:', [...new Set(attempts.map(a => a.module_id))]);
+      console.log('📊 Phase IDs nas tentativas:', [...new Set(attempts.map(a => a.phase_id))]);
+    }
 
     // Mapear progresso por phase_id
     const progressMap = {};
     phasesData.forEach(phase => {
+      console.log(`\n🔍 Processando fase: ${phase.name} (ID: ${phase.id})`);
+      
       const phaseAttempts = attempts.filter(a => 
         a.phase_id === phase.id && a.module_id === moduleId
       );
+      
+      console.log(`  📊 Tentativas desta fase: ${phaseAttempts.length}`);
+      
+      if (phaseAttempts.length > 0) {
+        console.log(`  📝 Case IDs únicos: ${[...new Set(phaseAttempts.map(a => a.case_id))].length}`);
+      }
 
       const attemptsByCase = {};
       
@@ -104,12 +131,16 @@ export default function ModulePhases() {
 
       const isCompleted = completedCases >= (phase.total_cases || 0);
       
+      console.log(`  ✅ Casos completados: ${completedCases}/${phase.total_cases}`);
+      console.log(`  ✅ Fase completa: ${isCompleted}`);
+      
       progressMap[phase.id] = {
         correct_cases_count: completedCases,
         completed: isCompleted
       };
     });
     
+    console.log('\n🎯 Mapa de progresso final:', progressMap);
     setProgress(progressMap);
 
     setLoading(false);
