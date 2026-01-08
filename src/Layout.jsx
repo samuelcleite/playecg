@@ -3,7 +3,6 @@ import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { User } from "@/entities/User";
 import { calculateStreakDays } from "@/components/StreakCalculator";
-import FaleConosco from "@/components/FaleConosco";
 import {
   Activity,
   Home,
@@ -23,8 +22,7 @@ import {
   Users,
   Award,
   FileText,
-  Calendar,
-  MessageCircle
+  Calendar
 } from "lucide-react";
 import {
   Sidebar,
@@ -48,7 +46,6 @@ export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const [user, setUser] = React.useState(null);
   const [streakDays, setStreakDays] = React.useState(0);
-  const [showFaleConosco, setShowFaleConosco] = React.useState(false);
 
   React.useEffect(() => {
     loadUser();
@@ -315,15 +312,6 @@ export default function Layout({ children, currentPageName }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowFaleConosco(true)}
-                  className="w-full gap-2 border-blue-200 hover:bg-blue-50 mb-2"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  Fale Conosco
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
                   onClick={handleLogout}
                   className="w-full gap-2 border-purple-200 hover:bg-purple-50"
                 >
@@ -348,8 +336,6 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </main>
         </div>
-
-        <FaleConosco open={showFaleConosco} onOpenChange={setShowFaleConosco} />
         </SidebarProvider>
         );
         }
