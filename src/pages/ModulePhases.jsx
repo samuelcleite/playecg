@@ -68,22 +68,42 @@ export default function ModulePhases() {
     const phasesData = await base44.entities.Phase.filter({ module_id: moduleId }, "order");
     setPhases(phasesData);
 
-    // Buscar TODOS os registros de progresso e filtrar manualmente
-    const allProgress = await base44.entities.UserPhaseProgress.list();
-    
-    // Filtrar por user_email e module_id manualmente
-    const userProgress = allProgress.filter(p => 
-      p.user_email === userData.email && p.module_id === moduleId
-    );
+    // Calcular progresso diretamente de QuizAttempt
+    const attempts = await base44.entities.QuizAttempt.filter({ 
+      user_email: userData.email,
+      module_id: moduleId,
+      quiz_type: "module"
+    });
 
     // Mapear progresso por phase_id
     const progressMap = {};
     phasesData.forEach(phase => {
-      const phaseProgress = userProgress.find(p => p.phase_id === phase.id);
+      const phaseAttempts = attempts.filter(a => a.phase_id === phase.id);
+      const attemptsByCase = {};
+      
+      phaseAttempts.forEach(att => {
+        if (!attemptsByCase[att.case_id]) {
+          attemptsByCase[att.case_id] = [];
+        }
+        attemptsByCase[att.case_id].push(att);
+      });
+
+      let completedCases = 0;
+      Object.keys(attemptsByCase).forEach(caseId => {
+        const caseAttempts = attemptsByCase[caseId];
+        const hasCorrect = caseAttempts.some(a => a.correct);
+        const hasThreeAttempts = caseAttempts.length >= 3;
+        
+        if (hasCorrect || hasThreeAttempts) {
+          completedCases++;
+        }
+      });
+
+      const isCompleted = completedCases >= (phase.total_cases || 0);
       
       progressMap[phase.id] = {
-        correct_cases_count: phaseProgress?.completed_cases_count || 0,
-        completed: phaseProgress?.is_completed || false
+        correct_cases_count: completedCases,
+        completed: isCompleted
       };
     });
     
@@ -103,12 +123,6 @@ export default function ModulePhases() {
 
   const getPhaseCompletion = (phaseId, totalCases) => {
     const prog = progress[phaseId];
-    console.log(`🧮 Calculando progresso para fase ${phaseId}:`, {
-      prog,
-      totalCases,
-      correct_cases_count: prog?.correct_cases_count,
-      percentage: prog && totalCases ? Math.round((prog.correct_cases_count / totalCases) * 100) : 0
-    });
     if (!prog || !totalCases) return 0;
     return Math.round((prog.correct_cases_count / totalCases) * 100);
   };
