@@ -68,42 +68,25 @@ export default function ModulePhases() {
     const phasesData = await base44.entities.Phase.filter({ module_id: moduleId }, "order");
     setPhases(phasesData);
 
-    // Buscar progresso do usuário na nova tabela UserPhaseProgress
-    // A RLS já filtra automaticamente por user.email, então usamos .list()
-    const allUserProgress = await base44.entities.UserPhaseProgress.list();
-
-    console.log('🔍 DEBUG - Todos os registros do usuário (via RLS):', allUserProgress);
-    console.log('🔍 Module ID procurado:', moduleId);
+    // Buscar TODOS os registros de progresso e filtrar manualmente
+    const allProgress = await base44.entities.UserPhaseProgress.list();
     
-    const userProgress = allUserProgress.filter(p => p.module_id === moduleId);
-    
-    console.log('🔍 Progresso filtrado manualmente:', userProgress);
+    // Filtrar por user_email e module_id manualmente
+    const userProgress = allProgress.filter(p => 
+      p.user_email === userData.email && p.module_id === moduleId
+    );
 
     // Mapear progresso por phase_id
     const progressMap = {};
     phasesData.forEach(phase => {
       const phaseProgress = userProgress.find(p => p.phase_id === phase.id);
       
-      console.log(`Fase ${phase.name} (${phase.id}):`);
-      console.log('  - Progress encontrado:', phaseProgress);
-      
-      if (phaseProgress) {
-        progressMap[phase.id] = {
-          correct_cases_count: phaseProgress.completed_cases_count,
-          completed: phaseProgress.is_completed
-        };
-        console.log('  - Casos completados:', phaseProgress.completed_cases_count);
-        console.log('  - Completado:', phaseProgress.is_completed);
-      } else {
-        progressMap[phase.id] = {
-          correct_cases_count: 0,
-          completed: false
-        };
-        console.log('  - Nenhum progresso registrado');
-      }
+      progressMap[phase.id] = {
+        correct_cases_count: phaseProgress?.completed_cases_count || 0,
+        completed: phaseProgress?.is_completed || false
+      };
     });
     
-    console.log('Progress Map final:', progressMap);
     setProgress(progressMap);
 
     setLoading(false);
