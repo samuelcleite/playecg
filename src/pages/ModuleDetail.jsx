@@ -282,13 +282,36 @@ export default function ModuleDetail() {
       if (!sessionCompletedCases.includes(currentCase.id)) {
         const updatedSessionCompleted = [...sessionCompletedCases, currentCase.id];
         setSessionCompletedCases(updatedSessionCompleted);
-        
+
         const newCompletedCount = completedCasesCount + 1;
         setCompletedCasesCount(newCompletedCount);
 
-        // Verificar se a fase foi completada
+        // Atualizar UserPhaseProgress
+        const existingProgress = await base44.entities.UserPhaseProgress.filter({
+          user_email: user.email,
+          module_id: currentCase.module_id,
+          phase_id: currentCase.phase_id
+        });
+
         const requiredCases = phase?.total_cases || cases.length;
         const phaseCompleted = newCompletedCount >= requiredCases;
+
+        if (existingProgress.length > 0) {
+          // Atualizar registro existente
+          await base44.entities.UserPhaseProgress.update(existingProgress[0].id, {
+            completed_cases_count: newCompletedCount,
+            is_completed: phaseCompleted
+          });
+        } else {
+          // Criar novo registro
+          await base44.entities.UserPhaseProgress.create({
+            user_email: user.email,
+            module_id: currentCase.module_id,
+            phase_id: currentCase.phase_id,
+            completed_cases_count: newCompletedCount,
+            is_completed: phaseCompleted
+          });
+        }
 
         // Se completou a fase, mostrar tela de conclusão
         if (phaseCompleted) {
