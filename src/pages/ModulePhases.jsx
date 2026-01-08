@@ -74,24 +74,36 @@ export default function ModulePhases() {
       module_id: moduleId
     });
 
+    console.log('🔍 DEBUG - UserPhaseProgress:');
+    console.log('User email:', userData.email);
+    console.log('Module ID:', moduleId);
+    console.log('Progresso encontrado:', userProgress);
+
     // Mapear progresso por phase_id
     const progressMap = {};
     phasesData.forEach(phase => {
       const phaseProgress = userProgress.find(p => p.phase_id === phase.id);
+      
+      console.log(`Fase ${phase.name} (${phase.id}):`);
+      console.log('  - Progress encontrado:', phaseProgress);
       
       if (phaseProgress) {
         progressMap[phase.id] = {
           correct_cases_count: phaseProgress.completed_cases_count,
           completed: phaseProgress.is_completed
         };
+        console.log('  - Casos completados:', phaseProgress.completed_cases_count);
+        console.log('  - Completado:', phaseProgress.is_completed);
       } else {
         progressMap[phase.id] = {
           correct_cases_count: 0,
           completed: false
         };
+        console.log('  - Nenhum progresso registrado');
       }
     });
     
+    console.log('Progress Map final:', progressMap);
     setProgress(progressMap);
 
     setLoading(false);
