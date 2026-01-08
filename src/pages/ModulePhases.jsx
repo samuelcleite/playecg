@@ -74,9 +74,35 @@ export default function ModulePhases() {
 
     // Calcular progresso diretamente de QuizAttempt (sem limite para pegar todas)
     console.log('🔍 Buscando TODAS as tentativas do usuário...');
-    const allUserAttempts = await base44.entities.QuizAttempt.filter({ 
-      user_email: userData.email
-    }, "-created_date", 1000);
+    console.log('📧 Email do usuário:', userData.email);
+    
+    let allUserAttempts = [];
+    try {
+      // Tentar buscar SEM filtro primeiro para ver se a query funciona
+      console.log('🧪 Teste 1: Buscando SEM filtro...');
+      const testAttempts = await base44.entities.QuizAttempt.list("-created_date", 10);
+      console.log('✅ Teste 1 OK - Tentativas retornadas:', testAttempts.length);
+      if (testAttempts.length > 0) {
+        console.log('📝 Exemplo de tentativa:', testAttempts[0]);
+      }
+    } catch (error) {
+      console.error('❌ Teste 1 FALHOU:', error);
+      console.error('Detalhes do erro:', error.message, error.stack);
+    }
+    
+    try {
+      // Tentar buscar COM filtro de email
+      console.log('🧪 Teste 2: Buscando COM filtro de email...');
+      allUserAttempts = await base44.entities.QuizAttempt.filter({ 
+        user_email: userData.email
+      }, "-created_date", 1000);
+      console.log('✅ Teste 2 OK - Tentativas retornadas:', allUserAttempts.length);
+    } catch (error) {
+      console.error('❌ Teste 2 FALHOU:', error);
+      console.error('Detalhes do erro:', error.message);
+      console.error('Stack:', error.stack);
+      console.error('Response:', error.response?.data);
+    }
     
     console.log('📊 Total de tentativas retornadas:', allUserAttempts.length);
     console.log('📊 Distribuição por tipo:', {
@@ -92,6 +118,15 @@ export default function ModulePhases() {
       console.log('📝 Exemplo de tentativa tipo module:', attempts[0]);
       console.log('📊 Module IDs nas tentativas:', [...new Set(attempts.map(a => a.module_id))]);
       console.log('📊 Phase IDs nas tentativas:', [...new Set(attempts.map(a => a.phase_id))]);
+    } else if (allUserAttempts.length > 0) {
+      console.log('⚠️ Tem tentativas mas nenhuma do tipo "module"');
+      console.log('📊 Tipos encontrados:', [...new Set(allUserAttempts.map(a => a.quiz_type))]);
+    } else {
+      console.error('❌ ZERO tentativas retornadas do banco!');
+      console.log('💡 Possíveis causas:');
+      console.log('  1. RLS está bloqueando o acesso');
+      console.log('  2. Email do usuário não bate com as tentativas salvas');
+      console.log('  3. Problema de índice no banco de dados causando erro 500');
     }
 
     // Mapear progresso por phase_id
