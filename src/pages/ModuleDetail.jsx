@@ -172,48 +172,34 @@ export default function ModuleDetail() {
       previousPhasesCases = [...previousPhasesCases, ...cases];
     }
 
-    // Filtrar casos já completados nesta sessão (fase atual)
-    let availableCurrentCases = currentPhaseCases.filter(c => !completedCaseIds.includes(c.id));
-    let availablePreviousCases = previousPhasesCases.filter(c => !completedCaseIds.includes(c.id));
+    // Sempre fornecer 10 casos
+    const totalCasesForSession = 10;
+    const numCasesFromCurrent = 8; // 80%
+    const numCasesFromPrevious = 2; // 20%
 
-    // Se não houver casos disponíveis (usuário já fez todos), permitir repetir
-    if (availableCurrentCases.length === 0 && currentPhaseCases.length > 0) {
-      availableCurrentCases = currentPhaseCases;
-    }
-    if (availablePreviousCases.length === 0 && previousPhasesCases.length > 0) {
-      availablePreviousCases = previousPhasesCases;
-    }
-
-    // Calcular distribuição (80% atual + 20% anteriores)
-    const totalCasesForSession = currentPhase.total_cases || 10;
-    let numCasesFromCurrent = Math.round(totalCasesForSession * 0.8);
-    let numCasesFromPrevious = Math.round(totalCasesForSession * 0.2);
-
-    // Ajustar se não houver casos suficientes
-    if (availableCurrentCases.length < numCasesFromCurrent) {
-      numCasesFromCurrent = availableCurrentCases.length;
-      numCasesFromPrevious = Math.min(
-        totalCasesForSession - numCasesFromCurrent,
-        availablePreviousCases.length
-      );
+    // Selecionar casos da fase atual (permitindo repetições)
+    const selectedCurrentCases = [];
+    if (currentPhaseCases.length > 0) {
+      for (let i = 0; i < numCasesFromCurrent; i++) {
+        const randomCase = currentPhaseCases[Math.floor(Math.random() * currentPhaseCases.length)];
+        selectedCurrentCases.push({ ...randomCase, caseSource: 'current_phase' });
+      }
     }
 
-    if (availablePreviousCases.length < numCasesFromPrevious) {
-      numCasesFromPrevious = availablePreviousCases.length;
-      numCasesFromCurrent = Math.min(
-        totalCasesForSession - numCasesFromPrevious,
-        availableCurrentCases.length
-      );
+    // Selecionar casos de fases anteriores (permitindo repetições)
+    const selectedPreviousCases = [];
+    if (previousPhasesCases.length > 0) {
+      for (let i = 0; i < numCasesFromPrevious; i++) {
+        const randomCase = previousPhasesCases[Math.floor(Math.random() * previousPhasesCases.length)];
+        selectedPreviousCases.push({ ...randomCase, caseSource: 'previous_phase' });
+      }
+    } else if (currentPhaseCases.length > 0) {
+      // Se não há fases anteriores, preencher com casos da fase atual
+      for (let i = 0; i < numCasesFromPrevious; i++) {
+        const randomCase = currentPhaseCases[Math.floor(Math.random() * currentPhaseCases.length)];
+        selectedCurrentCases.push({ ...randomCase, caseSource: 'current_phase' });
+      }
     }
-
-    // Selecionar casos aleatoriamente e marcar a origem
-    const selectedCurrentCases = shuffleArray([...availableCurrentCases])
-      .slice(0, numCasesFromCurrent)
-      .map(c => ({ ...c, caseSource: 'current_phase' }));
-    
-    const selectedPreviousCases = shuffleArray([...availablePreviousCases])
-      .slice(0, numCasesFromPrevious)
-      .map(c => ({ ...c, caseSource: 'previous_phase' }));
 
     // Combinar e embaralhar
     const combinedCases = shuffleArray([...selectedCurrentCases, ...selectedPreviousCases]);
