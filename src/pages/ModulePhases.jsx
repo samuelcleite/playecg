@@ -103,6 +103,12 @@ export default function ModulePhases() {
 
   const getPhaseCompletion = (phaseId, totalCases) => {
     const prog = progress[phaseId];
+    console.log(`🧮 Calculando progresso para fase ${phaseId}:`, {
+      prog,
+      totalCases,
+      correct_cases_count: prog?.correct_cases_count,
+      percentage: prog && totalCases ? Math.round((prog.correct_cases_count / totalCases) * 100) : 0
+    });
     if (!prog || !totalCases) return 0;
     return Math.round((prog.correct_cases_count / totalCases) * 100);
   };
