@@ -52,8 +52,6 @@ export default function ModulePhases() {
     const userData = await base44.auth.me();
     setUser(userData);
 
-    console.log('👤 Usuário logado:', userData.email);
-
     if (userData.subscription_type !== "premium") {
       navigate(createPageUrl("Upgrade"));
       return;
@@ -66,61 +64,15 @@ export default function ModulePhases() {
       return;
     }
     setModule(foundModule);
-    console.log('📦 Módulo selecionado:', foundModule.name, 'ID:', moduleId);
 
     const phasesData = await base44.entities.Phase.filter({ module_id: moduleId }, "order");
     setPhases(phasesData);
-    console.log('📋 Fases do módulo:', phasesData.map(p => p.name));
 
-    // Diagnóstico detalhado
-    console.log('🔍 DIAGNÓSTICO: Buscando tentativas...');
-    
-    // Tentar listar TODAS as tentativas do sistema (se for admin)
-    let systemAttempts = [];
-    try {
-      systemAttempts = await base44.entities.QuizAttempt.list("-created_date", 10);
-      console.log('📊 Tentativas no sistema (últimas 10):', systemAttempts.length);
-      if (systemAttempts.length > 0) {
-        console.log('📝 Exemplo de tentativa do sistema:', {
-          user_email: systemAttempts[0].user_email,
-          quiz_type: systemAttempts[0].quiz_type,
-          case_id: systemAttempts[0].case_id,
-          correct: systemAttempts[0].correct
-        });
-      }
-    } catch (e) {
-      console.log('⚠️ Não foi possível listar tentativas do sistema (normal se não for admin)');
-    }
-
-    // Buscar tentativas do usuário
-    const allAttempts = await base44.entities.QuizAttempt.filter({ 
-      user_email: userData.email
+    // Calcular progresso diretamente de QuizAttempt
+    const attempts = await base44.entities.QuizAttempt.filter({ 
+      user_email: userData.email,
+      quiz_type: "module"
     });
-    console.log('📊 Total de tentativas DO USUÁRIO:', allAttempts.length);
-    console.log('✉️ Email usado na busca:', userData.email);
-    
-    if (allAttempts.length > 0) {
-      console.log('📝 Exemplo de tentativa do usuário:', allAttempts[0]);
-      console.log('📊 Distribuição por tipo:', {
-        module: allAttempts.filter(a => a.quiz_type === 'module').length,
-        random: allAttempts.filter(a => a.quiz_type === 'random').length,
-        daily: allAttempts.filter(a => a.quiz_type === 'daily').length
-      });
-      console.log('📊 Distribuição por módulo:', {
-        [moduleId]: allAttempts.filter(a => a.module_id === moduleId).length
-      });
-    } else {
-      console.error('❌ PROBLEMA: Usuário não tem tentativas salvas!');
-      console.log('💡 Possíveis causas:');
-      console.log('  1. Usuário ainda não respondeu nenhum caso');
-      console.log('  2. Tentativas não estão sendo salvas corretamente');
-      console.log('  3. Problema com RLS da entidade QuizAttempt');
-    }
-
-    // Filtrar apenas tentativas do tipo "module"
-    const attempts = allAttempts.filter(a => a.quiz_type === 'module');
-    console.log('🎯 Tentativas tipo "module":', attempts.length);
-    console.log('🎯 Fases encontradas:', phasesData.length);
 
     // Mapear progresso por phase_id
     const progressMap = {};
@@ -128,12 +80,6 @@ export default function ModulePhases() {
       const phaseAttempts = attempts.filter(a => 
         a.phase_id === phase.id && a.module_id === moduleId
       );
-      
-      console.log(`📝 Fase ${phase.name}:`, {
-        phase_id: phase.id,
-        total_attempts: phaseAttempts.length,
-        total_cases_required: phase.total_cases
-      });
 
       const attemptsByCase = {};
       
@@ -157,19 +103,12 @@ export default function ModulePhases() {
 
       const isCompleted = completedCases >= (phase.total_cases || 0);
       
-      console.log(`✅ Progresso fase ${phase.name}:`, {
-        completedCases,
-        isCompleted,
-        percentage: phase.total_cases ? Math.round((completedCases / phase.total_cases) * 100) : 0
-      });
-      
       progressMap[phase.id] = {
         correct_cases_count: completedCases,
         completed: isCompleted
       };
     });
     
-    console.log('🎯 Mapa de progresso final:', progressMap);
     setProgress(progressMap);
 
     setLoading(false);
