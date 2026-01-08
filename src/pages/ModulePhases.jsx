@@ -52,8 +52,6 @@ export default function ModulePhases() {
     const userData = await base44.auth.me();
     setUser(userData);
 
-    console.log('👤 Usuário logado:', userData.email);
-
     if (userData.subscription_type !== "premium") {
       navigate(createPageUrl("Upgrade"));
       return;
@@ -66,86 +64,25 @@ export default function ModulePhases() {
       return;
     }
     setModule(foundModule);
-    console.log('📦 Módulo selecionado:', foundModule.name, 'ID:', moduleId);
 
     const phasesData = await base44.entities.Phase.filter({ module_id: moduleId }, "order");
     setPhases(phasesData);
-    console.log('📋 Fases do módulo:', phasesData.length, 'fases');
 
-    // Calcular progresso diretamente de QuizAttempt (sem limite para pegar todas)
-    console.log('🔍 Buscando TODAS as tentativas do usuário...');
-    console.log('📧 Email do usuário:', userData.email);
-    
-    let allUserAttempts = [];
-    try {
-      // Tentar buscar SEM filtro primeiro para ver se a query funciona
-      console.log('🧪 Teste 1: Buscando SEM filtro...');
-      const testAttempts = await base44.entities.QuizAttempt.list("-created_date", 10);
-      console.log('✅ Teste 1 OK - Tentativas retornadas:', testAttempts.length);
-      if (testAttempts.length > 0) {
-        console.log('📝 Exemplo de tentativa:', testAttempts[0]);
-      }
-    } catch (error) {
-      console.error('❌ Teste 1 FALHOU:', error);
-      console.error('Detalhes do erro:', error.message, error.stack);
-    }
-    
-    try {
-      // Tentar buscar COM filtro de email
-      console.log('🧪 Teste 2: Buscando COM filtro de email...');
-      allUserAttempts = await base44.entities.QuizAttempt.filter({ 
-        user_email: userData.email
-      }, "-created_date", 1000);
-      console.log('✅ Teste 2 OK - Tentativas retornadas:', allUserAttempts.length);
-    } catch (error) {
-      console.error('❌ Teste 2 FALHOU:', error);
-      console.error('Detalhes do erro:', error.message);
-      console.error('Stack:', error.stack);
-      console.error('Response:', error.response?.data);
-    }
-    
-    console.log('📊 Total de tentativas retornadas:', allUserAttempts.length);
-    console.log('📊 Distribuição por tipo:', {
-      module: allUserAttempts.filter(a => a.quiz_type === 'module').length,
-      random: allUserAttempts.filter(a => a.quiz_type === 'random').length,
-      daily: allUserAttempts.filter(a => a.quiz_type === 'daily').length
-    });
-    
+    const allUserAttempts = await base44.entities.QuizAttempt.filter({ 
+      user_email: userData.email
+    }, "-created_date", 1000);
+
     const attempts = allUserAttempts.filter(a => a.quiz_type === "module");
-    console.log('🎯 Tentativas tipo "module":', attempts.length);
-    
-    if (attempts.length > 0) {
-      console.log('📝 Exemplo de tentativa tipo module:', attempts[0]);
-      console.log('📊 Module IDs nas tentativas:', [...new Set(attempts.map(a => a.module_id))]);
-      console.log('📊 Phase IDs nas tentativas:', [...new Set(attempts.map(a => a.phase_id))]);
-    } else if (allUserAttempts.length > 0) {
-      console.log('⚠️ Tem tentativas mas nenhuma do tipo "module"');
-      console.log('📊 Tipos encontrados:', [...new Set(allUserAttempts.map(a => a.quiz_type))]);
-    } else {
-      console.error('❌ ZERO tentativas retornadas do banco!');
-      console.log('💡 Possíveis causas:');
-      console.log('  1. RLS está bloqueando o acesso');
-      console.log('  2. Email do usuário não bate com as tentativas salvas');
-      console.log('  3. Problema de índice no banco de dados causando erro 500');
-    }
 
     // Mapear progresso por phase_id
     const progressMap = {};
     phasesData.forEach(phase => {
-      console.log(`\n🔍 Processando fase: ${phase.name} (ID: ${phase.id})`);
-      
       const phaseAttempts = attempts.filter(a => 
         a.phase_id === phase.id && a.module_id === moduleId
       );
-      
-      console.log(`  📊 Tentativas desta fase: ${phaseAttempts.length}`);
-      
-      if (phaseAttempts.length > 0) {
-        console.log(`  📝 Case IDs únicos: ${[...new Set(phaseAttempts.map(a => a.case_id))].length}`);
-      }
 
       const attemptsByCase = {};
-      
+
       phaseAttempts.forEach(att => {
         if (!attemptsByCase[att.case_id]) {
           attemptsByCase[att.case_id] = [];
@@ -158,24 +95,20 @@ export default function ModulePhases() {
         const caseAttempts = attemptsByCase[caseId];
         const hasCorrect = caseAttempts.some(a => a.correct);
         const hasThreeAttempts = caseAttempts.length >= 3;
-        
+
         if (hasCorrect || hasThreeAttempts) {
           completedCases++;
         }
       });
 
       const isCompleted = completedCases >= (phase.total_cases || 0);
-      
-      console.log(`  ✅ Casos completados: ${completedCases}/${phase.total_cases}`);
-      console.log(`  ✅ Fase completa: ${isCompleted}`);
-      
+
       progressMap[phase.id] = {
         correct_cases_count: completedCases,
         completed: isCompleted
       };
     });
-    
-    console.log('\n🎯 Mapa de progresso final:', progressMap);
+
     setProgress(progressMap);
 
     setLoading(false);
@@ -193,7 +126,7 @@ export default function ModulePhases() {
   const getPhaseCompletion = (phaseId, totalCases) => {
     const prog = progress[phaseId];
     if (!prog || !totalCases) return 0;
-    return Math.round((prog.correct_cases_count / totalCases) * 100);
+    return Math.min(100, Math.round((prog.correct_cases_count / totalCases) * 100));
   };
 
   const handlePhaseClick = async (phase) => {
