@@ -219,80 +219,40 @@ export default function AdminActivity() {
         {!loadingActivity && activityData && (
           <div className="space-y-6">
             {/* Overall Stats */}
-            <div className="grid md:grid-cols-4 gap-4">
-              <Card className="border-none shadow-lg bg-gradient-to-br from-blue-50 to-indigo-50">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600">Total de Tentativas</span>
-                    <Activity className="w-5 h-5 text-blue-600" />
+            <Card className="border-none shadow-md">
+              <CardContent className="p-4">
+                <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
+                  <div className="flex flex-col items-center justify-center p-3 bg-blue-50 rounded-lg">
+                    <Activity className="w-5 h-5 text-blue-600 mb-1" />
+                    <span className="text-xs text-gray-600">Total</span>
+                    <p className="text-xl font-bold text-gray-900">{activityData.overall.total}</p>
                   </div>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {activityData.overall.total}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-none shadow-lg bg-gradient-to-br from-green-50 to-emerald-50">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600">Respostas Corretas</span>
-                    <CheckCircle2 className="w-5 h-5 text-green-600" />
+                  <div className="flex flex-col items-center justify-center p-3 bg-green-50 rounded-lg">
+                    <CheckCircle2 className="w-5 h-5 text-green-600 mb-1" />
+                    <span className="text-xs text-gray-600">Corretas</span>
+                    <p className="text-xl font-bold text-green-600">{activityData.overall.correct}</p>
                   </div>
-                  <p className="text-3xl font-bold text-green-600">
-                    {activityData.overall.correct}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-none shadow-lg bg-gradient-to-br from-red-50 to-rose-50">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600">Respostas Incorretas</span>
-                    <XCircle className="w-5 h-5 text-red-600" />
+                  <div className="flex flex-col items-center justify-center p-3 bg-red-50 rounded-lg">
+                    <XCircle className="w-5 h-5 text-red-600 mb-1" />
+                    <span className="text-xs text-gray-600">Incorretas</span>
+                    <p className="text-xl font-bold text-red-600">{activityData.overall.incorrect}</p>
                   </div>
-                  <p className="text-3xl font-bold text-red-600">
-                    {activityData.overall.incorrect}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-none shadow-lg bg-gradient-to-br from-purple-50 to-pink-50">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600">Taxa de Acerto</span>
-                    <Target className="w-5 h-5 text-purple-600" />
+                  <div className="flex flex-col items-center justify-center p-3 bg-purple-50 rounded-lg">
+                    <Target className="w-5 h-5 text-purple-600 mb-1" />
+                    <span className="text-xs text-gray-600">Acerto</span>
+                    <p className="text-xl font-bold text-purple-600">{activityData.overall.accuracy}%</p>
                   </div>
-                  <p className="text-3xl font-bold text-purple-600">
-                    {activityData.overall.accuracy}%
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Quiz Type Stats */}
-            <Card className="border-none shadow-lg">
-              <CardHeader>
-                <CardTitle>Distribuição por Tipo de Quiz</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-sm text-gray-600 mb-1">Quiz Aleatório</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {activityData.overall.quizTypes.random}
-                    </p>
+                  <div className="flex flex-col items-center justify-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <span className="text-xs text-gray-600 mb-1">Aleatório</span>
+                    <p className="text-lg font-bold text-blue-600">{activityData.overall.quizTypes.random}</p>
                   </div>
-                  <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                    <p className="text-sm text-gray-600 mb-1">Quiz por Módulo</p>
-                    <p className="text-2xl font-bold text-purple-600">
-                      {activityData.overall.quizTypes.module}
-                    </p>
+                  <div className="flex flex-col items-center justify-center p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                    <span className="text-xs text-gray-600 mb-1">Módulo</span>
+                    <p className="text-lg font-bold text-indigo-600">{activityData.overall.quizTypes.module}</p>
                   </div>
-                  <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
-                    <p className="text-sm text-gray-600 mb-1">Caso do Dia</p>
-                    <p className="text-2xl font-bold text-amber-600">
-                      {activityData.overall.quizTypes.daily}
-                    </p>
+                  <div className="flex flex-col items-center justify-center p-3 bg-amber-50 rounded-lg border border-amber-200">
+                    <span className="text-xs text-gray-600 mb-1">Diário</span>
+                    <p className="text-lg font-bold text-amber-600">{activityData.overall.quizTypes.daily}</p>
                   </div>
                 </div>
               </CardContent>
@@ -300,9 +260,9 @@ export default function AdminActivity() {
 
             {/* Modules and Phases Stats */}
             {Object.keys(activityData.modules).length > 0 ? (
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <BookOpen className="w-6 h-6 text-blue-600" />
+              <div className="space-y-3">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-blue-600" />
                   Atividade por Módulo e Fase
                 </h2>
 
@@ -313,53 +273,33 @@ export default function AdminActivity() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
                   >
-                    <Card className="border-none shadow-lg">
-                      <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                    <Card className="border-none shadow-md">
+                      <CardHeader className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50">
                         <div className="flex items-center justify-between">
-                          <div>
-                            <CardTitle className="text-xl">{moduleData.module.name}</CardTitle>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {moduleData.module.description}
-                            </p>
+                          <div className="flex-1">
+                            <CardTitle className="text-base font-semibold">{moduleData.module.name}</CardTitle>
+                            <p className="text-xs text-gray-600 mt-0.5">{moduleData.module.description}</p>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm text-gray-600">Taxa de Acerto</p>
-                            <p className="text-2xl font-bold text-blue-600">
-                              {moduleData.accuracy}%
-                            </p>
+                          <div className="flex items-center gap-3 text-sm">
+                            <span className="text-gray-600">Total: <strong>{moduleData.total}</strong></span>
+                            <span className="text-green-600">✓ <strong>{moduleData.correct}</strong></span>
+                            <span className="text-red-600">✗ <strong>{moduleData.incorrect}</strong></span>
+                            <Badge className="bg-blue-600">{moduleData.accuracy}%</Badge>
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="p-6">
-                        <div className="grid md:grid-cols-4 gap-4 mb-6">
-                          <div>
-                            <p className="text-sm text-gray-600">Total</p>
-                            <p className="text-xl font-bold text-gray-900">{moduleData.total}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Corretas</p>
-                            <p className="text-xl font-bold text-green-600">{moduleData.correct}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Incorretas</p>
-                            <p className="text-xl font-bold text-red-600">{moduleData.incorrect}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Precisão</p>
-                            <p className="text-xl font-bold text-purple-600">{moduleData.accuracy}%</p>
-                          </div>
-                        </div>
-
-                        {/* Phases */}
-                        <div className="space-y-3">
-                          <h4 className="font-semibold text-gray-900">Fases</h4>
+                      <CardContent className="p-3">
+                        <div className="space-y-2">
                           {Object.values(moduleData.phases).map((phaseData) => (
                             <div 
                               key={phaseData.phase.id}
-                              className="p-4 bg-gray-50 rounded-lg border border-gray-200"
+                              className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200 text-sm"
                             >
-                              <div className="flex items-center justify-between mb-3">
-                                <h5 className="font-medium text-gray-900">{phaseData.phase.name}</h5>
+                              <span className="font-medium text-gray-900 flex-1">{phaseData.phase.name}</span>
+                              <div className="flex items-center gap-3">
+                                <span className="text-gray-600">Total: <strong>{phaseData.total}</strong></span>
+                                <span className="text-green-600">✓ <strong>{phaseData.correct}</strong></span>
+                                <span className="text-red-600">✗ <strong>{phaseData.incorrect}</strong></span>
                                 <Badge 
                                   className={
                                     phaseData.accuracy >= 80 
@@ -369,36 +309,11 @@ export default function AdminActivity() {
                                         : 'bg-red-500'
                                   }
                                 >
-                                  {phaseData.accuracy}% de acerto
+                                  {phaseData.accuracy}%
                                 </Badge>
-                              </div>
-                              <div className="grid grid-cols-3 gap-4 text-sm">
-                                <div>
-                                  <p className="text-gray-600">Tentativas</p>
-                                  <p className="font-bold text-gray-900">{phaseData.total}</p>
-                                </div>
-                                <div>
-                                  <p className="text-gray-600">Corretas</p>
-                                  <p className="font-bold text-green-600">{phaseData.correct}</p>
-                                </div>
-                                <div>
-                                  <p className="text-gray-600">Incorretas</p>
-                                  <p className="font-bold text-red-600">{phaseData.incorrect}</p>
-                                </div>
-                              </div>
-                              <div className="mt-3 pt-3 border-t border-gray-200">
-                                <p className="text-xs text-gray-500 mb-2">Distribuição por tipo:</p>
-                                <div className="flex gap-3 text-xs">
-                                  <span className="text-gray-600">
-                                    Aleatório: <strong>{phaseData.quizTypes.random}</strong>
-                                  </span>
-                                  <span className="text-gray-600">
-                                    Módulo: <strong>{phaseData.quizTypes.module}</strong>
-                                  </span>
-                                  <span className="text-gray-600">
-                                    Diário: <strong>{phaseData.quizTypes.daily}</strong>
-                                  </span>
-                                </div>
+                                <span className="text-xs text-gray-500">
+                                  (A:{phaseData.quizTypes.random} M:{phaseData.quizTypes.module} D:{phaseData.quizTypes.daily})
+                                </span>
                               </div>
                             </div>
                           ))}
