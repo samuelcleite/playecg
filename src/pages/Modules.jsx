@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import FaleConoscoButton from "@/components/FaleConoscoButton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -374,6 +375,8 @@ export default function Modules() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <FaleConoscoButton />
     </div>
   );
 }

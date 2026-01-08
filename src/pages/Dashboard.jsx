@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { calculateStreakDays } from "@/components/StreakCalculator";
 import { loadUserAchievements } from "@/components/AchievementChecker";
+import FaleConoscoButton from "@/components/FaleConoscoButton";
 import { 
   Brain, 
   Trophy, 
@@ -495,6 +496,8 @@ export default function Dashboard() {
 
 
       </div>
+
+      <FaleConoscoButton />
     </div>
   );
 }

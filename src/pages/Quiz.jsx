@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { User } from "@/entities/User";
 import { ECGCase } from "@/entities/ECGCase";
 import { QuizAttempt } from "@/entities/QuizAttempt";
+import FaleConoscoButton from "@/components/FaleConoscoButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -1105,6 +1106,8 @@ export default function Quiz() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <FaleConoscoButton />
     </div>
   );
 }

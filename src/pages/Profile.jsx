@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { calculateStreakDays } from "@/components/StreakCalculator";
 import { loadUserAchievements } from "@/components/AchievementChecker";
+import FaleConoscoButton from "@/components/FaleConoscoButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -644,6 +645,8 @@ export default function Profile() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <FaleConoscoButton />
     </div>
   );
 }
