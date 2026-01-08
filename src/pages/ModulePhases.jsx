@@ -69,6 +69,10 @@ export default function ModulePhases() {
     setPhases(phasesData);
 
     // Buscar progresso do usuário na nova tabela UserPhaseProgress
+    // Primeiro, verificar TODOS os registros
+    const allProgress = await base44.entities.UserPhaseProgress.list();
+    console.log('📊 TODOS os registros UserPhaseProgress:', allProgress);
+    
     const userProgress = await base44.entities.UserPhaseProgress.filter({
       user_email: userData.email,
       module_id: moduleId
