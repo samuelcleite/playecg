@@ -49,7 +49,7 @@ export default function Modules() {
     const modulesData = await base44.entities.Module.list("order");
     setModules(modulesData);
 
-    // Calcular progresso a partir de QuizAttempt
+    // Calcular progresso diretamente de QuizAttempt
     const phases = await base44.entities.Phase.list();
     const attempts = await base44.entities.QuizAttempt.filter({ 
       user_email: userData.email,
@@ -58,12 +58,14 @@ export default function Modules() {
 
     const progressMap = {};
     modulesData.forEach(module => {
-      const modulePhasesCompleted = (phases || []).filter(p => {
-        if (p.module_id !== module.id) return false;
+      const modulePhases = phases.filter(p => p.module_id === module.id);
 
-        const phaseAttempts = attempts.filter(a => a.phase_id === p.id);
+      let completedPhasesCount = 0;
+
+      modulePhases.forEach(phase => {
+        const phaseAttempts = attempts.filter(a => a.phase_id === phase.id);
         const attemptsByCase = {};
-        
+
         phaseAttempts.forEach(att => {
           if (!attemptsByCase[att.case_id]) {
             attemptsByCase[att.case_id] = [];
@@ -76,20 +78,20 @@ export default function Modules() {
           const caseAttempts = attemptsByCase[caseId];
           const hasCorrect = caseAttempts.some(a => a.correct);
           const hasThreeAttempts = caseAttempts.length >= 3;
-          
+
           if (hasCorrect || hasThreeAttempts) {
             completedCases++;
           }
         });
 
-        return completedCases >= (p.total_cases || 0);
-        }).length || 0;
+        if (completedCases >= (phase.total_cases || 0)) {
+          completedPhasesCount++;
+        }
+      });
 
-        const totalPhasesInModule = (phases || []).filter(p => p.module_id === module.id).length || 0;
-
-        progressMap[module.id] = {
-          completed: modulePhasesCompleted === totalPhasesInModule && totalPhasesInModule > 0
-        };
+      progressMap[module.id] = {
+        completed: completedPhasesCount === modulePhases.length && modulePhases.length > 0
+      };
     });
     setProgress(progressMap);
 
