@@ -22,6 +22,7 @@ import Modules from './pages/Modules';
 import Profile from './pages/Profile';
 import Quiz from './pages/Quiz';
 import Upgrade from './pages/Upgrade';
+import AdminActivity from './pages/AdminActivity';
 import __Layout from './Layout.jsx';
 
 
@@ -50,6 +51,7 @@ export const PAGES = {
     "Profile": Profile,
     "Quiz": Quiz,
     "Upgrade": Upgrade,
+    "AdminActivity": AdminActivity,
 }
 
 export const pagesConfig = {

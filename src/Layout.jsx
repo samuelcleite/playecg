@@ -157,6 +157,11 @@ export default function Layout({ children, currentPageName }) {
       title: "Gerenciar Usuários",
       url: createPageUrl("AdminUsers"),
       icon: Users
+    },
+    {
+      title: "Gerenciar Atividade",
+      url: createPageUrl("AdminActivity"),
+      icon: Activity
     }
   ];
 
