@@ -69,12 +69,10 @@ export default function ModulePhases() {
     setPhases(phasesData);
 
     // Buscar progresso do usuário na nova tabela UserPhaseProgress
-    // Buscar todos os registros do usuário e filtrar manualmente por module_id
-    const allUserProgress = await base44.entities.UserPhaseProgress.filter({
-      user_email: userData.email
-    });
+    // A RLS já filtra automaticamente por user.email, então usamos .list()
+    const allUserProgress = await base44.entities.UserPhaseProgress.list();
 
-    console.log('🔍 DEBUG - Todos os registros do usuário:', allUserProgress);
+    console.log('🔍 DEBUG - Todos os registros do usuário (via RLS):', allUserProgress);
     console.log('🔍 Module ID procurado:', moduleId);
     
     const userProgress = allUserProgress.filter(p => p.module_id === moduleId);
