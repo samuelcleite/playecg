@@ -72,23 +72,52 @@ export default function ModulePhases() {
     setPhases(phasesData);
     console.log('📋 Fases do módulo:', phasesData.map(p => p.name));
 
-    // Primeiro, buscar TODAS as tentativas do usuário (sem filtro de tipo)
-    console.log('🔍 Buscando todas as tentativas...');
+    // Diagnóstico detalhado
+    console.log('🔍 DIAGNÓSTICO: Buscando tentativas...');
+    
+    // Tentar listar TODAS as tentativas do sistema (se for admin)
+    let systemAttempts = [];
+    try {
+      systemAttempts = await base44.entities.QuizAttempt.list("-created_date", 10);
+      console.log('📊 Tentativas no sistema (últimas 10):', systemAttempts.length);
+      if (systemAttempts.length > 0) {
+        console.log('📝 Exemplo de tentativa do sistema:', {
+          user_email: systemAttempts[0].user_email,
+          quiz_type: systemAttempts[0].quiz_type,
+          case_id: systemAttempts[0].case_id,
+          correct: systemAttempts[0].correct
+        });
+      }
+    } catch (e) {
+      console.log('⚠️ Não foi possível listar tentativas do sistema (normal se não for admin)');
+    }
+
+    // Buscar tentativas do usuário
     const allAttempts = await base44.entities.QuizAttempt.filter({ 
       user_email: userData.email
     });
-    console.log('📊 Total de tentativas (todos os tipos):', allAttempts.length);
+    console.log('📊 Total de tentativas DO USUÁRIO:', allAttempts.length);
+    console.log('✉️ Email usado na busca:', userData.email);
     
     if (allAttempts.length > 0) {
-      console.log('📝 Exemplo de tentativa:', allAttempts[0]);
+      console.log('📝 Exemplo de tentativa do usuário:', allAttempts[0]);
       console.log('📊 Distribuição por tipo:', {
         module: allAttempts.filter(a => a.quiz_type === 'module').length,
         random: allAttempts.filter(a => a.quiz_type === 'random').length,
         daily: allAttempts.filter(a => a.quiz_type === 'daily').length
       });
+      console.log('📊 Distribuição por módulo:', {
+        [moduleId]: allAttempts.filter(a => a.module_id === moduleId).length
+      });
+    } else {
+      console.error('❌ PROBLEMA: Usuário não tem tentativas salvas!');
+      console.log('💡 Possíveis causas:');
+      console.log('  1. Usuário ainda não respondeu nenhum caso');
+      console.log('  2. Tentativas não estão sendo salvas corretamente');
+      console.log('  3. Problema com RLS da entidade QuizAttempt');
     }
 
-    // Agora filtrar apenas tentativas do tipo "module"
+    // Filtrar apenas tentativas do tipo "module"
     const attempts = allAttempts.filter(a => a.quiz_type === 'module');
     console.log('🎯 Tentativas tipo "module":', attempts.length);
     console.log('🎯 Fases encontradas:', phasesData.length);
