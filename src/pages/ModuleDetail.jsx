@@ -98,12 +98,12 @@ export default function ModuleDetail() {
     setPhase(foundPhase);
 
     // Buscar tentativas do usuário nesta fase para calcular progresso
-    const attempts = await base44.entities.QuizAttempt.filter({ 
+    const allUserAttempts = await base44.entities.QuizAttempt.filter({ 
       user_email: userData.email,
       module_id: moduleId,
-      phase_id: phaseId,
-      quiz_type: "module"
-    });
+      phase_id: phaseId
+    }, "-created_date", 1000);
+    const attempts = allUserAttempts.filter(a => a.quiz_type === "module");
 
     // Calcular casos únicos completados (acertou ou esgotou tentativas)
     const completedCaseIds = [];

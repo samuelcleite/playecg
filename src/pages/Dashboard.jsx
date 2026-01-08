@@ -119,7 +119,7 @@ export default function Dashboard() {
     const streak = await calculateStreakDays(userData.email);
     setStreakDays(streak);
 
-    const attempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", 100);
+    const attempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", 1000);
     const correctCount = attempts.filter(a => a.correct).length;
 
     // Calcular módulos completados a partir de QuizAttempt
@@ -193,10 +193,10 @@ export default function Dashboard() {
     try {
       const modules = await base44.entities.Module.list("order");
       const phases = await base44.entities.Phase.list("order");
-      const attempts = await base44.entities.QuizAttempt.filter({ 
-        user_email: userEmail,
-        quiz_type: "module"
-      });
+      const allUserAttempts = await base44.entities.QuizAttempt.filter({ 
+        user_email: userEmail
+      }, "-created_date", 1000);
+      const attempts = allUserAttempts.filter(a => a.quiz_type === "module");
 
       // Procurar a primeira fase não completada
       for (const module of modules) {

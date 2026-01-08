@@ -51,10 +51,11 @@ export default function Modules() {
 
     // Calcular progresso diretamente de QuizAttempt
     const phases = await base44.entities.Phase.list();
-    const attempts = await base44.entities.QuizAttempt.filter({ 
-      user_email: userData.email,
-      quiz_type: "module"
-    });
+    const allUserAttempts = await base44.entities.QuizAttempt.filter({ 
+      user_email: userData.email
+    }, "-created_date", 1000);
+    
+    const attempts = allUserAttempts.filter(a => a.quiz_type === "module");
 
     const progressMap = {};
     modulesData.forEach(module => {

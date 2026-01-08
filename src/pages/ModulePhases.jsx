@@ -68,11 +68,12 @@ export default function ModulePhases() {
     const phasesData = await base44.entities.Phase.filter({ module_id: moduleId }, "order");
     setPhases(phasesData);
 
-    // Calcular progresso diretamente de QuizAttempt
-    const attempts = await base44.entities.QuizAttempt.filter({ 
-      user_email: userData.email,
-      quiz_type: "module"
-    });
+    // Calcular progresso diretamente de QuizAttempt (sem limite para pegar todas)
+    const allUserAttempts = await base44.entities.QuizAttempt.filter({ 
+      user_email: userData.email
+    }, "-created_date", 1000);
+    
+    const attempts = allUserAttempts.filter(a => a.quiz_type === "module");
 
     // Mapear progresso por phase_id
     const progressMap = {};
