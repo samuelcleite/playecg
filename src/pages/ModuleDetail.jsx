@@ -280,14 +280,6 @@ export default function ModuleDetail() {
 
         const newCompletedCount = completedCasesCount + 1;
         setCompletedCasesCount(newCompletedCount);
-
-        const requiredCases = phase?.total_cases || cases.length;
-        const phaseCompleted = newCompletedCount >= requiredCases;
-
-        // Se completou a fase, mostrar tela de conclusão
-        if (phaseCompleted) {
-          setShowPhaseCompletion(true);
-        }
       }
     }
   };
@@ -305,7 +297,8 @@ export default function ModuleDetail() {
       setAttemptCount(0);
       setShowCorrectAnswer(false);
     } else {
-      navigate(`${createPageUrl("ModulePhases")}?id=${module.id}`);
+      // Ao finalizar as 10 questões, mostrar tela de conclusão
+      setShowPhaseCompletion(true);
     }
   };
 
@@ -506,7 +499,7 @@ export default function ModuleDetail() {
               
               <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-6 mb-8">
                 <p className="text-lg text-gray-700 mb-2">
-                  <span className="font-bold text-2xl text-green-600">{completedCasesCount}</span> casos completados
+                  <span className="font-bold text-2xl text-green-600">10</span> casos completados
                 </p>
                 <p className="text-sm text-gray-600">
                   Continue sua jornada nas próximas fases!
