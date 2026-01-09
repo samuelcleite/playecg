@@ -149,7 +149,7 @@ export default function AdminContent() {
       ['bold', 'italic', 'underline', 'strike'],
       [{ 'list': 'ordered'}, { 'list': 'bullet' }],
       [{ 'color': [] }, { 'background': [] }],
-      ['link'],
+      ['link', 'image'],
       ['clean']
     ]
   };
@@ -159,7 +159,8 @@ export default function AdminContent() {
     'bold', 'italic', 'underline', 'strike',
     'list', 'bullet',
     'color', 'background',
-    'link'
+    'link',
+    'image'
   ];
 
   if (loading) {
