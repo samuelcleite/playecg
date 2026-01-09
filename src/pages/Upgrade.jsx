@@ -165,7 +165,7 @@ export default function Upgrade() {
     "Todos os módulos e fases desbloqueados",
     "Explicações detalhadas de cada caso",
     "Sistema completo de gamificação",
-    "Badges e conquistas exclusivas",
+    "Badges e troféus exclusivos",
     "Análise de desempenho detalhada",
     "Acesso ilimitado a todos os casos",
     "Conteúdo atualizado regularmente",
