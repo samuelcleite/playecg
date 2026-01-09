@@ -182,12 +182,12 @@ export default function AdminAchievements() {
 
   const handleSave = async () => {
     if (!formData.name) {
-      alert("Preencha o nome da conquista");
+      alert("Preencha o nome do troféu");
       return;
     }
 
     if (formData.achievement_type === "specialization" && formData.module_ids.length === 0 && formData.phase_ids.length === 0) {
-      alert("Selecione pelo menos um módulo ou fase para conquistas de especialização");
+      alert("Selecione pelo menos um módulo ou fase para troféus de especialização");
       return;
     }
 
@@ -211,7 +211,7 @@ export default function AdminAchievements() {
   };
 
   const handleDelete = async (id) => {
-    if (confirm("Tem certeza que deseja excluir esta conquista?")) {
+    if (confirm("Tem certeza que deseja excluir este troféu?")) {
       await base44.entities.Achievement.delete(id);
       await loadData();
     }
@@ -287,10 +287,10 @@ export default function AdminAchievements() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
               <Award className="w-8 h-8 text-purple-600" />
-              Gerenciar Conquistas
+              Gerenciar Troféus
             </h1>
             <p className="text-gray-600 mt-2">
-              Configure conquistas de intensidade e especialização
+              Configure troféus de intensidade e especialização
             </p>
           </div>
           <Button
@@ -298,7 +298,7 @@ export default function AdminAchievements() {
             className="bg-purple-600 hover:bg-purple-700 gap-2"
           >
             <Plus className="w-5 h-5" />
-            Nova Conquista
+            Novo Troféu
           </Button>
         </div>
 
@@ -360,13 +360,13 @@ export default function AdminAchievements() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Flame className="w-6 h-6 text-orange-600" />
-              Conquistas de Intensidade
+              Troféus de Intensidade
             </CardTitle>
           </CardHeader>
           <CardContent>
             {intensityAchievements.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                Nenhuma conquista de intensidade cadastrada
+                Nenhum troféu de intensidade cadastrado
               </div>
             ) : (
               <div className="space-y-3">
@@ -454,13 +454,13 @@ export default function AdminAchievements() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BookOpen className="w-6 h-6 text-blue-600" />
-              Conquistas de Especialização
+              Troféus de Especialização
             </CardTitle>
           </CardHeader>
           <CardContent>
             {specializationAchievements.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                Nenhuma conquista de especialização cadastrada
+                Nenhum troféu de especialização cadastrado
               </div>
             ) : (
               <div className="space-y-3">
@@ -548,13 +548,13 @@ export default function AdminAchievements() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingAchievement ? "Editar Conquista" : "Nova Conquista"}
+              {editingAchievement ? "Editar Troféu" : "Novo Troféu"}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="achievement_type">Tipo de Conquista *</Label>
+              <Label htmlFor="achievement_type">Tipo de Troféu *</Label>
               <Select
                 value={formData.achievement_type}
                 onValueChange={(value) => setFormData({ ...formData, achievement_type: value })}
@@ -581,7 +581,7 @@ export default function AdminAchievements() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Nome da Conquista *</Label>
+                <Label htmlFor="nome">Nome do Troféu *</Label>
                 <Input
                   id="name"
                   value={formData.name}
@@ -616,7 +616,7 @@ export default function AdminAchievements() {
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Descreva como desbloquear esta conquista"
+                placeholder="Descreva como desbloquear este troféu"
                 rows={3}
               />
             </div>
@@ -757,7 +757,7 @@ export default function AdminAchievements() {
                 className="w-4 h-4 text-purple-600 rounded"
               />
               <Label htmlFor="active" className="cursor-pointer">
-                Conquista ativa
+                Troféu ativo
               </Label>
             </div>
           </div>
@@ -767,7 +767,7 @@ export default function AdminAchievements() {
               Cancelar
             </Button>
             <Button onClick={handleSave} className="bg-purple-600 hover:bg-purple-700">
-              {editingAchievement ? "Salvar Alterações" : "Criar Conquista"}
+              {editingAchievement ? "Salvar Alterações" : "Criar Troféu"}
             </Button>
           </div>
         </DialogContent>

@@ -131,7 +131,7 @@ export default function Layout({ children, currentPageName }) {
       icon: FileText
     },
     {
-      title: "Gerenciar Conquistas",
+      title: "Gerenciar Troféus",
       url: createPageUrl("AdminAchievements"),
       icon: Award
     }
