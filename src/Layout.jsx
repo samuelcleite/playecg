@@ -83,7 +83,7 @@ export default function Layout({ children, currentPageName }) {
       icon: BookOpen
     }] : []),
     {
-      title: "Conquistas",
+      title: "Troféus",
       url: createPageUrl("Achievements"),
       icon: Award
     },

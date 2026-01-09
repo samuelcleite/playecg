@@ -100,10 +100,10 @@ export default function Achievements() {
             <Trophy className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Conquistas
+            Troféus
           </h1>
           <p className="text-gray-600 text-lg">
-            Acompanhe seu progresso e desbloqueie todas as conquistas
+            Acompanhe seu progresso e desbloqueie todos os troféus
           </p>
         </div>
 
@@ -116,7 +116,7 @@ export default function Achievements() {
                   Seu Progresso
                 </h2>
                 <p className="text-gray-600">
-                  {earnedCount} de {totalCount} conquistas desbloqueadas
+                  {earnedCount} de {totalCount} troféus desbloqueados
                 </p>
               </div>
               <div className="text-right">
@@ -173,7 +173,7 @@ export default function Achievements() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
             <Award className="w-6 h-6 text-purple-600" />
-            Todas as Conquistas
+            Todos os Troféus
           </h2>
 
           {achievements.length > 0 ? (
@@ -199,7 +199,7 @@ export default function Achievements() {
                           {achievement.earned && (
                             <Badge className="bg-green-500 text-white mb-2">
                               <CheckCircle2 className="w-3 h-3 mr-1" />
-                              Conquistada
+                              Conquistado
                             </Badge>
                           )}
                           {!achievement.earned && (
@@ -246,10 +246,10 @@ export default function Achievements() {
               <CardContent className="p-12 text-center">
                 <Award className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500 mb-2">
-                  Nenhuma conquista disponível ainda
+                  Nenhum troféu disponível ainda
                 </p>
                 <p className="text-sm text-gray-400">
-                  As conquistas serão adicionadas em breve!
+                  Os troféus serão adicionados em breve!
                 </p>
               </CardContent>
             </Card>
