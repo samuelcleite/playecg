@@ -85,7 +85,7 @@ export default function AdminActivity() {
         
         modulePhases.forEach(phase => {
           const phaseAttempts = attempts.filter(a => 
-            a.module_id === module.id && a.phase_id === phase.id
+            a.module_id === module.id && a.phase_id === phase.id && a.quiz_type === "module"
           );
           
           if (phaseAttempts.length > 0) {
