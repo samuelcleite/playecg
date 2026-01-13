@@ -186,7 +186,7 @@ export default function Upgrade() {
             <Crown className="w-10 h-10 text-white" />
           </motion.div>
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Desbloqueie Todo o Potencial
+            Desbloqueie Todo o Potencial do PlayECG
           </h1>
           <p className="text-xl text-gray-600">
             Torne-se um especialista em ECG com nossa versão Premium

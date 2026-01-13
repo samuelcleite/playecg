@@ -298,7 +298,7 @@ export default function Dashboard() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
-              Olá, {user?.full_name?.split(' ')[0] || 'Estudante'}! 👋
+              Olá, {user?.full_name?.split(' ')[0] || 'Jogador'}! 👋
             </h1>
             <p className="text-gray-500 mt-2">
               {isPremium ? 'Continue sua jornada de aprendizado' : 'Pratique com nossos quizzes'}

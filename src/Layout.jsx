@@ -187,8 +187,8 @@ export default function Layout({ children, currentPageName }) {
                 <Activity className="w-6 h-6 text-purple-700" />
               </div>
               <div>
-                <h2 className="font-bold text-gray-800 text-lg">ECG Learning</h2>
-                <p className="text-xs text-gray-500">Aprenda laudos de ECG</p>
+                <h2 className="font-bold text-gray-800 text-lg">PlayECG</h2>
+                <p className="text-xs text-gray-500">Aprenda ECG jogando</p>
               </div>
             </div>
           </SidebarHeader>
@@ -332,7 +332,7 @@ export default function Layout({ children, currentPageName }) {
           <header className="bg-white/90 backdrop-blur-sm border-b border-purple-100 px-6 py-4 md:hidden">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="hover:bg-purple-50 p-2 rounded-lg transition-colors duration-200" />
-              <h1 className="text-xl font-bold text-gray-800">Descomplica ECG</h1>
+              <h1 className="text-xl font-bold text-gray-800">PlayECG</h1>
             </div>
           </header>
 
