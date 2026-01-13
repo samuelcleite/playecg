@@ -64,10 +64,29 @@ export default function ModuleDetail() {
   const [reportingError, setReportingError] = useState(false);
   const [phaseContent, setPhaseContent] = useState(null);
   const [showPhaseCompletion, setShowPhaseCompletion] = useState(false);
+  const [nextPhase, setNextPhase] = useState(null);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (showPhaseCompletion && module && phase) {
+      findNextPhase();
+    }
+  }, [showPhaseCompletion, module, phase]);
+
+  const findNextPhase = async () => {
+    const phasesData = await base44.entities.Phase.list();
+    const modulePhasesOrdered = phasesData
+      .filter(p => p.module_id === module.id)
+      .sort((a, b) => a.order - b.order);
+    
+    const currentPhaseIndex = modulePhasesOrdered.findIndex(p => p.id === phase.id);
+    if (currentPhaseIndex !== -1 && currentPhaseIndex < modulePhasesOrdered.length - 1) {
+      setNextPhase(modulePhasesOrdered[currentPhaseIndex + 1]);
+    }
+  };
 
   const loadData = async () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -496,26 +515,6 @@ export default function ModuleDetail() {
 
   // Tela de conclusão da fase
   if (showPhaseCompletion) {
-    // Encontrar a próxima fase
-    const allPhases = useState(null);
-    const [nextPhase, setNextPhase] = useState(null);
-    
-    useEffect(() => {
-      const findNextPhase = async () => {
-        const phasesData = await base44.entities.Phase.list();
-        const modulePhasesOrdered = phasesData
-          .filter(p => p.module_id === module.id)
-          .sort((a, b) => a.order - b.order);
-        
-        const currentPhaseIndex = modulePhasesOrdered.findIndex(p => p.id === phase.id);
-        if (currentPhaseIndex !== -1 && currentPhaseIndex < modulePhasesOrdered.length - 1) {
-          setNextPhase(modulePhasesOrdered[currentPhaseIndex + 1]);
-        }
-      };
-      
-      findNextPhase();
-    }, []);
-    
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <Card className="max-w-2xl border-none shadow-2xl">
