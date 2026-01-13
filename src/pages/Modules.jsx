@@ -92,7 +92,9 @@ export default function Modules() {
       });
 
       progressMap[module.id] = {
-        completed: completedPhasesCount === modulePhases.length && modulePhases.length > 0
+        completed: completedPhasesCount === modulePhases.length && modulePhases.length > 0,
+        completedPhases: completedPhasesCount,
+        totalPhases: modulePhases.length
       };
     });
     setProgress(progressMap);
@@ -112,10 +114,10 @@ export default function Modules() {
     return previousModules.every(m => progress[m.id]?.completed);
   };
 
-  const getCompletionPercentage = (moduleId, totalCases) => {
+  const getCompletionPercentage = (moduleId) => {
     const prog = progress[moduleId];
-    if (!prog || !totalCases) return 0;
-    return prog.completed ? 100 : 0;
+    if (!prog || !prog.totalPhases) return 0;
+    return Math.round((prog.completedPhases / prog.totalPhases) * 100);
   };
 
   const handleOpenIntro = () => {
@@ -227,7 +229,7 @@ export default function Modules() {
           {modules.map((module, index) => {
             const unlocked = isModuleUnlocked(module);
             const completed = progress[module.id]?.completed || false;
-            const completionPercentage = getCompletionPercentage(module.id, module.total_cases);
+            const completionPercentage = getCompletionPercentage(module.id);
 
             return (
               <motion.div
