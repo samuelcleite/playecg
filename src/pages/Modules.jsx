@@ -292,10 +292,7 @@ export default function Modules() {
                         )}
 
                         {/* Action Button */}
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm text-gray-500">
-                            {module.total_cases} casos
-                          </div>
+                        <div className="flex items-center justify-end">
                           {unlocked ? (
                             <Link to={`${createPageUrl("ModulePhases")}?id=${module.id}`}>
                               <Button className="gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700">
