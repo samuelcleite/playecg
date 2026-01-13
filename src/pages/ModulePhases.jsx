@@ -283,14 +283,7 @@ export default function ModulePhases() {
                             )}
 
                             {/* Footer */}
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4 text-sm text-gray-500">
-                                <span className="flex items-center gap-1">
-                                  <Target className="w-4 h-4" />
-                                  {phase.total_cases} casos
-                                </span>
-                              </div>
-
+                            <div className="flex items-center justify-end">
                               {unlocked ? (
                                 <Button
                                   onClick={() => handlePhaseClick(phase)}
