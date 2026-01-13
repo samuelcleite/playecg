@@ -95,12 +95,39 @@ export default function AdminActivity() {
               ? Math.round((correct / phaseAttempts.length) * 100) 
               : 0;
             
+            // Calcular progresso de casos completados (igual à visão do usuário)
+            const attemptsByCase = {};
+            phaseAttempts.forEach(att => {
+              if (!attemptsByCase[att.case_id]) {
+                attemptsByCase[att.case_id] = [];
+              }
+              attemptsByCase[att.case_id].push(att);
+            });
+
+            let completedCases = 0;
+            Object.keys(attemptsByCase).forEach(caseId => {
+              const caseAttempts = attemptsByCase[caseId];
+              const hasCorrect = caseAttempts.some(a => a.correct);
+              const hasThreeAttempts = caseAttempts.length >= 3;
+
+              if (hasCorrect || hasThreeAttempts) {
+                completedCases++;
+              }
+            });
+
+            const progress = phase.total_cases > 0 
+              ? Math.round((completedCases / phase.total_cases) * 100)
+              : 0;
+            
             phaseStats[phase.id] = {
               phase: phase,
               total: phaseAttempts.length,
               correct,
               incorrect,
               accuracy,
+              completedCases,
+              totalCases: phase.total_cases,
+              progress,
               quizTypes: {
                 random: phaseAttempts.filter(a => a.quiz_type === "random").length,
                 module: phaseAttempts.filter(a => a.quiz_type === "module").length,
@@ -291,31 +318,33 @@ export default function AdminActivity() {
                       <CardContent className="p-3">
                         <div className="space-y-2">
                           {Object.values(moduleData.phases).map((phaseData) => (
-                            <div 
-                              key={phaseData.phase.id}
-                              className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200 text-sm"
-                            >
-                              <span className="font-medium text-gray-900 flex-1">{phaseData.phase.name}</span>
-                              <div className="flex items-center gap-3">
-                                <span className="text-gray-600">Total: <strong>{phaseData.total}</strong></span>
-                                <span className="text-green-600">✓ <strong>{phaseData.correct}</strong></span>
-                                <span className="text-red-600">✗ <strong>{phaseData.incorrect}</strong></span>
-                                <Badge 
-                                  className={
-                                    phaseData.accuracy >= 80 
-                                      ? 'bg-green-500' 
-                                      : phaseData.accuracy >= 60 
-                                        ? 'bg-amber-500' 
-                                        : 'bg-red-500'
-                                  }
-                                >
-                                  {phaseData.accuracy}%
-                                </Badge>
-                                <span className="text-xs text-gray-500">
-                                  (A:{phaseData.quizTypes.random} M:{phaseData.quizTypes.module} D:{phaseData.quizTypes.daily})
-                                </span>
-                              </div>
-                            </div>
+                           <div 
+                             key={phaseData.phase.id}
+                             className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200 text-sm"
+                           >
+                             <span className="font-medium text-gray-900 flex-1">{phaseData.phase.name}</span>
+                             <div className="flex items-center gap-3">
+                               <span className="text-gray-600">Tentativas: <strong>{phaseData.total}</strong></span>
+                               <span className="text-green-600">✓ <strong>{phaseData.correct}</strong></span>
+                               <span className="text-red-600">✗ <strong>{phaseData.incorrect}</strong></span>
+                               <span className="text-gray-600">Taxa Acerto: <strong>{phaseData.accuracy}%</strong></span>
+                               <span className="text-indigo-600">Casos: <strong>{phaseData.completedCases}/{phaseData.totalCases}</strong></span>
+                               <Badge 
+                                 className={
+                                   phaseData.progress >= 100 
+                                     ? 'bg-green-500' 
+                                     : phaseData.progress >= 50 
+                                       ? 'bg-amber-500' 
+                                       : 'bg-red-500'
+                                 }
+                               >
+                                 Progresso: {phaseData.progress}%
+                               </Badge>
+                               <span className="text-xs text-gray-500">
+                                 (A:{phaseData.quizTypes.random} M:{phaseData.quizTypes.module} D:{phaseData.quizTypes.daily})
+                               </span>
+                             </div>
+                           </div>
                           ))}
                         </div>
                       </CardContent>
