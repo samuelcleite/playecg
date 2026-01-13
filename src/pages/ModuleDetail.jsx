@@ -751,7 +751,7 @@ export default function ModuleDetail() {
                             : 'hover:bg-gray-50'
                     }`}
                     onClick={() => handleAnswerToggle(option)}
-                    disabled={showResult && (isCorrect || showCorrectAnswer)}
+                    disabled={showResult}
                   >
                     <div className="flex items-start gap-3 w-full">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
