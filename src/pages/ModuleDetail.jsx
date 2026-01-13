@@ -556,7 +556,7 @@ export default function ModuleDetail() {
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 {nextPhase && (
                   <Button
-                    onClick={() => navigate(`${createPageUrl("ModuleDetail")}?module_id=${module.id}&phase_id=${nextPhase.id}`)}
+                    onClick={() => window.location.href = `${createPageUrl("ModuleDetail")}?module_id=${module.id}&phase_id=${nextPhase.id}`}
                     className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-8 py-6 text-lg font-semibold"
                     size="lg"
                   >
