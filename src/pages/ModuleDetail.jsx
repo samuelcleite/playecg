@@ -496,6 +496,26 @@ export default function ModuleDetail() {
 
   // Tela de conclusão da fase
   if (showPhaseCompletion) {
+    // Encontrar a próxima fase
+    const allPhases = useState(null);
+    const [nextPhase, setNextPhase] = useState(null);
+    
+    useEffect(() => {
+      const findNextPhase = async () => {
+        const phasesData = await base44.entities.Phase.list();
+        const modulePhasesOrdered = phasesData
+          .filter(p => p.module_id === module.id)
+          .sort((a, b) => a.order - b.order);
+        
+        const currentPhaseIndex = modulePhasesOrdered.findIndex(p => p.id === phase.id);
+        if (currentPhaseIndex !== -1 && currentPhaseIndex < modulePhasesOrdered.length - 1) {
+          setNextPhase(modulePhasesOrdered[currentPhaseIndex + 1]);
+        }
+      };
+      
+      findNextPhase();
+    }, []);
+    
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <Card className="max-w-2xl border-none shadow-2xl">
@@ -534,13 +554,25 @@ export default function ModuleDetail() {
                 </p>
               </div>
 
-              <Button
-                onClick={() => navigate(`${createPageUrl("ModulePhases")}?id=${module.id}`)}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-6 text-lg font-semibold"
-                size="lg"
-              >
-                Ver Todas as Fases
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                {nextPhase && (
+                  <Button
+                    onClick={() => navigate(`${createPageUrl("ModuleDetail")}?module_id=${module.id}&phase_id=${nextPhase.id}`)}
+                    className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-8 py-6 text-lg font-semibold"
+                    size="lg"
+                  >
+                    Próxima Fase: {nextPhase.name}
+                  </Button>
+                )}
+                <Button
+                  onClick={() => navigate(`${createPageUrl("ModulePhases")}?id=${module.id}`)}
+                  variant={nextPhase ? "outline" : "default"}
+                  className={nextPhase ? "border-purple-300 hover:bg-purple-50 px-8 py-6 text-lg font-semibold" : "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-6 text-lg font-semibold"}
+                  size="lg"
+                >
+                  Ver Todas as Fases
+                </Button>
+              </div>
             </motion.div>
           </CardContent>
         </Card>
