@@ -250,8 +250,8 @@ export default function Dashboard() {
   const earnedAchievements = achievements.filter(a => a.earned);
 
   return (
-    <div className="min-h-screen p-6 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
         {/* Payment Processing Alert */}
         <AnimatePresence>
           {paymentProcessing && (
@@ -296,17 +296,17 @@ export default function Dashboard() {
 
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
+          <div className="w-full md:w-auto">
+            <h1 className="text-2xl md:text-4xl font-bold text-gray-800 break-words">
               Olá, {user?.full_name?.split(' ')[0] || 'Jogador'}! 👋
             </h1>
-            <p className="text-gray-500 mt-2">
+            <p className="text-gray-500 mt-2 text-sm md:text-base">
               {isPremium ? 'Continue sua jornada de aprendizado' : 'Pratique com nossos quizzes'}
             </p>
           </div>
           {!isPremium && (
-            <Link to={createPageUrl("Upgrade")}>
-              <Button className="bg-gradient-to-r from-amber-200 to-orange-200 hover:from-amber-300 hover:to-orange-300 text-amber-900 gap-2 border border-amber-300 shadow-md">
+            <Link to={createPageUrl("Upgrade")} className="w-full md:w-auto">
+              <Button className="w-full md:w-auto bg-gradient-to-r from-amber-200 to-orange-200 hover:from-amber-300 hover:to-orange-300 text-amber-900 gap-2 border border-amber-300 shadow-md">
                 <Crown className="w-5 h-5" />
                 Upgrade Premium
               </Button>
@@ -318,27 +318,27 @@ export default function Dashboard() {
         {dailyCaseAvailable && !dailyCaseCompleted && (
           <Link to={createPageUrl("DailyCase")}>
             <Card className="border-2 border-amber-300 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
-                      <Star className="w-7 h-7 text-white" />
+              <CardContent className="p-4 md:p-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 md:gap-4 w-full sm:w-auto">
+                    <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                      <Star className="w-6 h-6 md:w-7 md:h-7 text-white" />
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <Badge className="bg-amber-200 text-amber-900 border border-amber-300">
+                        <Badge className="bg-amber-200 text-amber-900 border border-amber-300 text-xs">
                           Novo desafio
                         </Badge>
                       </div>
-                      <h3 className="text-lg font-bold text-gray-900">
+                      <h3 className="text-base md:text-lg font-bold text-gray-900">
                         Caso do Dia
                       </h3>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <p className="text-xs md:text-sm text-gray-600 mt-1">
                         Desafio diário com explicação completa
                       </p>
                     </div>
                   </div>
-                  <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2">
+                  <Button className="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2 flex-shrink-0">
                     Fazer Agora
                     <ArrowRight className="w-4 h-4" />
                   </Button>
@@ -352,27 +352,27 @@ export default function Dashboard() {
         {isPremium && nextIncompletePhase && (
           <Link to={`${createPageUrl("ModuleDetail")}?module_id=${nextIncompletePhase.module.id}&phase_id=${nextIncompletePhase.phase.id}`}>
             <Card className="border-2 border-indigo-300 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                      <BookOpen className="w-7 h-7 text-white" />
+              <CardContent className="p-4 md:p-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 md:gap-4 w-full sm:w-auto">
+                    <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                      <BookOpen className="w-6 h-6 md:w-7 md:h-7 text-white" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge className="bg-indigo-200 text-indigo-900 border border-indigo-300">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <Badge className="bg-indigo-200 text-indigo-900 border border-indigo-300 text-xs">
                           Continue de onde parou
                         </Badge>
                       </div>
-                      <h3 className="text-lg font-bold text-gray-900">
+                      <h3 className="text-base md:text-lg font-bold text-gray-900 break-words">
                         {nextIncompletePhase.module.name} - {nextIncompletePhase.phase.name}
                       </h3>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <p className="text-xs md:text-sm text-gray-600 mt-1">
                         {nextIncompletePhase.completedCases} de {nextIncompletePhase.phase.total_cases} casos completados
                       </p>
                     </div>
                   </div>
-                  <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white gap-2">
+                  <Button className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white gap-2 flex-shrink-0">
                     Continuar
                     <ArrowRight className="w-4 h-4" />
                   </Button>
@@ -383,20 +383,20 @@ export default function Dashboard() {
         )}
 
         {/* Main Actions */}
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-4 md:gap-6">
           <Link to={createPageUrl("Quiz")}>
             <Card className="border border-blue-200 shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer h-full bg-gradient-to-br from-blue-50 to-indigo-100">
-              <CardContent className="p-8">
-                <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-200 to-indigo-200 rounded-2xl flex items-center justify-center shadow-md border border-blue-300">
-                    <Brain className="w-8 h-8 text-blue-700" />
+              <CardContent className="p-5 md:p-8">
+                <div className="flex items-start gap-3 md:gap-4">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-blue-200 to-indigo-200 rounded-2xl flex items-center justify-center shadow-md border border-blue-300 flex-shrink-0">
+                    <Brain className="w-6 h-6 md:w-8 md:h-8 text-blue-700" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">Quiz Aleatório</h3>
-                    <p className="text-gray-600 mb-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-2 break-words">Quiz Aleatório</h3>
+                    <p className="text-sm md:text-base text-gray-600 mb-4">
                       Pratique com casos de ECG variados e teste seus conhecimentos
                     </p>
-                    <Button className="bg-gradient-to-r from-blue-200 to-indigo-200 hover:from-blue-300 hover:to-indigo-300 text-blue-900 border border-blue-300">
+                    <Button className="w-full md:w-auto bg-gradient-to-r from-blue-200 to-indigo-200 hover:from-blue-300 hover:to-indigo-300 text-blue-900 border border-blue-300">
                       Começar Quiz
                     </Button>
                   </div>
@@ -408,17 +408,17 @@ export default function Dashboard() {
           {isPremium ? (
             <Link to={createPageUrl("Modules")}>
               <Card className="border border-purple-200 shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer h-full bg-gradient-to-br from-purple-50 to-pink-100">
-                <CardContent className="p-8">
-                  <div className="flex items-start gap-4">
-                    <div className="w-16 h-16 bg-gradient-to-br from-purple-200 to-pink-200 rounded-2xl flex items-center justify-center shadow-md border border-purple-300">
-                      <BookOpen className="w-8 h-8 text-purple-700" />
+                <CardContent className="p-5 md:p-8">
+                  <div className="flex items-start gap-3 md:gap-4">
+                    <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-purple-200 to-pink-200 rounded-2xl flex items-center justify-center shadow-md border border-purple-300 flex-shrink-0">
+                      <BookOpen className="w-6 h-6 md:w-8 md:h-8 text-purple-700" />
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-gray-800 mb-2">Módulos Estruturados</h3>
-                      <p className="text-gray-600 mb-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-2 break-words">Módulos Estruturados</h3>
+                      <p className="text-sm md:text-base text-gray-600 mb-4">
                         Aprenda de forma progressiva com trilha gamificada
                       </p>
-                      <Button className="bg-gradient-to-r from-purple-200 to-pink-200 hover:from-purple-300 hover:to-pink-300 text-purple-900 border border-purple-300">
+                      <Button className="w-full md:w-auto bg-gradient-to-r from-purple-200 to-pink-200 hover:from-purple-300 hover:to-pink-300 text-purple-900 border border-purple-300">
                         Ver Módulos
                       </Button>
                     </div>
@@ -429,18 +429,18 @@ export default function Dashboard() {
           ) : (
             <Link to={createPageUrl("Upgrade")}>
               <Card className="border-2 border-amber-200 shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer h-full bg-gradient-to-br from-amber-50 to-orange-100">
-                <CardContent className="p-8">
-                  <div className="flex items-start gap-4">
-                    <div className="w-16 h-16 bg-gradient-to-br from-amber-200 to-orange-200 rounded-2xl flex items-center justify-center shadow-md border border-amber-300">
-                      <Crown className="w-8 h-8 text-amber-700" />
+                <CardContent className="p-5 md:p-8">
+                  <div className="flex items-start gap-3 md:gap-4">
+                    <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-amber-200 to-orange-200 rounded-2xl flex items-center justify-center shadow-md border border-amber-300 flex-shrink-0">
+                      <Crown className="w-6 h-6 md:w-8 md:h-8 text-amber-700" />
                     </div>
-                    <div className="flex-1">
-                      <Badge className="bg-amber-200 text-amber-900 mb-3 border border-amber-300">Premium</Badge>
-                      <h3 className="text-xl font-bold text-gray-800 mb-2">Desbloqueie Módulos</h3>
-                      <p className="text-gray-600 mb-4">
+                    <div className="flex-1 min-w-0">
+                      <Badge className="bg-amber-200 text-amber-900 mb-3 border border-amber-300 text-xs">Premium</Badge>
+                      <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-2 break-words">Desbloqueie Módulos</h3>
+                      <p className="text-sm md:text-base text-gray-600 mb-4">
                         Acesse trilha estruturada e gamificação completa
                       </p>
-                      <Button className="bg-gradient-to-r from-amber-200 to-orange-200 hover:from-amber-300 hover:to-orange-300 text-amber-900 border border-amber-300">
+                      <Button className="w-full md:w-auto bg-gradient-to-r from-amber-200 to-orange-200 hover:from-amber-300 hover:to-orange-300 text-amber-900 border border-amber-300">
                         Ver Planos
                       </Button>
                     </div>
@@ -461,7 +461,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             {earnedAchievements.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                 {earnedAchievements.map((achievement, index) => (
                   <motion.div
                     key={achievement.id}
