@@ -38,6 +38,8 @@ export default function Modules() {
     loadData();
   }, []);
 
+  const [overallAccuracy, setOverallAccuracy] = useState(0);
+
   const loadData = async () => {
     const userData = await base44.auth.me();
     setUser(userData);
@@ -57,6 +59,15 @@ export default function Modules() {
     }, "-created_date", 1000);
     
     const attempts = allUserAttempts.filter(a => a.quiz_type === "module");
+
+    // Calcular percentual de acerto geral
+    if (attempts.length > 0) {
+      const correctAttempts = attempts.filter(a => a.correct).length;
+      const accuracy = Math.round((correctAttempts / attempts.length) * 100);
+      setOverallAccuracy(accuracy);
+    } else {
+      setOverallAccuracy(0);
+    }
 
     const progressMap = {};
     modulesData.forEach(module => {
@@ -159,12 +170,12 @@ export default function Modules() {
             <CardContent className="p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm opacity-90">Total de Casos</p>
+                  <p className="text-sm opacity-90">Taxa de Acerto</p>
                   <p className="text-3xl font-bold mt-1">
-                   {modules?.reduce((sum, m) => sum + (m?.total_cases || 0), 0) || 0}
+                   {overallAccuracy}%
                   </p>
                 </div>
-                <BookOpen className="w-12 h-12 opacity-80" />
+                <Zap className="w-12 h-12 opacity-80" />
               </div>
             </CardContent>
           </Card>
