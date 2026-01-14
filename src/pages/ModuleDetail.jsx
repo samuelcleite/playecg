@@ -554,23 +554,33 @@ export default function ModuleDetail() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                {nextPhase && (
+                {nextPhase ? (
+                  <>
+                    <Button
+                      onClick={() => window.location.href = `${createPageUrl("ModuleDetail")}?module_id=${module.id}&phase_id=${nextPhase.id}`}
+                      className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-8 py-6 text-lg font-semibold"
+                      size="lg"
+                    >
+                      Próxima Fase: {nextPhase.name}
+                    </Button>
+                    <Button
+                      onClick={() => navigate(`${createPageUrl("ModulePhases")}?id=${module.id}`)}
+                      variant="outline"
+                      className="border-purple-300 hover:bg-purple-50 px-8 py-6 text-lg font-semibold"
+                      size="lg"
+                    >
+                      Ver Todas as Fases
+                    </Button>
+                  </>
+                ) : (
                   <Button
-                    onClick={() => window.location.href = `${createPageUrl("ModuleDetail")}?module_id=${module.id}&phase_id=${nextPhase.id}`}
-                    className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-8 py-6 text-lg font-semibold"
+                    onClick={() => navigate(createPageUrl("Modules"))}
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-6 text-lg font-semibold"
                     size="lg"
                   >
-                    Próxima Fase: {nextPhase.name}
+                    Voltar aos Módulos
                   </Button>
                 )}
-                <Button
-                  onClick={() => navigate(`${createPageUrl("ModulePhases")}?id=${module.id}`)}
-                  variant={nextPhase ? "outline" : "default"}
-                  className={nextPhase ? "border-purple-300 hover:bg-purple-50 px-8 py-6 text-lg font-semibold" : "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-6 text-lg font-semibold"}
-                  size="lg"
-                >
-                  Ver Todas as Fases
-                </Button>
               </div>
             </motion.div>
           </CardContent>
