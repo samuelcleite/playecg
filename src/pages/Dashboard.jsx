@@ -414,9 +414,9 @@ export default function Dashboard() {
                       <BookOpen className="w-6 h-6 md:w-8 md:h-8 text-purple-700" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-2 break-words">Módulos Estruturados</h3>
+                      <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-2 break-words">Conhecendo o ECG - Nomear as ondas</h3>
                       <p className="text-sm md:text-base text-gray-600 mb-4">
-                        Aprenda de forma progressiva com trilha gamificada
+                        Aprenda passo a passo os fundamentos do ECG com uma jornada estruturada
                       </p>
                       <Button className="w-full md:w-auto bg-gradient-to-r from-purple-200 to-pink-200 hover:from-purple-300 hover:to-pink-300 text-purple-900 border border-purple-300">
                         Ver Módulos
