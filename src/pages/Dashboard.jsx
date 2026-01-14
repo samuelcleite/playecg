@@ -416,7 +416,7 @@ export default function Dashboard() {
                     <div className="flex-1 min-w-0">
                       <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-2 break-words">Módulos Estruturados</h3>
                       <p className="text-sm md:text-base text-gray-600 mb-4">
-                        Aprenda passo a passo os fundamentos do ECG com uma jornada estruturada
+                        Aprenda a interpretar e laudar um ECG seguindo um passo a passo simples e didático
                       </p>
                       <Button className="w-full md:w-auto bg-gradient-to-r from-purple-200 to-pink-200 hover:from-purple-300 hover:to-pink-300 text-purple-900 border border-purple-300">
                         Ver Módulos
