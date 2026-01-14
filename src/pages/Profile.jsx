@@ -432,64 +432,7 @@ export default function Profile() {
           </CardContent>
         </Card>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="border-none shadow-lg">
-            <CardContent className="p-6 text-center">
-              <Trophy className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-gray-900">{user?.level || 1}</p>
-              <p className="text-sm text-gray-600">Nível</p>
-            </CardContent>
-          </Card>
 
-          <Card className="border-none shadow-lg">
-            <CardContent className="p-6 text-center">
-              <Zap className="w-8 h-8 text-amber-600 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-gray-900">{stats.totalPoints}</p>
-              <p className="text-sm text-gray-600">Pontos</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-lg">
-            <CardContent className="p-6 text-center">
-              <Target className="w-8 h-8 text-green-600 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-gray-900">{stats.accuracy}%</p>
-              <p className="text-sm text-gray-600">Precisão</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-lg">
-            <CardContent className="p-6 text-center">
-              <TrendingUp className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-gray-900">{stats.totalAttempts}</p>
-              <p className="text-sm text-gray-600">Tentativas</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Level Progress */}
-        <Card className="border-none shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-6 h-6 text-blue-600" />
-              Progresso de Nível
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium">Nível {user?.level || 1}</span>
-                <span className="text-gray-600">
-                  {currentLevelProgress}/100 pontos
-                </span>
-              </div>
-              <Progress value={currentLevelProgress} className="h-3" />
-              <p className="text-sm text-gray-600">
-                Faltam {100 - currentLevelProgress} pontos para o próximo nível
-              </p>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Badges */}
         <Card className="border-none shadow-lg">
