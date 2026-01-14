@@ -60,10 +60,11 @@ export default function Modules() {
     
     const attempts = allUserAttempts.filter(a => a.quiz_type === "module");
 
-    // Calcular percentual de acerto geral
-    if (attempts.length > 0) {
-      const correctAttempts = attempts.filter(a => a.correct).length;
-      const accuracy = Math.round((correctAttempts / attempts.length) * 100);
+    // Calcular percentual de acerto geral (todas as tentativas, não por caso único)
+    const allAttempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email });
+    if (allAttempts.length > 0) {
+      const correctAttempts = allAttempts.filter(a => a.correct).length;
+      const accuracy = Math.round((correctAttempts / allAttempts.length) * 100);
       setOverallAccuracy(accuracy);
     } else {
       setOverallAccuracy(0);
