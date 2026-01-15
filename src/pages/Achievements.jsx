@@ -203,9 +203,9 @@ export default function Achievements() {
                             </Badge>
                           )}
                           {!achievement.earned && (
-                            <Badge variant="outline" className="bg-gray-100 mb-2">
-                              <Lock className="w-3 h-3 mr-1" />
-                              Bloqueada
+                            <Badge variant="outline" className="bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 border-amber-300 mb-2">
+                              <Target className="w-3 h-3 mr-1" />
+                              Conquiste!
                             </Badge>
                           )}
                         </div>
