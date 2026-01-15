@@ -41,12 +41,14 @@ import { motion } from "framer-motion";
 
 const REQUIREMENT_TYPES = [
   { value: "first_correct", label: "Primeira Resposta Correta", icon: "🎯" },
-  { value: "streak_days", label: "Sequência de Dias", icon: "🔥" },
+  { value: "streak_days", label: "Sequência de Dias Consecutivos", icon: "🔥" },
   { value: "accuracy", label: "Taxa de Acerto (%)", icon: "🎪" },
   { value: "level", label: "Nível Alcançado", icon: "⭐" },
   { value: "points", label: "Pontos Acumulados", icon: "💎" },
   { value: "completed_modules", label: "Módulos Completados", icon: "📚" },
   { value: "total_attempts", label: "Total de Tentativas", icon: "🎮" },
+  { value: "random_quiz_count", label: "Casos Aleatórios Feitos (Quiz)", icon: "🎲" },
+  { value: "top_users_rank", label: "Destaque (Top N Usuários)", icon: "🏅" },
   { value: "custom", label: "Personalizado", icon: "✨" }
 ];
 
