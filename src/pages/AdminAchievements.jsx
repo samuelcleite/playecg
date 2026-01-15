@@ -70,7 +70,9 @@ export default function AdminAchievements() {
   const [allPhases, setAllPhases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
+  const [showBulkDialog, setShowBulkDialog] = useState(false);
   const [editingAchievement, setEditingAchievement] = useState(null);
+  const [bulkInput, setBulkInput] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     description: "",
