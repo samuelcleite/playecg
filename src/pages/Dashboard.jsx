@@ -436,9 +436,9 @@ export default function Dashboard() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <Badge className="bg-amber-200 text-amber-900 mb-3 border border-amber-300 text-xs">Premium</Badge>
-                      <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-2 break-words">Desbloqueie Módulos</h3>
+                      <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-2 break-words">Desbloquear módulos</h3>
                       <p className="text-sm md:text-base text-gray-600 mb-4">
-                        Acesse trilha estruturada e gamificação completa
+                        Aprenda ECG seguindo um passo a passo lógico
                       </p>
                       <Button className="w-full md:w-auto bg-gradient-to-r from-amber-200 to-orange-200 hover:from-amber-300 hover:to-orange-300 text-amber-900 border border-amber-300">
                         Ver Planos
