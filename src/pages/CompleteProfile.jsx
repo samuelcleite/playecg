@@ -23,6 +23,7 @@ export default function CompleteProfile() {
   const [formData, setFormData] = useState({
     full_name: "",
     specialty: "",
+    country: "",
     state: "",
     city: ""
   });
@@ -52,6 +53,7 @@ export default function CompleteProfile() {
       setFormData({
         full_name: userData.full_name || "",
         specialty: userData.specialty || "",
+        country: userData.country || "",
         state: userData.state || "",
         city: userData.city || ""
       });
@@ -68,6 +70,7 @@ export default function CompleteProfile() {
     await User.updateMyUserData({
       full_name: formData.full_name,
       specialty: formData.specialty,
+      country: formData.country,
       state: formData.state,
       city: formData.city,
       profile_completed: true,
@@ -92,6 +95,13 @@ export default function CompleteProfile() {
     "Estudante de Medicina",
     "Estudante de Enfermagem",
     "Outra"
+  ];
+
+  const paises = [
+    "Brasil", "Estados Unidos", "Argentina", "Chile", "Colômbia", "México", 
+    "Peru", "Uruguai", "Paraguai", "Bolívia", "Venezuela", "Equador",
+    "Portugal", "Espanha", "Reino Unido", "França", "Alemanha", "Itália",
+    "Canadá", "Austrália", "China", "Japão", "Índia", "Outro"
   ];
 
   const estados = [
@@ -165,6 +175,29 @@ export default function CompleteProfile() {
                     {especialidades.map((esp) => (
                       <SelectItem key={esp} value={esp}>
                         {esp}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2 text-gray-700 font-medium">
+                  <MapPin className="w-4 h-4" />
+                  País
+                </Label>
+                <Select
+                  value={formData.country}
+                  onValueChange={(value) => setFormData({ ...formData, country: value })}
+                  required
+                >
+                  <SelectTrigger className="h-12">
+                    <SelectValue placeholder="Selecione seu país" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paises.map((pais) => (
+                      <SelectItem key={pais} value={pais}>
+                        {pais}
                       </SelectItem>
                     ))}
                   </SelectContent>
