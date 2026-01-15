@@ -172,7 +172,7 @@ export default function Quiz() {
   };
 
   const handleAnswerToggle = (answer) => {
-    if (showResult && isCorrect) return;
+    if (showResult && (isCorrect || showCorrectAnswer)) return;
 
     if (currentCase.multiple_correct) {
       if (selectedAnswers.includes(answer)) {
@@ -712,7 +712,7 @@ export default function Quiz() {
                                 : 'hover:bg-purple-50 border-purple-100'
                         }`}
                         onClick={() => handleAnswerToggle(option)}
-                        disabled={showResult && (isCorrect || showCorrectAnswer)}
+                        disabled={showResult}
                       >
                         <div className="flex items-start gap-3 w-full">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
