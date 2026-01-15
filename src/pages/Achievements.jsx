@@ -192,7 +192,7 @@ export default function Achievements() {
                   }`}>
                     <CardContent className="p-6">
                       <div className="flex items-start gap-4 mb-4">
-                        <div className={`text-5xl ${achievement.earned ? '' : 'grayscale opacity-50'}`}>
+                        <div className={`text-5xl ${achievement.earned ? '' : 'opacity-70'}`}>
                           {achievement.icon}
                         </div>
                         <div className="flex-1">
