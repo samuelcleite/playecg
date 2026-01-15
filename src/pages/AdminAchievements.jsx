@@ -221,6 +221,60 @@ export default function AdminAchievements() {
     }
   };
 
+  const handleBulkCreate = async () => {
+    try {
+      const lines = bulkInput.trim().split('\n').filter(line => line.trim());
+      const achievementsToCreate = [];
+
+      for (const line of lines) {
+        const parts = line.split('|').map(p => p.trim());
+        if (parts.length < 4) {
+          alert(`Linha inválida: ${line}\nFormato esperado: Nome | Descrição | Tipo | Requisito | Valor`);
+          return;
+        }
+
+        const [name, description, achievementType, requirementType, requirementValue] = parts;
+        
+        if (!name || !achievementType) {
+          alert(`Nome e tipo são obrigatórios: ${line}`);
+          return;
+        }
+
+        const achievement = {
+          name: name,
+          description: description || "",
+          icon: "🏆",
+          badge_id: generateBadgeId(name),
+          achievement_type: achievementType.toLowerCase(),
+          order: achievements.length + achievementsToCreate.length,
+          active: true
+        };
+
+        if (achievementType.toLowerCase() === "intensity" || achievementType.toLowerCase() === "intensidade") {
+          achievement.achievement_type = "intensity";
+          achievement.requirement_type = requirementType || "total_attempts";
+          achievement.requirement_value = requirementValue ? parseInt(requirementValue) : 1;
+        } else if (achievementType.toLowerCase() === "specialization" || achievementType.toLowerCase() === "especialização" || achievementType.toLowerCase() === "especializacao") {
+          achievement.achievement_type = "specialization";
+          achievement.module_ids = [];
+          achievement.phase_ids = [];
+        }
+
+        achievementsToCreate.push(achievement);
+      }
+
+      for (const achievement of achievementsToCreate) {
+        await base44.entities.Achievement.create(achievement);
+      }
+
+      setShowBulkDialog(false);
+      setBulkInput("");
+      await loadData();
+    } catch (error) {
+      alert(`Erro ao criar troféus: ${error.message}`);
+    }
+  };
+
   const handleReorder = async (achievement, direction) => {
     const currentIndex = achievements.findIndex(a => a.id === achievement.id);
     if (
