@@ -351,13 +351,23 @@ export default function AdminAchievements() {
               Configure troféus de intensidade e especialização
             </p>
           </div>
-          <Button
-            onClick={() => handleOpenDialog()}
-            className="bg-purple-600 hover:bg-purple-700 gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Novo Troféu
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setShowBulkDialog(true)}
+              variant="outline"
+              className="gap-2 border-purple-300 hover:bg-purple-50"
+            >
+              <Zap className="w-5 h-5" />
+              Cadastro em Lote
+            </Button>
+            <Button
+              onClick={() => handleOpenDialog()}
+              className="bg-purple-600 hover:bg-purple-700 gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Novo Troféu
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
