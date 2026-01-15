@@ -148,10 +148,10 @@ export default function Achievements() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Bloqueadas</p>
+                  <p className="text-sm text-gray-600">Para Conquistar</p>
                   <p className="text-3xl font-bold text-amber-600">{totalCount - earnedCount}</p>
                 </div>
-                <Lock className="w-10 h-10 text-amber-400" />
+                <Target className="w-10 h-10 text-amber-400" />
               </div>
             </CardContent>
           </Card>
