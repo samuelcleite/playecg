@@ -611,6 +611,85 @@ export default function AdminAchievements() {
         </Card>
       </div>
 
+      {/* Bulk Create Dialog */}
+      <Dialog open={showBulkDialog} onOpenChange={setShowBulkDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="w-6 h-6 text-purple-600" />
+              Cadastro em Lote de Troféus
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+              <p className="text-sm text-blue-900 font-semibold">
+                📋 Formato de entrada (um troféu por linha):
+              </p>
+              <code className="text-xs text-blue-800 block bg-blue-100 p-2 rounded">
+                Nome | Descrição | Tipo | TipoRequisito | ValorRequisito
+              </code>
+              <div className="text-xs text-blue-800 space-y-1 mt-2">
+                <p><strong>Tipo:</strong> intensidade ou especialização</p>
+                <p><strong>TipoRequisito (apenas intensidade):</strong></p>
+                <ul className="list-disc list-inside ml-4">
+                  <li>first_correct - Primeira resposta correta</li>
+                  <li>streak_days - Sequência de dias consecutivos</li>
+                  <li>accuracy - Taxa de acerto (%)</li>
+                  <li>level - Nível alcançado</li>
+                  <li>points - Pontos acumulados</li>
+                  <li>completed_modules - Módulos completados</li>
+                  <li>total_attempts - Total de tentativas</li>
+                  <li>random_quiz_count - Casos aleatórios feitos</li>
+                  <li>top_users_rank - Destaque (Top N usuários)</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-xs text-amber-900">
+                <strong>Exemplo:</strong>
+              </p>
+              <code className="text-xs text-amber-800 block bg-amber-100 p-2 rounded mt-1 whitespace-pre">
+{`Primeira Vitória | Acerte sua primeira questão | intensidade | first_correct | 1
+Iniciante Dedicado | Complete 10 casos aleatórios | intensidade | random_quiz_count | 10
+Sequência de 7 Dias | Pratique 7 dias seguidos | intensidade | streak_days | 7
+Top 10 Usuários | Esteja entre os 10 que mais resolveram questões | intensidade | top_users_rank | 10`}
+              </code>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bulkInput">Cole seus troféus aqui (um por linha):</Label>
+              <Textarea
+                id="bulkInput"
+                value={bulkInput}
+                onChange={(e) => setBulkInput(e.target.value)}
+                placeholder="Primeira Vitória | Acerte sua primeira questão | intensidade | first_correct | 1"
+                rows={12}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-gray-500">
+                Total de linhas: {bulkInput.trim().split('\n').filter(line => line.trim()).length}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setShowBulkDialog(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleBulkCreate} 
+              className="bg-purple-600 hover:bg-purple-700"
+              disabled={!bulkInput.trim()}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Criar Troféus
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
