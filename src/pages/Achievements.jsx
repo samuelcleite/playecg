@@ -188,7 +188,7 @@ export default function Achievements() {
                   <Card className={`border-2 shadow-lg transition-all duration-300 h-full ${
                     achievement.earned 
                       ? 'bg-gradient-to-br from-purple-50 to-pink-50 border-purple-300 shadow-purple-100' 
-                      : 'bg-gray-50 border-gray-200 opacity-75'
+                      : 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200 hover:border-amber-300 hover:shadow-md'
                   }`}>
                     <CardContent className="p-6">
                       <div className="flex items-start gap-4 mb-4">
