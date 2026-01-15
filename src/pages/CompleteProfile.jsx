@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { User } from "@/entities/User";
 import { useNavigate } from "react-router-dom";
@@ -223,7 +222,7 @@ export default function CompleteProfile() {
                 type="submit"
                 className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg font-semibold shadow-lg"
               >
-                Continuar para o Dashboard
+                Criar Conta
               </Button>
             </form>
           </CardContent>
