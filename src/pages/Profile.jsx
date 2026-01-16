@@ -32,7 +32,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
-  XCircle
+  XCircle,
+  Trash2
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -59,6 +60,9 @@ export default function Profile() {
   const [cancelSuccess, setCancelSuccess] = useState(false);
   const [cancelError, setCancelError] = useState(null);
   const [achievements, setAchievements] = useState([]);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -210,6 +214,26 @@ export default function Profile() {
       setCancelError(error.message || 'Erro ao cancelar assinatura. Tente novamente.');
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const response = await base44.functions.invoke('deleteUserAccount', {});
+
+      if (response.data.success) {
+        await base44.auth.logout();
+      } else {
+        setDeleteError(response.data.error || 'Erro ao deletar conta');
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      setDeleteError(error.message || 'Erro ao deletar conta. Tente novamente.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -520,6 +544,31 @@ export default function Profile() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Danger Zone */}
+        <Card className="border-red-200 bg-red-50/30 shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-red-600">Zona de Perigo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-700 mb-3">
+                  Deletar sua conta é uma ação permanente e não pode ser desfeita. 
+                  Todos os seus dados, progresso e conquistas serão perdidos.
+                </p>
+                <Button
+                  variant="outline"
+                  className="w-full border-red-300 text-red-600 hover:bg-red-100 hover:text-red-700"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Deletar Minha Conta
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Cancel Subscription Dialog */}
@@ -583,6 +632,66 @@ export default function Profile() {
                 </>
               ) : (
                 'Sim, Cancelar Assinatura'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Account Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-5 h-5" />
+              Deletar Conta Permanentemente?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p className="font-semibold text-gray-900">
+                Esta ação é IRREVERSÍVEL e não pode ser desfeita!
+              </p>
+              
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="font-semibold text-red-900 mb-2">O que será deletado:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-red-800">
+                  <li>Todos os seus dados pessoais</li>
+                  <li>Todo o seu histórico de tentativas</li>
+                  <li>Todas as suas conquistas e troféus</li>
+                  <li>Sua pontuação e progresso</li>
+                  <li>Sua assinatura (se houver)</li>
+                </ul>
+              </div>
+
+              {deleteError && (
+                <Alert className="bg-red-50 border-red-200">
+                  <XCircle className="w-4 h-4 text-red-600" />
+                  <AlertDescription className="text-red-900 ml-2">
+                    {deleteError}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <p className="text-sm text-gray-600">
+                Você precisará criar uma nova conta se quiser usar o PlayECG novamente.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAccount}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deletando...
+                </>
+              ) : (
+                'Sim, Deletar Permanentemente'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
