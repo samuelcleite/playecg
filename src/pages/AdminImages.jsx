@@ -1,8 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { User } from "@/entities/User";
 import { ECGImage } from "@/entities/ECGImage";
 import { UploadFile } from "@/integrations/Core";
+import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -27,7 +27,8 @@ import {
   Copy,
   Search,
   Loader2,
-  Check
+  Check,
+  Download
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import BulkImageUpload from "../components/admin/BulkImageUpload"; // Added import
@@ -50,6 +51,7 @@ export default function AdminImages() {
     tags: []
   });
   const [showBulkUpload, setShowBulkUpload] = useState(false); // Added state
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     checkAdmin();
@@ -190,6 +192,35 @@ export default function AdminImages() {
     });
   };
 
+  const handleExportImages = async () => {
+    setExporting(true);
+    try {
+      const response = await base44.functions.invoke('exportImagesData', {});
+      
+      if (response.data.success) {
+        // Criar arquivo JSON para download
+        const blob = new Blob([JSON.stringify(response.data, null, 2)], { 
+          type: 'application/json' 
+        });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ecg-images-export-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+      } else {
+        alert('Erro ao exportar dados: ' + response.data.error);
+      }
+    } catch (error) {
+      console.error('Erro ao exportar:', error);
+      alert('Erro ao exportar dados. Tente novamente.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen p-6 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -200,6 +231,24 @@ export default function AdminImages() {
             <p className="text-gray-500 mt-1">Gerencie o repositório de eletrocardiogramas</p>
           </div>
           <div className="flex gap-3"> {/* Added div to group buttons */}
+            <Button
+              onClick={handleExportImages}
+              disabled={exporting}
+              variant="outline"
+              className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+            >
+              {exporting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Exportando...
+                </>
+              ) : (
+                <>
+                  <Download className="w-5 h-5" />
+                  Exportar Dados
+                </>
+              )}
+            </Button>
             <Button
               onClick={() => setShowBulkUpload(true)}
               variant="outline"
