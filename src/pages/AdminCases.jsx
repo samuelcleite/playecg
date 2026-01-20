@@ -34,9 +34,11 @@ import {
   X,
   Search,
   Image as ImageIcon,
-  CheckCircle2
+  CheckCircle2,
+  Download
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import * as XLSX from "xlsx";
 
 export default function AdminCases() {
   const navigate = useNavigate();
@@ -316,6 +318,48 @@ export default function AdminCases() {
     setCases([]);
   };
 
+  const handleExportCases = async () => {
+    try {
+      // Buscar todos os casos
+      const allCases = await ECGCase.list();
+      
+      // Formatar dados para Excel
+      const excelData = allCases.map(caseItem => {
+        // Extrair nome da imagem da URL
+        let imageName = "";
+        if (caseItem.image_url) {
+          const urlParts = caseItem.image_url.split("/");
+          imageName = urlParts[urlParts.length - 1];
+        }
+        
+        // Pegar as respostas corretas
+        let correctAnswer = "";
+        if (caseItem.correct_answers && caseItem.correct_answers.length > 0) {
+          correctAnswer = caseItem.correct_answers.join(", ");
+        } else if (caseItem.correct_diagnosis) {
+          correctAnswer = caseItem.correct_diagnosis;
+        }
+        
+        return {
+          "Pergunta": caseItem.title || "",
+          "Resposta Correta": correctAnswer,
+          "Nome da Imagem": imageName
+        };
+      });
+      
+      // Criar planilha
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Casos ECG");
+      
+      // Download do arquivo
+      XLSX.writeFile(workbook, `casos_ecg_${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (error) {
+      console.error("Erro ao exportar casos:", error);
+      alert("Erro ao exportar casos. Tente novamente.");
+    }
+  };
+
   const currentModule = modules.find(m => m.id === selectedModule);
   const currentPhase = phases.find(p => p.id === selectedPhase);
   const selectedImage = ecgImages.find(img => img.image_url === formData.image_url);
@@ -334,14 +378,24 @@ export default function AdminCases() {
               {cases.length} caso{cases.length !== 1 ? 's' : ''}
             </Badge>
           </div>
-          <Button
-            onClick={() => handleOpenDialog()}
-            className="bg-purple-600 hover:bg-purple-700 gap-2"
-            disabled={!selectedModule || !selectedPhase}
-          >
-            <Plus className="w-5 h-5" />
-            Novo Caso
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleExportCases}
+              variant="outline"
+              className="gap-2"
+            >
+              <Download className="w-5 h-5" />
+              Exportar Excel
+            </Button>
+            <Button
+              onClick={() => handleOpenDialog()}
+              className="bg-purple-600 hover:bg-purple-700 gap-2"
+              disabled={!selectedModule || !selectedPhase}
+            >
+              <Plus className="w-5 h-5" />
+              Novo Caso
+            </Button>
+          </div>
         </div>
 
         {/* Module and Phase Selectors */}
