@@ -34,13 +34,16 @@ export default function Home() {
       const user = await User.me();
       if (user) {
         setIsAuthenticated(true);
-        navigate(createPageUrl("Dashboard"));
       }
     } catch (error) {
       setIsAuthenticated(false);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoToDashboard = () => {
+    navigate(createPageUrl("Dashboard"));
   };
 
   const handleLogin = () => {
@@ -126,12 +129,21 @@ export default function Home() {
               <p className="text-xs text-gray-600">Aprenda ECG jogando</p>
             </div>
           </div>
-          <Button 
-            onClick={handleLogin}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-          >
-            Entrar
-          </Button>
+          {isAuthenticated ? (
+            <Button 
+              onClick={handleGoToDashboard}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            >
+              Ir para Dashboard
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleLogin}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            >
+              Entrar
+            </Button>
+          )}
         </div>
       </header>
 
@@ -155,16 +167,27 @@ export default function Home() {
               Pratique com casos reais, ganhe troféus e evolua suas habilidades diagnósticas.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                onClick={handleLogin}
-                size="lg"
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg px-8 py-6 shadow-xl"
-              >
-                Começar Gratuitamente
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
+              {isAuthenticated ? (
+                <Button 
+                  onClick={handleGoToDashboard}
+                  size="lg"
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg px-8 py-6 shadow-xl"
+                >
+                  Ir para Dashboard
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              ) : (
+                <Button 
+                  onClick={handleLogin}
+                  size="lg"
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg px-8 py-6 shadow-xl"
+                >
+                  Começar Gratuitamente
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              )}
             </div>
-            <p className="text-sm text-gray-500 mt-4">✨ Sem cartão de crédito necessário</p>
+            {!isAuthenticated && <p className="text-sm text-gray-500 mt-4">✨ Sem cartão de crédito necessário</p>}
           </motion.div>
 
           {/* Stats */}
