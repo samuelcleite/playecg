@@ -63,6 +63,11 @@ export default function Layout({ children, currentPageName }) {
     }
   };
 
+  // Não renderizar layout na página Home
+  if (currentPageName === "Home") {
+    return <>{children}</>;
+  }
+
   const isPremium = user?.subscription_type === "premium";
   const isAdmin = user?.role === "admin";
 
