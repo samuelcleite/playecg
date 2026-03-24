@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { User } from "@/entities/User";
-import { ECGCase } from "@/entities/ECGCase";
-import { Module } from "@/entities/Module";
-import { Phase } from "@/entities/Phase";
-import { ECGImage } from "@/entities/ECGImage";
+import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,7 +91,7 @@ export default function AdminCases() {
       
       if (editCaseId) {
         // Buscar o caso diretamente
-        const allCases = await ECGCase.list(); // Fetch all cases to find the one to edit
+        const allCases = await base44.entities.ECGCase.list();
         const caseToEdit = allCases.find(c => c.id === editCaseId);
         
         if (caseToEdit) {
@@ -121,7 +117,7 @@ export default function AdminCases() {
   }, [modules]); // Depend on `modules` to ensure initial data for dialog is ready.
 
   const checkAdmin = async () => {
-    const userData = await User.me();
+    const userData = await base44.auth.me();
     if (userData.role !== "admin") {
       navigate(createPageUrl("Dashboard"));
       return;
@@ -132,7 +128,7 @@ export default function AdminCases() {
   };
 
   const loadModules = async () => {
-    const modulesData = await Module.list("order");
+    const modulesData = await base44.entities.Module.list("order");
     setModules(modulesData);
     if (modulesData.length > 0 && !selectedModule) {
       setSelectedModule(modulesData[0].id);
@@ -140,7 +136,7 @@ export default function AdminCases() {
   };
 
   const loadPhases = async () => {
-    const phasesData = await Phase.filter({ module_id: selectedModule }, "order");
+    const phasesData = await base44.entities.Phase.filter({ module_id: selectedModule }, "order");
     setPhases(phasesData);
     if (phasesData.length > 0 && !selectedPhase) {
       setSelectedPhase(phasesData[0].id);
@@ -151,7 +147,7 @@ export default function AdminCases() {
   };
 
   const loadCases = async () => {
-    const casesData = await ECGCase.filter({
+    const casesData = await base44.entities.ECGCase.filter({
       module_id: selectedModule,
       phase_id: selectedPhase
     }, "-created_date");
@@ -159,7 +155,7 @@ export default function AdminCases() {
   };
 
   const loadEcgImages = async () => {
-    const imagesData = await ECGImage.list("-created_date");
+    const imagesData = await base44.entities.ECGImage.list("-created_date");
     setEcgImages(imagesData);
   };
 
@@ -232,9 +228,9 @@ export default function AdminCases() {
     };
 
     if (editingCase) {
-      await ECGCase.update(editingCase.id, caseData);
+      await base44.entities.ECGCase.update(editingCase.id, caseData);
     } else {
-      await ECGCase.create(caseData);
+      await base44.entities.ECGCase.create(caseData);
     }
 
     setShowDialog(false);
@@ -243,7 +239,7 @@ export default function AdminCases() {
 
   const handleDelete = async (caseId) => {
     if (confirm("Tem certeza que deseja excluir este caso?")) {
-      await ECGCase.delete(caseId);
+      await base44.entities.ECGCase.delete(caseId);
       await loadCases();
     }
   };
@@ -321,7 +317,7 @@ export default function AdminCases() {
   const handleExportCases = async () => {
     try {
       // Buscar todos os casos
-      const allCases = await ECGCase.list();
+      const allCases = await base44.entities.ECGCase.list();
       
       // Formatar dados para Excel
       const excelData = allCases.map(caseItem => {

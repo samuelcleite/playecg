@@ -1,7 +1,4 @@
 import { useState, useEffect } from "react";
-import { User } from "@/entities/User";
-import { ECGImage } from "@/entities/ECGImage";
-import { UploadFile } from "@/integrations/Core";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -62,7 +59,7 @@ export default function AdminImages() {
   }, [searchTerm, images]);
 
   const checkAdmin = async () => {
-    const userData = await User.me();
+    const userData = await base44.auth.me();
     if (userData.role !== "admin") {
       navigate(createPageUrl("Dashboard"));
       return;
@@ -72,7 +69,7 @@ export default function AdminImages() {
   };
 
   const loadImages = async () => {
-    const imagesData = await ECGImage.list("-created_date");
+    const imagesData = await base44.entities.ECGImage.list("-created_date");
     setImages(imagesData);
   };
 
@@ -139,7 +136,7 @@ export default function AdminImages() {
 
       // Se há um novo arquivo, fazer upload
       if (selectedFile) {
-        const uploadResult = await UploadFile({ file: selectedFile });
+        const uploadResult = await base44.integrations.Core.UploadFile({ file: selectedFile });
         imageUrl = uploadResult.file_url;
       }
 
@@ -151,9 +148,9 @@ export default function AdminImages() {
       };
 
       if (editingImage) {
-        await ECGImage.update(editingImage.id, imageData);
+        await base44.entities.ECGImage.update(editingImage.id, imageData);
       } else {
-        await ECGImage.create(imageData);
+        await base44.entities.ECGImage.create(imageData);
       }
 
       setShowDialog(false);
@@ -168,7 +165,7 @@ export default function AdminImages() {
 
   const handleDelete = async (imageId) => {
     if (confirm("Tem certeza que deseja excluir esta imagem?")) {
-      await ECGImage.delete(imageId);
+      await base44.entities.ECGImage.delete(imageId);
       await loadImages();
     }
   };

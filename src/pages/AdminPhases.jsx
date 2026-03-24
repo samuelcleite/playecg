@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
-import { User } from "@/entities/User";
-import { Module } from "@/entities/Module";
-import { Phase } from "@/entities/Phase";
+import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,7 +63,7 @@ export default function AdminPhases() {
   }, [selectedModule]);
 
   const checkAdmin = async () => {
-    const userData = await User.me();
+    const userData = await base44.auth.me();
     if (userData.role !== "admin") {
       navigate(createPageUrl("Dashboard"));
       return;
@@ -75,7 +73,7 @@ export default function AdminPhases() {
   };
 
   const loadModules = async () => {
-    const modulesData = await Module.list("order");
+    const modulesData = await base44.entities.Module.list("order");
     setModules(modulesData);
     if (modulesData.length > 0 && !selectedModule) {
       setSelectedModule(modulesData[0].id);
@@ -83,7 +81,7 @@ export default function AdminPhases() {
   };
 
   const loadPhases = async () => {
-    const phasesData = await Phase.filter({ module_id: selectedModule }, "order");
+    const phasesData = await base44.entities.Phase.filter({ module_id: selectedModule }, "order");
     setPhases(phasesData);
   };
 
@@ -114,9 +112,9 @@ export default function AdminPhases() {
 
   const handleSave = async () => {
     if (editingPhase) {
-      await Phase.update(editingPhase.id, formData);
+      await base44.entities.Phase.update(editingPhase.id, formData);
     } else {
-      await Phase.create(formData);
+      await base44.entities.Phase.create(formData);
     }
 
     setShowDialog(false);
@@ -125,7 +123,7 @@ export default function AdminPhases() {
 
   const handleDelete = async (phaseId) => {
     if (confirm("Tem certeza que deseja excluir esta fase?")) {
-      await Phase.delete(phaseId);
+      await base44.entities.Phase.delete(phaseId);
       await loadPhases();
     }
   };
@@ -146,8 +144,8 @@ export default function AdminPhases() {
     [newPhases[targetIndex], newPhases[phaseIndex]];
 
     // Update orders in the backend
-    await Phase.update(newPhases[phaseIndex].id, { order: phaseIndex + 1 });
-    await Phase.update(newPhases[targetIndex].id, { order: targetIndex + 1 });
+    await base44.entities.Phase.update(newPhases[phaseIndex].id, { order: phaseIndex + 1 });
+    await base44.entities.Phase.update(newPhases[targetIndex].id, { order: targetIndex + 1 });
 
     await loadPhases();
   };

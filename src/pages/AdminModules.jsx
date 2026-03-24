@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { User } from "@/entities/User";
-import { Module } from "@/entities/Module";
+import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,7 +49,7 @@ export default function AdminModules() {
   }, []);
 
   const checkAdmin = async () => {
-    const userData = await User.me();
+    const userData = await base44.auth.me();
     if (userData.role !== "admin") {
       navigate(createPageUrl("Dashboard"));
       return;
@@ -60,7 +59,7 @@ export default function AdminModules() {
   };
 
   const loadData = async () => {
-    const modulesData = await Module.list("order");
+    const modulesData = await base44.entities.Module.list("order");
     setModules(modulesData);
   };
 
@@ -89,9 +88,9 @@ export default function AdminModules() {
 
   const handleSave = async () => {
     if (editingModule) {
-      await Module.update(editingModule.id, formData);
+      await base44.entities.Module.update(editingModule.id, formData);
     } else {
-      await Module.create(formData);
+      await base44.entities.Module.create(formData);
     }
 
     setShowDialog(false);
@@ -100,7 +99,7 @@ export default function AdminModules() {
 
   const handleDelete = async (moduleId) => {
     if (confirm("Tem certeza que deseja excluir este módulo?")) {
-      await Module.delete(moduleId);
+      await base44.entities.Module.delete(moduleId);
       await loadData();
     }
   };
@@ -127,8 +126,8 @@ export default function AdminModules() {
     // This requires a backend call for each, or a batch update.
     // For simplicity and to reflect immediate visual change, updating both.
     // A more robust solution might involve sending the new sorted list to the backend.
-    await Module.update(newModules[moduleIndex].id, { order: moduleIndex + 1 });
-    await Module.update(newModules[targetIndex].id, { order: targetIndex + 1 });
+    await base44.entities.Module.update(newModules[moduleIndex].id, { order: moduleIndex + 1 });
+    await base44.entities.Module.update(newModules[targetIndex].id, { order: targetIndex + 1 });
 
     // Reload data to ensure consistent state with backend
     await loadData();
