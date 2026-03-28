@@ -29,23 +29,29 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
     return modules.map(mod => {
       const modPhases = phases.filter(p => p.module_id === mod.id).sort((a, b) => a.order - b.order);
       const modAttempts = moduleAttempts.filter(a => a.module_id === mod.id);
-
-      const phasesWithProgress = modPhases.map(phase => {
-        const prog = getPhaseProgress(phase, modAttempts);
-        return { ...phase, ...prog };
-      });
-
+      const phasesWithProgress = modPhases.map(phase => ({
+        ...phase,
+        ...getPhaseProgress(phase, modAttempts)
+      }));
       const allDone = phasesWithProgress.length > 0 && phasesWithProgress.every(p => p.pct >= 100);
       const anyStarted = phasesWithProgress.some(p => p.pct > 0);
-
       return { module: mod, phases: phasesWithProgress, allDone, anyStarted };
     });
   }, [modules, phases, attempts]);
 
-  // Find first incomplete phase
+  // Same unlock rule as pages/Modules: first module always unlocked,
+  // subsequent ones require all previous to be completed.
+  const isModuleUnlocked = (mod) => {
+    if (mod.order === 1) return true;
+    const previous = trail.filter(item => item.module.order < mod.order);
+    return previous.every(item => item.allDone);
+  };
+
+  // First incomplete phase in unlocked modules
   const nextPhase = useMemo(() => {
+    if (!isPremium) return null;
     for (const item of trail) {
-      if (!isPremium) break;
+      if (!isModuleUnlocked(item.module)) continue;
       for (const phase of item.phases) {
         if (phase.pct < 100) return { module: item.module, phase };
       }
@@ -77,7 +83,9 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
       </div>
 
       {trail.map((item, idx) => {
-        const isLocked = !isPremium;
+        const unlocked = isModuleUnlocked(item.module);
+        // Locked = not premium OR module not yet unlocked by progress
+        const isLocked = !isPremium || !unlocked;
 
         return (
           <motion.div
@@ -89,35 +97,47 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
             <div className={`rounded-2xl border-2 overflow-hidden transition-all ${
               item.allDone
                 ? "border-green-300 bg-white"
-                : item.anyStarted
+                : !isLocked && item.anyStarted
                   ? "border-purple-300 bg-white shadow-md"
                   : "border-gray-200 bg-white"
-            }`}>
+            } ${isLocked ? "opacity-60" : ""}`}>
+
               {/* Module Header */}
               <div className={`px-4 py-3 flex items-center gap-3 ${
-                item.allDone ? "bg-green-50" : item.anyStarted ? "bg-purple-50" : "bg-gray-50"
+                isLocked ? "bg-gray-50"
+                  : item.allDone ? "bg-green-50"
+                  : item.anyStarted ? "bg-purple-50"
+                  : "bg-gray-50"
               }`}>
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${
                   item.allDone
                     ? "bg-green-500 text-white"
-                    : item.anyStarted
-                      ? "bg-purple-500 text-white"
-                      : isLocked
-                        ? "bg-gray-300 text-gray-500"
-                        : "bg-gray-400 text-white"
+                    : isLocked
+                      ? "bg-gray-300 text-gray-500"
+                      : "bg-purple-500 text-white"
                 }`}>
-                  {item.allDone ? "✓" : isLocked ? <Lock className="w-4 h-4" /> : (idx + 1)}
+                  {item.allDone
+                    ? "✓"
+                    : isLocked
+                      ? <Lock className="w-4 h-4" />
+                      : (idx + 1)
+                  }
                 </div>
+
                 <div className="flex-1 min-w-0">
+                  {/* KEY RULE: locked modules hide real name, just like pages/Modules */}
                   <p className={`font-bold text-sm ${isLocked ? "text-gray-400" : "text-gray-900"}`}>
-                    {item.module.name}
+                    {unlocked ? item.module.name : `Módulo ${item.module.order}`}
                   </p>
-                  {item.module.description && (
-                    <p className="text-xs text-gray-500 truncate">{item.module.description}</p>
-                  )}
+                  <p className="text-xs text-gray-500 truncate">
+                    {unlocked
+                      ? item.module.description
+                      : "Complete os módulos anteriores para desbloquear"}
+                  </p>
                 </div>
+
                 {item.allDone && <Badge className="bg-green-100 text-green-800 text-xs">Concluído</Badge>}
-                {isLocked && (
+                {!isPremium && (
                   <Link to={createPageUrl("Upgrade")}>
                     <Badge className="bg-amber-100 text-amber-800 text-xs cursor-pointer hover:bg-amber-200">
                       <Crown className="w-3 h-3 mr-1" />
@@ -127,7 +147,7 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                 )}
               </div>
 
-              {/* Phases */}
+              {/* Phases — only shown for unlocked modules */}
               {!isLocked && item.phases.length > 0 && (
                 <div className="px-4 pb-4 pt-3 space-y-3">
                   {item.phases.map((phase) => {
