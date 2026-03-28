@@ -151,10 +151,8 @@ button:focus-visible {
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    box-sizing: border-box;
   }
   body {
     @apply bg-background text-foreground;
-    max-width: 100vw;
   }
 }
