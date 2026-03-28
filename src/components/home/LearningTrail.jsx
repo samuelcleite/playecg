@@ -147,8 +147,8 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                 )}
               </div>
 
-              {/* Phases — only shown for unlocked modules */}
-              {!isLocked && item.phases.length > 0 && (
+              {/* Phases: expanded when incomplete, collapsed when done */}
+              {!isLocked && !item.allDone && item.phases.length > 0 && (
                 <div className="px-4 pb-4 pt-3 space-y-3">
                   {item.phases.map((phase) => {
                     const isNext = nextPhase?.phase.id === phase.id;
@@ -180,7 +180,10 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
 
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
-                              <p className="text-sm font-semibold text-gray-900 truncate">{phase.name}</p>
+                              {/* Hide real phase name for incomplete phases */}
+                              <p className="text-sm font-semibold text-gray-900 truncate">
+                                {isDone ? phase.name : `Fase ${phase.order}`}
+                              </p>
                               <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
                                 {phase.completed}/{phase.total}
                               </span>
