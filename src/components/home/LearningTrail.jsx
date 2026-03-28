@@ -145,9 +145,11 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
               {/* Phases */}
               {!item.allDone && item.phases.length > 0 && (
                 <div className="px-3 pb-4 pt-3 space-y-3">
-                  {item.phases.map((phase) => {
+                  {item.phases.map((phase, phaseIdx) => {
                     const isNext = !isLocked && nextPhase?.phase.id === phase.id;
                     const isDone = phase.pct >= 100;
+                    const prevPhase = phaseIdx > 0 ? item.phases[phaseIdx - 1] : null;
+                    const isAvailable = !isLocked && (phaseIdx === 0 || (prevPhase && prevPhase.pct >= 100));
 
                     return (
                       <div key={phase.id} className={`rounded-xl p-3 border transition-all ${
@@ -193,7 +195,7 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                             {!isLocked && <Progress value={phase.pct} className="h-2" />}
                           </div>
 
-                          {!isLocked && (
+                          {isAvailable && (
                             <Link
                               to={`${createPageUrl("ModuleDetail")}?module_id=${item.module.id}&phase_id=${phase.id}`}
                               className="flex-shrink-0"
