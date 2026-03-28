@@ -39,15 +39,12 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
     });
   }, [modules, phases, attempts]);
 
-  // Same unlock rule as pages/Modules: first module always unlocked,
-  // subsequent ones require all previous to be completed.
   const isModuleUnlocked = (mod) => {
     if (mod.order === 1) return true;
     const previous = trail.filter(item => item.module.order < mod.order);
     return previous.every(item => item.allDone);
   };
 
-  // First incomplete phase in unlocked modules
   const nextPhase = useMemo(() => {
     if (!isPremium) return null;
     for (const item of trail) {
@@ -69,7 +66,7 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full">
       <div className="flex items-center justify-between mb-2">
         <h2 className="font-bold text-gray-900 text-lg flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-purple-600" />
@@ -84,7 +81,6 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
 
       {trail.map((item, idx) => {
         const unlocked = isModuleUnlocked(item.module);
-        // Locked = not premium OR module not yet unlocked by progress
         const isLocked = !isPremium || !unlocked;
 
         return (
@@ -94,7 +90,7 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.06 }}
           >
-            <div className={`rounded-2xl border-2 overflow-hidden transition-all ${
+            <div className={`rounded-2xl border-2 overflow-hidden transition-all w-full ${
               item.allDone
                 ? "border-green-300 bg-white"
                 : !isLocked && item.anyStarted
@@ -103,7 +99,7 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
             } ${isLocked ? "opacity-60" : ""}`}>
 
               {/* Module Header */}
-              <div className={`px-4 py-3 flex items-center gap-3 ${
+              <div className={`px-3 py-3 flex items-center gap-2 ${
                 isLocked ? "bg-gray-50"
                   : item.allDone ? "bg-green-50"
                   : item.anyStarted ? "bg-purple-50"
@@ -125,8 +121,7 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  {/* KEY RULE: locked modules hide real name, just like pages/Modules */}
-                  <p className={`font-bold text-sm ${isLocked ? "text-gray-400" : "text-gray-900"}`}>
+                  <p className={`font-bold text-sm truncate ${isLocked ? "text-gray-400" : "text-gray-900"}`}>
                     {unlocked ? item.module.name : `Módulo ${item.module.order}`}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
@@ -136,9 +131,9 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                   </p>
                 </div>
 
-                {item.allDone && <Badge className="bg-green-100 text-green-800 text-xs">Concluído</Badge>}
+                {item.allDone && <Badge className="bg-green-100 text-green-800 text-xs flex-shrink-0">Concluído</Badge>}
                 {!isPremium && (
-                  <Link to={createPageUrl("Upgrade")}>
+                  <Link to={createPageUrl("Upgrade")} className="flex-shrink-0">
                     <Badge className="bg-amber-100 text-amber-800 text-xs cursor-pointer hover:bg-amber-200">
                       <Crown className="w-3 h-3 mr-1" />
                       Premium
@@ -147,9 +142,9 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                 )}
               </div>
 
-              {/* Phases: expanded when incomplete (even if locked), collapsed when done */}
+              {/* Phases */}
               {!item.allDone && item.phases.length > 0 && (
-                <div className="px-4 pb-4 pt-3 space-y-3">
+                <div className="px-3 pb-4 pt-3 space-y-3">
                   {item.phases.map((phase) => {
                     const isNext = !isLocked && nextPhase?.phase.id === phase.id;
                     const isDone = phase.pct >= 100;
@@ -164,7 +159,7 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                               ? "border-green-200 bg-green-50"
                               : "border-gray-100 bg-gray-50"
                       }`}>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                             isLocked
                               ? "bg-gray-200 text-gray-400"
@@ -201,16 +196,16 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                           {!isLocked && (
                             <Link
                               to={`${createPageUrl("ModuleDetail")}?module_id=${item.module.id}&phase_id=${phase.id}`}
-                              className="flex-shrink-0 ml-2"
+                              className="flex-shrink-0"
                             >
                               <Button
                                 size="sm"
-                                className={isNext
+                                className={`text-xs px-2 h-7 ${isNext
                                   ? "bg-purple-600 hover:bg-purple-700 text-white"
                                   : isDone
                                     ? "bg-green-600 hover:bg-green-700 text-white"
                                     : "bg-gray-500 hover:bg-gray-600 text-white"
-                                }
+                                }`}
                               >
                                 {isDone ? "Revisar" : isNext ? "Continuar" : "Iniciar"}
                               </Button>
