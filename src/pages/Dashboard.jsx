@@ -96,7 +96,7 @@ export default function Dashboard() {
   const earnedAchievements = achievements.filter(a => a.earned);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 w-full max-w-full">
       {/* Top Bar */}
       <header className="bg-white/90 backdrop-blur-sm border-b border-purple-100 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
