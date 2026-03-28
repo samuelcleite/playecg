@@ -147,66 +147,75 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                 )}
               </div>
 
-              {/* Phases: expanded when incomplete, collapsed when done */}
-              {!isLocked && !item.allDone && item.phases.length > 0 && (
+              {/* Phases: expanded when incomplete (even if locked), collapsed when done */}
+              {!item.allDone && item.phases.length > 0 && (
                 <div className="px-4 pb-4 pt-3 space-y-3">
                   {item.phases.map((phase) => {
-                    const isNext = nextPhase?.phase.id === phase.id;
+                    const isNext = !isLocked && nextPhase?.phase.id === phase.id;
                     const isDone = phase.pct >= 100;
 
                     return (
                       <div key={phase.id} className={`rounded-xl p-3 border transition-all ${
-                        isNext
-                          ? "border-purple-400 bg-purple-50 shadow-sm"
-                          : isDone
-                            ? "border-green-200 bg-green-50"
-                            : "border-gray-100 bg-gray-50"
+                        isLocked
+                          ? "border-gray-100 bg-gray-50"
+                          : isNext
+                            ? "border-purple-400 bg-purple-50 shadow-sm"
+                            : isDone
+                              ? "border-green-200 bg-green-50"
+                              : "border-gray-100 bg-gray-50"
                       }`}>
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                            isDone
-                              ? "bg-green-500 text-white"
-                              : isNext
-                                ? "bg-purple-600 text-white"
-                                : "bg-gray-300 text-gray-600"
+                            isLocked
+                              ? "bg-gray-200 text-gray-400"
+                              : isDone
+                                ? "bg-green-500 text-white"
+                                : isNext
+                                  ? "bg-purple-600 text-white"
+                                  : "bg-gray-300 text-gray-600"
                           }`}>
-                            {isDone
-                              ? <CheckCircle2 className="w-4 h-4" />
-                              : isNext
-                                ? <PlayCircle className="w-4 h-4" />
-                                : <span className="text-xs font-bold">{phase.order}</span>
+                            {isLocked
+                              ? <Lock className="w-3 h-3" />
+                              : isDone
+                                ? <CheckCircle2 className="w-4 h-4" />
+                                : isNext
+                                  ? <PlayCircle className="w-4 h-4" />
+                                  : <span className="text-xs font-bold">{phase.order}</span>
                             }
                           </div>
 
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
-                              {/* Hide real phase name for incomplete phases */}
-                              <p className="text-sm font-semibold text-gray-900 truncate">
-                                {isDone ? phase.name : `Fase ${phase.order}`}
+                              <p className={`text-sm font-semibold truncate ${isLocked ? "text-gray-400" : "text-gray-900"}`}>
+                                {isDone && !isLocked ? phase.name : `Fase ${phase.order}`}
                               </p>
-                              <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
-                                {phase.completed}/{phase.total}
-                              </span>
+                              {!isLocked && (
+                                <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
+                                  {phase.completed}/{phase.total}
+                                </span>
+                              )}
                             </div>
-                            <Progress value={phase.pct} className="h-2" />
+                            {!isLocked && <Progress value={phase.pct} className="h-2" />}
                           </div>
 
-                          <Link
-                            to={`${createPageUrl("ModuleDetail")}?module_id=${item.module.id}&phase_id=${phase.id}`}
-                            className="flex-shrink-0 ml-2"
-                          >
-                            <Button
-                              size="sm"
-                              className={isNext
-                                ? "bg-purple-600 hover:bg-purple-700 text-white"
-                                : isDone
-                                  ? "bg-green-600 hover:bg-green-700 text-white"
-                                  : "bg-gray-500 hover:bg-gray-600 text-white"
-                              }
+                          {!isLocked && (
+                            <Link
+                              to={`${createPageUrl("ModuleDetail")}?module_id=${item.module.id}&phase_id=${phase.id}`}
+                              className="flex-shrink-0 ml-2"
                             >
-                              {isDone ? "Revisar" : isNext ? "Continuar" : "Iniciar"}
-                            </Button>
-                          </Link>
+                              <Button
+                                size="sm"
+                                className={isNext
+                                  ? "bg-purple-600 hover:bg-purple-700 text-white"
+                                  : isDone
+                                    ? "bg-green-600 hover:bg-green-700 text-white"
+                                    : "bg-gray-500 hover:bg-gray-600 text-white"
+                                }
+                              >
+                                {isDone ? "Revisar" : isNext ? "Continuar" : "Iniciar"}
+                              </Button>
+                            </Link>
+                          )}
                         </div>
                       </div>
                     );
