@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -19,10 +19,17 @@ import {
 import { motion } from "framer-motion";
 
 export default function Home() {
+  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    base44.auth.isAuthenticated().then(setIsAuthenticated);
+    base44.auth.isAuthenticated().then((authed) => {
+      if (authed) {
+        navigate(createPageUrl("Dashboard"), { replace: true });
+      } else {
+        setIsAuthenticated(false);
+      }
+    });
   }, []);
 
   const handleLogin = () => {
