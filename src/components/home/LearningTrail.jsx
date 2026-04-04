@@ -20,7 +20,7 @@ function getPhaseProgress(phase, moduleAttempts) {
 }
 
 // Zigzag positions for Duolingo feel: center, right, center, left, center...
-const ZIGZAG = ["self-center", "self-end", "self-center", "self-start", "self-center", "self-end"];
+const ZIGZAG = ["ml-[30%]", "ml-[55%]", "ml-[30%]", "ml-[5%]", "ml-[30%]", "ml-[55%]"];
 
 export default function LearningTrail({ modules, phases, attempts, isPremium }) {
   const moduleAttempts = attempts.filter(a => a.quiz_type === "module");
@@ -121,7 +121,7 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                   const position = ZIGZAG[phaseIdx % ZIGZAG.length];
 
                   return (
-                    <div key={phase.id} className={`flex flex-col ${position} w-fit items-center`}>
+                    <div key={phase.id} className={`flex flex-col w-fit items-center ${position}`}>
                       {phaseIdx > 0 && (
                         <div className="w-0 h-6 border-l-2 border-dashed border-gray-300 opacity-50 mb-1" />
                       )}
