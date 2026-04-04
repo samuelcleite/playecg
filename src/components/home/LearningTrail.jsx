@@ -19,8 +19,10 @@ function getPhaseProgress(phase, moduleAttempts) {
   return { completed, total, pct: total > 0 ? Math.round((completed / total) * 100) : 0 };
 }
 
-// Zigzag positions for Duolingo feel: center, right, center, left, center...
-const ZIGZAG = ["ml-[30%]", "ml-[55%]", "ml-[30%]", "ml-[5%]", "ml-[30%]", "ml-[55%]"];
+// X positions as percentage for zigzag path
+const ZIGZAG_X = [35, 60, 35, 10, 35, 60];
+const NODE_SIZE = 64;
+const Y_STEP = 130;
 
 export default function LearningTrail({ modules, phases, attempts, isPremium }) {
   const moduleAttempts = attempts.filter(a => a.quiz_type === "module");
@@ -84,6 +86,7 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
         {trail.map((item, modIdx) => {
           const unlocked = isModuleUnlocked(item.module);
           const isLocked = !isPremium || !unlocked;
+          const trailHeight = item.phases.length * Y_STEP + NODE_SIZE + 40;
 
           return (
             <motion.div
@@ -110,21 +113,55 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                 <div className={`h-px flex-1 ${isLocked ? "bg-gray-200" : "bg-purple-200"}`} />
               </div>
 
-              {/* Phase nodes */}
-              <div className="flex flex-col gap-3 px-4">
+              {/* Phase nodes - path layout */}
+              <div className="relative w-full" style={{ height: trailHeight }}>
+                {/* SVG diagonal connectors */}
+                <svg
+                  className="absolute inset-0 w-full pointer-events-none"
+                  style={{ height: trailHeight }}
+                  overflow="visible"
+                >
+                  {item.phases.map((phase, phaseIdx) => {
+                    if (phaseIdx === 0) return null;
+                    const xPrev = ZIGZAG_X[(phaseIdx - 1) % ZIGZAG_X.length];
+                    const xCurr = ZIGZAG_X[phaseIdx % ZIGZAG_X.length];
+                    // We use percentages so we need a viewBox trick — use a fixed width ref of 300px
+                    return (
+                      <line
+                        key={phase.id + "_line"}
+                        x1={`${xPrev}%`}
+                        y1={(phaseIdx - 1) * Y_STEP + NODE_SIZE / 2}
+                        x2={`${xCurr}%`}
+                        y2={phaseIdx * Y_STEP + NODE_SIZE / 2}
+                        stroke="#d1d5db"
+                        strokeWidth="2"
+                        strokeDasharray="6 5"
+                        strokeLinecap="round"
+                        opacity="0.7"
+                      />
+                    );
+                  })}
+                </svg>
+
                 {item.phases.map((phase, phaseIdx) => {
                   const isNext = !isLocked && nextPhase?.phase.id === phase.id;
                   const isDone = phase.pct >= 100;
                   const prevPhase = phaseIdx > 0 ? item.phases[phaseIdx - 1] : null;
                   const isAvailable = !isLocked && (phaseIdx === 0 || (prevPhase && prevPhase.pct >= 100));
                   const isBlocked = isLocked || (!isDone && !isAvailable);
-                  const position = ZIGZAG[phaseIdx % ZIGZAG.length];
+                  const xPct = ZIGZAG_X[phaseIdx % ZIGZAG_X.length];
+                  const yPos = phaseIdx * Y_STEP;
 
                   return (
-                    <div key={phase.id} className={`flex flex-col w-fit items-center ${position}`}>
-                      {phaseIdx > 0 && (
-                        <div className="w-0 h-6 border-l-2 border-dashed border-gray-300 opacity-50 mb-1" />
-                      )}
+                    <div
+                      key={phase.id}
+                      className="absolute flex flex-col items-center"
+                      style={{
+                        left: `${xPct}%`,
+                        top: yPos,
+                        transform: "translateX(-50%)"
+                      }}
+                    >
                       {isAvailable ? (
                         <Link to={`${createPageUrl("ModuleDetail")}?module_id=${item.module.id}&phase_id=${phase.id}`}>
                           <PhaseNode
@@ -145,9 +182,9 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                         />
                       )}
                     </div>
-                    );
-                    })}
-                    </div>
+                  );
+                })}
+              </div>
             </motion.div>
           );
         })}
