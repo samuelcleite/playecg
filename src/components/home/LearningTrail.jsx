@@ -119,21 +119,25 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                 <svg
                   className="absolute inset-0 w-full pointer-events-none"
                   style={{ height: trailHeight }}
-                  overflow="visible"
+                  viewBox={`0 0 300 ${trailHeight}`}
+                  preserveAspectRatio="none"
                 >
                   {item.phases.map((phase, phaseIdx) => {
                     if (phaseIdx === 0) return null;
-                    const xPrev = ZIGZAG_X[(phaseIdx - 1) % ZIGZAG_X.length];
-                    const xCurr = ZIGZAG_X[phaseIdx % ZIGZAG_X.length];
-                    // We use percentages so we need a viewBox trick — use a fixed width ref of 300px
+                    const xPrev = (ZIGZAG_X[(phaseIdx - 1) % ZIGZAG_X.length] / 100) * 300;
+                    const xCurr = (ZIGZAG_X[phaseIdx % ZIGZAG_X.length] / 100) * 300;
+                    const y1 = (phaseIdx - 1) * Y_STEP + NODE_SIZE / 2;
+                    const y2 = phaseIdx * Y_STEP + NODE_SIZE / 2;
+                    const cy1 = y1 + Y_STEP * 0.5;
+                    const cy2 = y2 - Y_STEP * 0.5;
                     return (
                       <path
                         key={phase.id + "_line"}
-                        d={`M ${xPrev}% ${(phaseIdx - 1) * Y_STEP + NODE_SIZE / 2} C ${xPrev}% ${(phaseIdx - 1) * Y_STEP + NODE_SIZE / 2 + Y_STEP * 0.5} ${xCurr}% ${phaseIdx * Y_STEP + NODE_SIZE / 2 - Y_STEP * 0.5} ${xCurr}% ${phaseIdx * Y_STEP + NODE_SIZE / 2}`}
+                        d={`M ${xPrev} ${y1} C ${xPrev} ${cy1} ${xCurr} ${cy2} ${xCurr} ${y2}`}
                         fill="none"
                         stroke="#d1d5db"
-                        strokeWidth="2"
-                        strokeDasharray="6 5"
+                        strokeWidth="3"
+                        strokeDasharray="8 6"
                         strokeLinecap="round"
                         opacity="0.7"
                       />
