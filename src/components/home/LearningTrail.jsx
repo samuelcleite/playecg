@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Lock, CheckCircle, Star, Play, BookOpen, ChevronRight, Crown } from "lucide-react";
+import { Lock, CheckCircle, Star, Play, BookOpen, ChevronRight, Crown, Heart } from "lucide-react";
 import { motion } from "framer-motion";
 
 function getPhaseProgress(phase, moduleAttempts) {
@@ -104,7 +104,7 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                 }`}>
                   {isLocked && !isPremium && <Crown className="w-3 h-3 inline mr-1" />}
                   {isLocked && isPremium && <Lock className="w-3 h-3 inline mr-1" />}
-                  {item.allDone && <Star className="w-3 h-3 inline mr-1 fill-green-500 text-green-500" />}
+                  {item.allDone && <Heart className="w-3 h-3 inline mr-1 fill-green-500 text-green-500" />}
                   {unlocked ? item.module.name : `Módulo ${item.module.order}`}
                 </span>
                 <div className={`h-px flex-1 ${isLocked ? "bg-gray-200" : "bg-purple-200"}`} />
@@ -175,7 +175,7 @@ function PhaseNode({ phase, isDone, isNext, isBlocked, phaseIdx }) {
                 : "bg-indigo-400 border-indigo-200"
         }`}>
           {isDone
-            ? <Star className="w-7 h-7 text-white fill-white" />
+            ? <Heart className="w-7 h-7 text-white fill-white" />
             : isBlocked
               ? <Lock className="w-6 h-6 text-gray-400" />
               : isNext
