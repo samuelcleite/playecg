@@ -97,14 +97,14 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                 <div className={`h-px flex-1 ${isLocked ? "bg-gray-200" : "bg-purple-200"}`} />
                 <span className={`text-xs font-bold px-3 py-1 rounded-full ${
                   item.allDone
-                    ? "bg-green-100 text-green-700"
+                    ? "bg-red-100 text-red-600"
                     : isLocked
                       ? "bg-gray-100 text-gray-400"
                       : "bg-purple-100 text-purple-700"
                 }`}>
                   {isLocked && !isPremium && <Crown className="w-3 h-3 inline mr-1" />}
                   {isLocked && isPremium && <Lock className="w-3 h-3 inline mr-1" />}
-                  {item.allDone && <Heart className="w-3 h-3 inline mr-1 fill-green-500 text-green-500" />}
+                  {item.allDone && <Heart className="w-3 h-3 inline mr-1 fill-red-500 text-red-500" />}
                   {unlocked ? item.module.name : `Módulo ${item.module.order}`}
                 </span>
                 <div className={`h-px flex-1 ${isLocked ? "bg-gray-200" : "bg-purple-200"}`} />
@@ -167,7 +167,7 @@ function PhaseNode({ phase, isDone, isNext, isBlocked, phaseIdx }) {
         )}
         <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-md border-4 transition-all ${
           isDone
-            ? "bg-green-500 border-green-300"
+            ? "bg-red-500 border-red-300"
             : isNext
               ? "bg-purple-600 border-purple-300 shadow-purple-200 shadow-lg"
               : isBlocked
@@ -187,7 +187,7 @@ function PhaseNode({ phase, isDone, isNext, isBlocked, phaseIdx }) {
 
       {/* Phase label */}
       <span className={`text-xs font-semibold text-center max-w-[72px] leading-tight ${
-        isBlocked ? "text-gray-400" : isDone ? "text-green-600" : isNext ? "text-purple-700" : "text-gray-600"
+        isBlocked ? "text-gray-400" : isDone ? "text-red-600" : isNext ? "text-purple-700" : "text-gray-600"
       }`}>
         {isBlocked ? `Fase ${phase.order}` : phase.name || `Fase ${phase.order}`}
       </span>
