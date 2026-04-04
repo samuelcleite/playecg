@@ -127,12 +127,10 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                     const xCurr = ZIGZAG_X[phaseIdx % ZIGZAG_X.length];
                     // We use percentages so we need a viewBox trick — use a fixed width ref of 300px
                     return (
-                      <line
+                      <path
                         key={phase.id + "_line"}
-                        x1={`${xPrev}%`}
-                        y1={(phaseIdx - 1) * Y_STEP + NODE_SIZE / 2}
-                        x2={`${xCurr}%`}
-                        y2={phaseIdx * Y_STEP + NODE_SIZE / 2}
+                        d={`M ${xPrev}% ${(phaseIdx - 1) * Y_STEP + NODE_SIZE / 2} C ${xPrev}% ${(phaseIdx - 1) * Y_STEP + NODE_SIZE / 2 + Y_STEP * 0.5} ${xCurr}% ${phaseIdx * Y_STEP + NODE_SIZE / 2 - Y_STEP * 0.5} ${xCurr}% ${phaseIdx * Y_STEP + NODE_SIZE / 2}`}
+                        fill="none"
                         stroke="#d1d5db"
                         strokeWidth="2"
                         strokeDasharray="6 5"
