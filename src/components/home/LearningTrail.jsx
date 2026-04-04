@@ -121,7 +121,10 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                   const position = ZIGZAG[phaseIdx % ZIGZAG.length];
 
                   return (
-                    <div key={phase.id} className={`flex flex-col ${position} w-fit`}>
+                    <div key={phase.id} className={`flex flex-col ${position} w-fit items-center`}>
+                      {phaseIdx > 0 && (
+                        <div className="w-0 h-6 border-l-2 border-dashed border-gray-300 opacity-50 mb-1" />
+                      )}
                       {isAvailable ? (
                         <Link to={`${createPageUrl("ModuleDetail")}?module_id=${item.module.id}&phase_id=${phase.id}`}>
                           <PhaseNode
@@ -142,9 +145,9 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
                         />
                       )}
                     </div>
-                  );
-                })}
-              </div>
+                    );
+                    })}
+                    </div>
             </motion.div>
           );
         })}
