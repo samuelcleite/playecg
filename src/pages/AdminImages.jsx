@@ -47,8 +47,9 @@ export default function AdminImages() {
     indexer: "", // Keep indexer in formData for editing existing images
     tags: []
   });
-  const [showBulkUpload, setShowBulkUpload] = useState(false); // Added state
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [linkedCasesCount, setLinkedCasesCount] = useState(0);
 
   useEffect(() => {
     checkAdmin();
@@ -99,7 +100,7 @@ export default function AdminImages() {
     }
   };
 
-  const handleOpenDialog = (imageToEdit = null) => {
+  const handleOpenDialog = async (imageToEdit = null) => {
     if (imageToEdit) {
       setEditingImage(imageToEdit);
       setFormData({
@@ -109,7 +110,11 @@ export default function AdminImages() {
       });
       setPreviewUrl(imageToEdit.image_url);
       setSelectedFile(null);
+      // Contar casos vinculados
+      const linked = await base44.entities.ECGCase.filter({ image_url: imageToEdit.image_url });
+      setLinkedCasesCount(linked.length);
     } else {
+      setLinkedCasesCount(0);
       setEditingImage(null);
       setFormData({
         description: "",
@@ -133,6 +138,7 @@ export default function AdminImages() {
 
     try {
       let imageUrl = editingImage?.image_url;
+      const oldImageUrl = editingImage?.image_url;
 
       // Se há um novo arquivo, fazer upload
       if (selectedFile) {
@@ -143,12 +149,22 @@ export default function AdminImages() {
       const imageData = {
         ...formData,
         image_url: imageUrl,
-        // If editing, use existing indexer; if creating new, generate one
         indexer: editingImage ? formData.indexer : generateIndexer()
       };
 
       if (editingImage) {
         await base44.entities.ECGImage.update(editingImage.id, imageData);
+
+        // Se a URL da imagem mudou, atualizar todos os ECGCases que referenciam a URL antiga
+        if (selectedFile && imageUrl !== oldImageUrl) {
+          const affectedCases = await base44.entities.ECGCase.filter({ image_url: oldImageUrl });
+          if (affectedCases.length > 0) {
+            await Promise.all(
+              affectedCases.map(c => base44.entities.ECGCase.update(c.id, { image_url: imageUrl }))
+            );
+            alert(`✅ Imagem substituída com sucesso! ${affectedCases.length} caso(s) vinculado(s) foram atualizados automaticamente.`);
+          }
+        }
       } else {
         await base44.entities.ECGImage.create(imageData);
       }
@@ -485,6 +501,20 @@ export default function AdminImages() {
                   <p className="text-xs text-gray-500">
                     O indexador é gerado automaticamente e não pode ser alterado
                   </p>
+                  {linkedCasesCount > 0 && (
+                    <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg flex items-start gap-2">
+                      <span className="text-amber-600 text-lg">⚠️</span>
+                      <p className="text-sm text-amber-800">
+                        <strong>{linkedCasesCount} caso(s)</strong> estão vinculados a esta imagem.
+                        Ao substituir a imagem, todos esses casos serão atualizados automaticamente com a nova URL.
+                      </p>
+                    </div>
+                  )}
+                  {selectedFile && linkedCasesCount === 0 && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-sm text-green-800">✅ Nenhum caso vinculado. A substituição é segura.</p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
