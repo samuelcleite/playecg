@@ -28,7 +28,8 @@ import {
   Download
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import BulkImageUpload from "../components/admin/BulkImageUpload"; // Added import
+import BulkImageUpload from "../components/admin/BulkImageUpload";
+import BulkImageReplace from "../components/admin/BulkImageReplace";
 
 export default function AdminImages() {
   const navigate = useNavigate();
@@ -48,6 +49,7 @@ export default function AdminImages() {
     tags: []
   });
   const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [showBulkReplace, setShowBulkReplace] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [linkedCasesCount, setLinkedCasesCount] = useState(0);
 
@@ -261,6 +263,14 @@ export default function AdminImages() {
                   Exportar Dados
                 </>
               )}
+            </Button>
+            <Button
+              onClick={() => setShowBulkReplace(true)}
+              variant="outline"
+              className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+            >
+              <Upload className="w-5 h-5" />
+              Substituir em Massa
             </Button>
             <Button
               onClick={() => setShowBulkUpload(true)}
@@ -602,6 +612,13 @@ export default function AdminImages() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Bulk Replace Dialog */}
+      <BulkImageReplace
+        open={showBulkReplace}
+        onOpenChange={setShowBulkReplace}
+        onComplete={loadImages}
+      />
 
       {/* Bulk Upload Dialog */}
       <BulkImageUpload
