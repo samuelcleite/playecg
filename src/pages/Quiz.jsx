@@ -566,8 +566,8 @@ export default function Quiz() {
     : [currentCase.correct_diagnosis];
 
   return (
-    <div className="min-h-screen p-6 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen p-3 md:p-8 w-full overflow-x-hidden">
+      <div className="max-w-4xl mx-auto space-y-6 w-full">
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Quiz de ECG</h1>
@@ -597,7 +597,7 @@ export default function Quiz() {
 
         {/* Case Card */}
         <Card className="border border-purple-100 shadow-lg">
-          <CardContent className="p-8">
+          <CardContent className="p-3 md:p-8">
             {/* Case Info */}
             <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
               <div className="flex items-center gap-3 flex-wrap">
