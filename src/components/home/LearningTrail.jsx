@@ -82,6 +82,28 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
         </Link>
       </div>
 
+      {/* Next phase CTA */}
+      {nextPhase && (
+        <Link to={`${createPageUrl("ModuleDetail")}?module_id=${nextPhase.module.id}&phase_id=${nextPhase.phase.id}`}>
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 flex items-center justify-between gap-3 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl px-4 py-3 shadow-lg cursor-pointer hover:from-purple-700 hover:to-indigo-700 transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                <Play className="w-4 h-4 text-white fill-white" />
+              </div>
+              <div>
+                <p className="text-white font-bold text-sm leading-tight">Continuar de onde parou</p>
+                <p className="text-purple-200 text-xs">{nextPhase.module.name} · {nextPhase.phase.name || `Fase ${nextPhase.phase.order}`}</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-white flex-shrink-0" />
+          </motion.div>
+        </Link>
+      )}
+
       <div className="space-y-8">
         {trail.map((item, modIdx) => {
           const unlocked = isModuleUnlocked(item.module);
