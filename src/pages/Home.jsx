@@ -33,7 +33,7 @@ export default function Home() {
   }, []);
 
   const handleLogin = () => {
-    base44.auth.redirectToLogin(window.location.origin + "/" + createPageUrl("Dashboard"));
+    base44.auth.redirectToLogin(window.location.origin + createPageUrl("Dashboard"));
   };
 
   const features = [
