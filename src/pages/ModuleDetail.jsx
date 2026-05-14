@@ -516,9 +516,9 @@ export default function ModuleDetail() {
   // Tela de conclusão da fase
   if (showPhaseCompletion) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <Card className="max-w-2xl border-none shadow-2xl">
-          <CardContent className="p-12 text-center">
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-2xl border-none shadow-2xl">
+          <CardContent className="p-6 md:p-12 text-center">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
