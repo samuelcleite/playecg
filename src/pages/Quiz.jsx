@@ -566,8 +566,8 @@ export default function Quiz() {
     : [currentCase.correct_diagnosis];
 
   return (
-    <div className="min-h-screen p-3 md:p-8 w-full overflow-x-hidden">
-      <div className="max-w-4xl mx-auto space-y-6 w-full">
+    <div className="min-h-screen p-0 md:p-8 w-full overflow-x-hidden">
+      <div className="max-w-4xl mx-auto md:space-y-6 w-full">
         {/* Header - hidden on mobile */}
         <div className="hidden md:block">
           <h1 className="text-3xl font-bold text-gray-800">Quiz de ECG</h1>
@@ -596,8 +596,8 @@ export default function Quiz() {
         )}
 
         {/* Case Card */}
-        <Card className="border border-purple-100 shadow-lg">
-          <CardContent className="p-3 md:p-8">
+        <Card className="border-0 md:border border-purple-100 shadow-lg rounded-none md:rounded-lg">
+          <CardContent className="p-0 md:p-8">
             {/* Case Info - hidden on mobile */}
             <div className="hidden md:flex items-center justify-between gap-3 mb-6 flex-wrap">
               <div className="flex items-center gap-3 flex-wrap">
@@ -652,8 +652,8 @@ export default function Quiz() {
 
             {/* ECG Image with Zoom Button */}
             {currentCase.image_url && (
-              <div className="mb-6 relative group">
-                <div className="rounded-xl overflow-hidden border-2 border-purple-200">
+              <div className="mb-0 md:mb-6 relative group">
+                <div className="md:rounded-xl overflow-hidden md:border-2 border-purple-200">
                   <img
                     src={currentCase.image_url}
                     alt="ECG"
@@ -671,7 +671,7 @@ export default function Quiz() {
             )}
 
             {/* Options */}
-            <div className="space-y-3 mb-6">
+            <div className="space-y-3 mb-6 pt-4 md:pt-0 px-3 md:px-0">
               <div className="flex items-start justify-between gap-4 mb-4">
                 <h3 className="font-semibold text-gray-800 text-xl flex-1">
                   {currentCase.title}
@@ -745,6 +745,7 @@ export default function Quiz() {
 
             {/* Submit Button */}
             {!showResult && (
+              <div className="px-3 md:px-0">
               <Button
                 onClick={handleSubmitAnswer}
                 disabled={selectedAnswers.length === 0}
@@ -754,9 +755,11 @@ export default function Quiz() {
                   ? `Confirmar Respostas (${selectedAnswers.length} selecionada${selectedAnswers.length !== 1 ? 's' : ''})`
                   : "Confirmar Resposta"}
               </Button>
+              </div>
             )}
 
             {/* Result */}
+            <div className="px-3 md:px-0">
             <AnimatePresence>
               {showResult && (
                 <motion.div
@@ -906,6 +909,7 @@ export default function Quiz() {
                 </motion.div>
               )}
             </AnimatePresence>
+            </div>
           </CardContent>
         </Card>
       </div>

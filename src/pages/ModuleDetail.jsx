@@ -701,8 +701,8 @@ export default function ModuleDetail() {
 
             {/* ECG Image with Zoom Button */}
             {currentCase.image_url && (
-              <div className="mb-6 relative group">
-                <div className="rounded-xl overflow-hidden border-2 border-gray-200">
+              <div className="mb-0 md:mb-6 relative group">
+                <div className="md:rounded-xl overflow-hidden md:border-2 border-gray-200">
                   <img 
                     src={currentCase.image_url} 
                     alt="ECG"
@@ -720,7 +720,7 @@ export default function ModuleDetail() {
             )}
 
             {/* Options */}
-            <div className="space-y-3 mb-6">
+            <div className="space-y-3 mb-6 pt-4 md:pt-0 px-3 md:px-0">
               <div className="flex items-start justify-between gap-4 mb-4">
                 <h3 className="font-semibold text-gray-900 text-xl flex-1">
                   {currentCase.title}
@@ -791,6 +791,7 @@ export default function ModuleDetail() {
 
             {/* Submit Button */}
             {!showResult && (
+              <div className="px-3 md:px-0">
               <Button
                 onClick={handleSubmitAnswer}
                 disabled={selectedAnswers.length === 0}
@@ -800,9 +801,11 @@ export default function ModuleDetail() {
                   ? `Confirmar Respostas (${selectedAnswers.length} selecionada${selectedAnswers.length !== 1 ? 's' : ''})` 
                   : "Confirmar Resposta"}
               </Button>
+              </div>
             )}
 
             {/* Result */}
+            <div className="px-3 md:px-0">
             <AnimatePresence>
               {showResult && (
                 <motion.div
@@ -934,6 +937,7 @@ export default function ModuleDetail() {
                 </motion.div>
               )}
             </AnimatePresence>
+            </div>
           </CardContent>
         </Card>
       </div>
