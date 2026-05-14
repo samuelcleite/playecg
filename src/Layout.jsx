@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
@@ -45,7 +45,6 @@ import { Separator } from "@/components/ui/separator";
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const [user, setUser] = React.useState(null);
-  const [streakDays, setStreakDays] = React.useState(0);
 
   React.useEffect(() => {
     loadUser();
@@ -55,9 +54,6 @@ export default function Layout({ children, currentPageName }) {
     try {
       const userData = await base44.auth.me();
       setUser(userData);
-      
-      const streak = await calculateStreakDays(userData.email);
-      setStreakDays(streak);
     } catch (error) {
       console.error("Error loading user:", error);
     }
@@ -72,102 +68,30 @@ export default function Layout({ children, currentPageName }) {
   const isAdmin = user?.role === "admin";
 
   const navigationItems = [
-    {
-      title: "Dashboard",
-      url: createPageUrl("Dashboard"),
-      icon: Home
-    },
-    {
-      title: "Quiz",
-      url: createPageUrl("Quiz"),
-      icon: Brain
-    },
-    ...(isPremium ? [{
-      title: "Módulos",
-      url: createPageUrl("Modules"),
-      icon: BookOpen
-    }] : []),
-    {
-      title: "Troféus",
-      url: createPageUrl("Achievements"),
-      icon: Award
-    },
-    {
-      title: "Aprenda ECG",
-      url: createPageUrl("AprendaECG"),
-      icon: BookOpen
-    },
-    {
-      title: "Perfil",
-      url: createPageUrl("Profile"),
-      icon: Trophy
-    }];
-
+    { title: "Dashboard", url: createPageUrl("Dashboard"), icon: Home },
+    { title: "Quiz", url: createPageUrl("Quiz"), icon: Brain },
+    ...(isPremium ? [{ title: "Módulos", url: createPageUrl("Modules"), icon: BookOpen }] : []),
+    { title: "Troféus", url: createPageUrl("Achievements"), icon: Award },
+    { title: "Aprenda ECG", url: createPageUrl("AprendaECG"), icon: BookOpen },
+    { title: "Perfil", url: createPageUrl("Profile"), icon: Trophy },
+  ];
 
   const educationItems = [
-    {
-      title: "Banco de Imagens",
-      url: createPageUrl("AdminImages"),
-      icon: Image
-    },
-    {
-      title: "Gerenciar Módulos",
-      url: createPageUrl("AdminModules"),
-      icon: FolderOpen
-    },
-    {
-      title: "Gerenciar Fases",
-      url: createPageUrl("AdminPhases"),
-      icon: Layers
-    },
-    {
-      title: "Gerenciar Casos",
-      url: createPageUrl("AdminCases"),
-      icon: FileEdit
-    },
-    {
-      title: "Casos do Dia",
-      url: createPageUrl("AdminDailyCases"),
-      icon: Calendar
-    },
-    {
-      title: "Gestão de Conteúdo",
-      url: createPageUrl("AdminContent"),
-      icon: FileText
-    },
-    {
-      title: "Gerenciar Troféus",
-      url: createPageUrl("AdminAchievements"),
-      icon: Award
-    }
+    { title: "Banco de Imagens", url: createPageUrl("AdminImages"), icon: Image },
+    { title: "Gerenciar Módulos", url: createPageUrl("AdminModules"), icon: FolderOpen },
+    { title: "Gerenciar Fases", url: createPageUrl("AdminPhases"), icon: Layers },
+    { title: "Gerenciar Casos", url: createPageUrl("AdminCases"), icon: FileEdit },
+    { title: "Casos do Dia", url: createPageUrl("AdminDailyCases"), icon: Calendar },
+    { title: "Gestão de Conteúdo", url: createPageUrl("AdminContent"), icon: FileText },
+    { title: "Gerenciar Troféus", url: createPageUrl("AdminAchievements"), icon: Award },
   ];
 
   const adminItems = [
-    {
-      title: "Gerenciar Cupons",
-      url: createPageUrl("AdminCoupons"),
-      icon: Ticket
-    },
-    {
-      title: "Estatísticas de Cupons",
-      url: createPageUrl("AdminCouponStats"),
-      icon: BarChart3
-    },
-    {
-      title: "Gerenciar Pagamentos",
-      url: createPageUrl("AdminPayments"),
-      icon: CreditCard
-    },
-    {
-      title: "Gerenciar Usuários",
-      url: createPageUrl("AdminUsers"),
-      icon: Users
-    },
-    {
-      title: "Gerenciar Atividade",
-      url: createPageUrl("AdminActivity"),
-      icon: Activity
-    }
+    { title: "Gerenciar Cupons", url: createPageUrl("AdminCoupons"), icon: Ticket },
+    { title: "Estatísticas de Cupons", url: createPageUrl("AdminCouponStats"), icon: BarChart3 },
+    { title: "Gerenciar Pagamentos", url: createPageUrl("AdminPayments"), icon: CreditCard },
+    { title: "Gerenciar Usuários", url: createPageUrl("AdminUsers"), icon: Users },
+    { title: "Gerenciar Atividade", url: createPageUrl("AdminActivity"), icon: Activity },
   ];
 
   const handleLogout = async () => {
@@ -185,7 +109,8 @@ export default function Layout({ children, currentPageName }) {
         }
       `}</style>
       <div className="min-h-screen flex w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-        <Sidebar className="border-r border-purple-100 bg-white/90 backdrop-blur-sm">
+        {/* Sidebar — only on desktop */}
+        <Sidebar className="hidden md:flex border-r border-purple-100 bg-white/90 backdrop-blur-sm">
           <SidebarHeader className="border-b border-purple-100 p-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-purple-200 to-pink-200 rounded-xl flex items-center justify-center shadow-md">
@@ -294,8 +219,6 @@ export default function Layout({ children, currentPageName }) {
                 </Link>
               </div>
             )}
-
-
           </SidebarContent>
 
           <SidebarFooter className="border-t border-purple-100 p-4">
@@ -328,24 +251,40 @@ export default function Layout({ children, currentPageName }) {
                   <LogOut className="w-4 h-4" />
                   Sair
                 </Button>
-                </div>
+              </div>
             )}
           </SidebarFooter>
         </Sidebar>
 
-        <main className="flex-1 flex flex-col">
-          <header className="bg-white/90 backdrop-blur-sm border-b border-purple-100 px-6 py-4 md:hidden">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger className="hover:bg-purple-50 p-2 rounded-lg transition-colors duration-200" />
-              <h1 className="text-xl font-bold text-gray-800">PlayECG</h1>
-            </div>
-          </header>
-
-          <div className="flex-1 overflow-auto">
+        {/* Main content */}
+        <main className="flex-1 flex flex-col min-w-0">
+          <div className="flex-1 overflow-auto pb-16 md:pb-0">
             {children}
           </div>
         </main>
-        </div>
-        </SidebarProvider>
-        );
-        }
+
+        {/* Bottom navigation — only on mobile */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-purple-100 shadow-lg">
+          <div className="flex items-center justify-around px-2 py-2">
+            {navigationItems.map((item) => {
+              const isActive = location.pathname === item.url;
+              return (
+                <Link
+                  key={item.title}
+                  to={item.url}
+                  className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-200 min-w-[44px] ${
+                    isActive
+                      ? 'text-purple-700 bg-purple-100'
+                      : 'text-gray-500 hover:text-purple-600 hover:bg-purple-50'
+                  }`}
+                >
+                  <item.icon className="w-5 h-5" />
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      </div>
+    </SidebarProvider>
+  );
+}
