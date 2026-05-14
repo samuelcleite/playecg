@@ -18,7 +18,6 @@ import DailyCase from './pages/DailyCase';
 import Dashboard from './pages/Dashboard';
 import Home from './pages/Home';
 import ModuleDetail from './pages/ModuleDetail';
-import ModulePhases from './pages/ModulePhases';
 import Modules from './pages/Modules';
 import Profile from './pages/Profile';
 import Quiz from './pages/Quiz';
@@ -47,7 +46,6 @@ export const PAGES = {
     "Dashboard": Dashboard,
     "Home": Home,
     "ModuleDetail": ModuleDetail,
-    "ModulePhases": ModulePhases,
     "Modules": Modules,
     "Profile": Profile,
     "Quiz": Quiz,

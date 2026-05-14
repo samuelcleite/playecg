@@ -564,12 +564,12 @@ export default function ModuleDetail() {
                       Próxima Fase: {nextPhase.name}
                     </Button>
                     <Button
-                      onClick={() => navigate(`${createPageUrl("ModulePhases")}?id=${module.id}`)}
+                      onClick={() => navigate(createPageUrl("Modules"))}
                       variant="outline"
                       className="border-purple-300 hover:bg-purple-50 px-8 py-6 text-lg font-semibold"
                       size="lg"
                     >
-                      Ver Todas as Fases
+                      Ver Módulos
                     </Button>
                   </>
                 ) : (
@@ -619,7 +619,7 @@ export default function ModuleDetail() {
         <div className="hidden md:flex items-center justify-between">
           <Button
             variant="outline"
-            onClick={() => navigate(`${createPageUrl("ModulePhases")}?id=${module.id}`)}
+            onClick={() => navigate(createPageUrl("Modules"))}
             className="gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
