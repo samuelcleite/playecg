@@ -266,7 +266,7 @@ export default function Layout({ children, currentPageName }) {
 
       {/* ── MOBILE: content + bottom nav ── */}
       <div className="md:hidden flex flex-col w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50" style={{ minHeight: '100dvh' }}>
-        <main className="flex-1 overflow-y-auto pb-24" style={{ height: '100%' }}>
+        <main className="flex-1 overflow-y-auto pb-32" style={{ height: '100%' }}>
           {children}
         </main>
 
