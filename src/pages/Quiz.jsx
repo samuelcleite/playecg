@@ -40,8 +40,8 @@ import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import TopBar from "@/components/TopBar";
 
-const FREE_DAILY_LIMIT = 10;
-const FAILED_CASES_LIMIT = 3;
+const FREE_DAILY_LIMIT = 5;
+const FREE_HOURLY_LIMIT = 1; // 1 questão por hora após esgotar as 5 diárias
 
 export default function Quiz() {
   const navigate = useNavigate();
@@ -57,9 +57,9 @@ export default function Quiz() {
   const [attemptCount, setAttemptCount] = useState(0);
   const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
   const [dailyQuizCount, setDailyQuizCount] = useState(0);
-  const [dailyFailedCasesCount, setDailyFailedCasesCount] = useState(0);
   const [dailyLimitReached, setDailyLimitReached] = useState(false);
-  const [dailyStatsId, setDailyStatsId] = useState(null);
+  const [nextAvailableTime, setNextAvailableTime] = useState(null); // quando pode fazer a próxima questão
+  const [lastAttemptTime, setLastAttemptTime] = useState(null); // hora da última tentativa
 
   // Report Error states
   const [showReportDialog, setShowReportDialog] = useState(false);
@@ -87,45 +87,70 @@ export default function Quiz() {
     loadData();
   }, []);
 
+  const checkFreeLimit = (todayAttempts) => {
+    // Ordenar tentativas por data
+    const sorted = [...todayAttempts].sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
+    const uniqueCasesMap = new Map();
+    for (const attempt of sorted) {
+      if (!uniqueCasesMap.has(attempt.case_id)) {
+        uniqueCasesMap.set(attempt.case_id, new Date(attempt.created_date));
+      }
+    }
+    const uniqueCases = [...uniqueCasesMap.values()].sort((a, b) => a - b);
+    const count = uniqueCases.length;
+
+    if (count < FREE_DAILY_LIMIT) {
+      // Ainda tem questões diárias disponíveis
+      return { limited: false, count };
+    }
+
+    // Esgotou as 5 diárias — verificar regra de 1 por hora
+    // A hora de "recarga" começa a partir da 5ª questão concluída
+    const fifthCaseTime = uniqueCases[FREE_DAILY_LIMIT - 1];
+    const now = new Date();
+
+    // Quantas horas completas se passaram desde a 5ª questão?
+    const hoursElapsed = Math.floor((now - fifthCaseTime) / (1000 * 60 * 60));
+
+    // Questões extras disponíveis = horas completas decorridas
+    const extraAllowed = hoursElapsed;
+    const extraUsed = count - FREE_DAILY_LIMIT;
+
+    if (extraUsed < extraAllowed) {
+      // Ainda tem crédito horário disponível
+      return { limited: false, count };
+    }
+
+    // Limite atingido — calcular quando pode fazer a próxima
+    const nextTime = new Date(fifthCaseTime.getTime() + (extraUsed + 1) * 60 * 60 * 1000);
+    return { limited: true, count, nextAvailableTime: nextTime, fifthCaseTime };
+  };
+
   const loadData = async () => {
     const userData = await User.me();
     setUser(userData);
 
-    // Verificar limite diário para usuários gratuitos
+    // Verificar limite para usuários gratuitos
     if (userData.subscription_type !== "premium") {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const todayDate = today.toISOString().split('T')[0]; // YYYY-MM-DD
+      const todayDate = today.toISOString().split('T')[0];
 
       const allAttempts = await QuizAttempt.filter({ user_email: userData.email });
-      
-      // Contar quizzes únicos completados hoje
+
       const todayAttempts = allAttempts.filter(attempt => {
         const attemptDate = new Date(attempt.created_date);
         attemptDate.setHours(0, 0, 0, 0);
         return attemptDate.toISOString().split('T')[0] === todayDate;
       });
 
-      // Contar casos únicos (um caso = um quiz)
-      const uniqueCasesToday = new Set(todayAttempts.map(a => a.case_id));
-      const count = uniqueCasesToday.size;
-      
-      setDailyQuizCount(count);
+      const result = checkFreeLimit(todayAttempts);
+      setDailyQuizCount(result.count);
 
-      // Buscar DailyQuizStats para verificar casos falhados
-      const dailyStats = await base44.entities.DailyQuizStats.filter({ 
-        user_email: userData.email,
-        date: todayDate
-      });
-
-      let failedCount = 0;
-      if (dailyStats.length > 0) {
-        failedCount = dailyStats[0].failed_cases_ids?.length || 0;
-        setDailyStatsId(dailyStats[0].id);
-      }
-      setDailyFailedCasesCount(failedCount);
-
-      if (count >= FREE_DAILY_LIMIT || failedCount >= FAILED_CASES_LIMIT) {
+      if (result.limited) {
+        setNextAvailableTime(result.nextAvailableTime);
+        // Guardar hora da última tentativa (5ª questão)
+        setLastAttemptTime(result.fifthCaseTime);
         setDailyLimitReached(true);
         setLoading(false);
         return;
@@ -256,39 +281,20 @@ export default function Quiz() {
         const newCount = dailyQuizCount + 1;
         setDailyQuizCount(newCount);
 
-        // Se errou após 3 tentativas, atualizar DailyQuizStats
-        if (!correct && newAttemptCount >= 3) {
-          const today = new Date();
-          const todayDate = today.toISOString().split('T')[0];
-
-          if (dailyStatsId) {
-            // Atualizar registro existente
-            const currentStats = await base44.entities.DailyQuizStats.filter({ id: dailyStatsId });
-            if (currentStats.length > 0) {
-              const updatedFailedIds = [...(currentStats[0].failed_cases_ids || []), currentCase.id];
-              await base44.entities.DailyQuizStats.update(dailyStatsId, {
-                failed_cases_ids: updatedFailedIds
-              });
-              const newFailedCount = updatedFailedIds.length;
-              setDailyFailedCasesCount(newFailedCount);
-
-              if (newFailedCount >= FAILED_CASES_LIMIT) {
-                setDailyLimitReached(true);
-              }
-            }
-          } else {
-            // Criar novo registro
-            const newStats = await base44.entities.DailyQuizStats.create({
-              user_email: user.email,
-              date: todayDate,
-              failed_cases_ids: [currentCase.id]
-            });
-            setDailyStatsId(newStats.id);
-            setDailyFailedCasesCount(1);
-          }
-        }
-        
-        if (newCount >= FREE_DAILY_LIMIT) {
+        // Re-verificar limite após registrar a tentativa
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayDate = today.toISOString().split('T')[0];
+        const allAttempts = await QuizAttempt.filter({ user_email: user.email });
+        const todayAttempts = allAttempts.filter(attempt => {
+          const attemptDate = new Date(attempt.created_date);
+          attemptDate.setHours(0, 0, 0, 0);
+          return attemptDate.toISOString().split('T')[0] === todayDate;
+        });
+        const result = checkFreeLimit(todayAttempts);
+        if (result.limited) {
+          setNextAvailableTime(result.nextAvailableTime);
+          setLastAttemptTime(result.fifthCaseTime);
           setDailyLimitReached(true);
         }
       }
@@ -476,6 +482,19 @@ export default function Quiz() {
 
   // Daily limit reached for free users
   if (dailyLimitReached && !isPremium) {
+    const now = new Date();
+    const minutesUntilNext = nextAvailableTime
+      ? Math.max(0, Math.ceil((nextAvailableTime - now) / 60000))
+      : null;
+    const hoursUntilNext = minutesUntilNext !== null ? Math.floor(minutesUntilNext / 60) : null;
+    const minsRemainder = minutesUntilNext !== null ? minutesUntilNext % 60 : null;
+
+    const nextTimeFormatted = nextAvailableTime
+      ? nextAvailableTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      : null;
+
+    const isHourlyPhase = dailyQuizCount >= FREE_DAILY_LIMIT;
+
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <Card className="max-w-md border-2 border-amber-200 shadow-lg">
@@ -483,16 +502,37 @@ export default function Quiz() {
             <div className="w-16 h-16 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Lock className="w-8 h-8 text-amber-600" />
             </div>
-            <h2 className="text-2xl font-bold mb-2 text-gray-900">Limite Diário Atingido</h2>
-            <p className="text-gray-600 mb-4">
-              {dailyFailedCasesCount >= FAILED_CASES_LIMIT 
-                ? `Você errou ${FAILED_CASES_LIMIT} casos após 3 tentativas hoje.`
-                : `Você completou ${FREE_DAILY_LIMIT} quizzes hoje! 🎉`}
+            <h2 className="text-2xl font-bold mb-2 text-gray-900">
+              {isHourlyPhase ? "Aguarde para a próxima questão" : "Limite diário atingido"}
+            </h2>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-left">
+              <p className="text-sm font-semibold text-blue-800 mb-2">📋 Como funciona o plano gratuito:</p>
+              <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                <li><strong>5 questões</strong> liberadas por dia</li>
+                <li>Após as 5, <strong>1 questão por hora</strong></li>
+              </ul>
+            </div>
+
+            {isHourlyPhase && nextTimeFormatted && (
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4">
+                <p className="text-orange-800 font-semibold text-sm mb-1">⏰ Próxima questão disponível às:</p>
+                <p className="text-3xl font-bold text-orange-600">{nextTimeFormatted}</p>
+                {minutesUntilNext !== null && minutesUntilNext > 0 && (
+                  <p className="text-orange-600 text-sm mt-1">
+                    em {hoursUntilNext > 0 ? `${hoursUntilNext}h ` : ''}{minsRemainder}min
+                  </p>
+                )}
+              </div>
+            )}
+
+            <p className="text-gray-500 text-sm mb-6">
+              Você usou <strong>{dailyQuizCount}</strong> questão{dailyQuizCount !== 1 ? 'ões' : ''} hoje. 
+              {isHourlyPhase
+                ? " Continue aguardando ou faça upgrade para ter acesso ilimitado."
+                : " Volte amanhã ou faça upgrade para acesso ilimitado."}
             </p>
-            <p className="text-gray-600 mb-6">
-              Volte amanhã para continuar praticando ou faça upgrade para Premium e tenha acesso ilimitado.
-            </p>
-            
+
             <Alert className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200">
               <Crown className="w-5 h-5 text-amber-600" />
               <AlertDescription className="text-amber-900 ml-2">
@@ -577,21 +617,22 @@ export default function Quiz() {
         </div>
 
         {/* Daily Limit Warning for Free Users - hidden on mobile */}
-        {!isPremium && dailyQuizCount > 0 && (
+        {!isPremium && (
           <Alert className="hidden md:block bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200">
             <AlertDescription className="text-amber-900">
               <div className="flex items-center justify-between">
                 <span>
-                  <strong>Quizzes hoje:</strong> {dailyQuizCount}/{FREE_DAILY_LIMIT}
+                  <strong>Questões hoje:</strong> {dailyQuizCount}/{FREE_DAILY_LIMIT}
+                  {dailyQuizCount >= FREE_DAILY_LIMIT && (
+                    <span className="ml-2 text-orange-700 text-sm">(modo: 1 por hora)</span>
+                  )}
                 </span>
-                {dailyQuizCount >= FREE_DAILY_LIMIT - 2 && (
-                  <Link to={createPageUrl("Upgrade")}>
-                    <Button size="sm" variant="outline" className="gap-2 border-amber-300 hover:bg-amber-100">
-                      <Crown className="w-4 h-4" />
-                      Ver Premium
-                    </Button>
-                  </Link>
-                )}
+                <Link to={createPageUrl("Upgrade")}>
+                  <Button size="sm" variant="outline" className="gap-2 border-amber-300 hover:bg-amber-100">
+                    <Crown className="w-4 h-4" />
+                    Ver Premium
+                  </Button>
+                </Link>
               </div>
             </AlertDescription>
           </Alert>
