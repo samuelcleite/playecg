@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/dialog";
 import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import TopBar from "@/components/TopBar";
 
 const FREE_DAILY_LIMIT = 10;
 const FAILED_CASES_LIMIT = 3;
@@ -567,6 +568,7 @@ export default function Quiz() {
 
   return (
     <div className="min-h-screen p-0 md:p-8 w-full overflow-x-hidden">
+      <TopBar />
       <div className="max-w-4xl mx-auto md:space-y-6 w-full">
         {/* Header - hidden on mobile */}
         <div className="hidden md:block">

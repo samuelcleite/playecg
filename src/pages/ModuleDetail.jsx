@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import TopBar from "@/components/TopBar";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -614,6 +615,7 @@ export default function ModuleDetail() {
 
   return (
     <div className="min-h-screen p-0 md:p-8">
+      <TopBar />
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header - hidden on mobile */}
         <div className="hidden md:flex items-center justify-between">
