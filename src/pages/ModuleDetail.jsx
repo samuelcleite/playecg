@@ -614,9 +614,9 @@ export default function ModuleDetail() {
     : [currentCase.correct_diagnosis];
 
   return (
-    <div className="min-h-screen p-0 md:p-8">
+    <div className="min-h-screen p-0 md:p-8 overflow-x-hidden">
       <TopBar />
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto md:space-y-6">
         {/* Header - hidden on mobile */}
         <div className="hidden md:flex items-center justify-between">
           <Button
@@ -657,8 +657,8 @@ export default function ModuleDetail() {
         </div>
 
         {/* Case Card */}
-        <Card className="border-none shadow-xl">
-          <CardContent className="p-3 md:p-8">
+        <Card className="border-0 md:border border-purple-100 shadow-none md:shadow-xl rounded-none md:rounded-lg">
+          <CardContent className="p-0 md:p-8">
             {/* Case Info Badge and Edit Button - hidden on mobile */}
             <div className="hidden md:flex items-center justify-between gap-3 mb-4 flex-wrap">
               <div>
@@ -722,7 +722,7 @@ export default function ModuleDetail() {
             )}
 
             {/* Options */}
-            <div className="space-y-3 mb-6 pt-4 md:pt-0 px-3 md:px-0">
+            <div className="space-y-3 mb-6 pt-4 md:pt-0 px-3 md:px-0 mt-4 md:mt-0">
               <div className="flex items-start justify-between gap-4 mb-4">
                 <h3 className="font-semibold text-gray-900 text-xl flex-1">
                   {currentCase.title}
