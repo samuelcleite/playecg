@@ -45,7 +45,7 @@ export default function CompleteProfile() {
 
       // Garantir que o subscription_type seja "free" se não estiver definido
       if (!userData.subscription_type) {
-        await User.updateMyUserData({ subscription_type: "free" });
+        await User.updateMyUserData({ subscription_type: "premium" }); // Fase de testes
         // Optionally, update userData object locally to reflect the change for subsequent formData set
         userData.subscription_type = "free"; 
       }
@@ -74,7 +74,7 @@ export default function CompleteProfile() {
       state: formData.state,
       city: formData.city,
       profile_completed: true,
-      subscription_type: "free" // Garantir que seja "free" ao completar perfil
+      subscription_type: "premium" // Fase de testes: todos os novos usuários são premium
     });
 
     navigate(createPageUrl("Dashboard"));
