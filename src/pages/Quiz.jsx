@@ -568,15 +568,15 @@ export default function Quiz() {
   return (
     <div className="min-h-screen p-3 md:p-8 w-full overflow-x-hidden">
       <div className="max-w-4xl mx-auto space-y-6 w-full">
-        {/* Header */}
-        <div>
+        {/* Header - hidden on mobile */}
+        <div className="hidden md:block">
           <h1 className="text-3xl font-bold text-gray-800">Quiz de ECG</h1>
           <p className="text-gray-500 mt-1">Analise o traçado e faça seu diagnóstico</p>
         </div>
 
-        {/* Daily Limit Warning for Free Users */}
+        {/* Daily Limit Warning for Free Users - hidden on mobile */}
         {!isPremium && dailyQuizCount > 0 && (
-          <Alert className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200">
+          <Alert className="hidden md:block bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200">
             <AlertDescription className="text-amber-900">
               <div className="flex items-center justify-between">
                 <span>
@@ -598,8 +598,8 @@ export default function Quiz() {
         {/* Case Card */}
         <Card className="border border-purple-100 shadow-lg">
           <CardContent className="p-3 md:p-8">
-            {/* Case Info */}
-            <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+            {/* Case Info - hidden on mobile */}
+            <div className="hidden md:flex items-center justify-between gap-3 mb-6 flex-wrap">
               <div className="flex items-center gap-3 flex-wrap">
                 {currentCase.multiple_correct && (
                   <Badge className="bg-purple-100 text-purple-800 border border-purple-200">
@@ -641,9 +641,9 @@ export default function Quiz() {
               </div>
             </div>
 
-            {/* Patient Info */}
+            {/* Patient Info - hidden on mobile */}
             {currentCase.patient_info && (
-              <Alert className="mb-6 bg-blue-50 border-blue-200">
+              <Alert className="hidden md:flex mb-6 bg-blue-50 border-blue-200">
                 <AlertDescription className="text-gray-700">
                   <strong>Dados do Paciente:</strong> {currentCase.patient_info}
                 </AlertDescription>

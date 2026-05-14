@@ -613,10 +613,10 @@ export default function ModuleDetail() {
     : [currentCase.correct_diagnosis];
 
   return (
-    <div className="min-h-screen p-6 md:p-8">
+    <div className="min-h-screen p-0 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+        {/* Header - hidden on mobile */}
+        <div className="hidden md:flex items-center justify-between">
           <Button
             variant="outline"
             onClick={() => navigate(`${createPageUrl("ModulePhases")}?id=${module.id}`)}
@@ -627,8 +627,8 @@ export default function ModuleDetail() {
           </Button>
         </div>
 
-        {/* Module Info */}
-        <Card className="border-none shadow-lg bg-gradient-to-br from-blue-50 to-indigo-50">
+        {/* Module Info - hidden on mobile */}
+        <Card className="hidden md:block border-none shadow-lg bg-gradient-to-br from-blue-50 to-indigo-50">
           <CardContent className="p-6">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{module.name}</h1>
             <p className="text-gray-600 mb-4">{module.description}</p>
@@ -645,8 +645,8 @@ export default function ModuleDetail() {
           </CardContent>
         </Card>
 
-        {/* Progress Bar */}
-        <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+        {/* Progress Bar - hidden on mobile */}
+        <div className="hidden md:block h-3 bg-gray-200 rounded-full overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${completionPercentage}%` }}
@@ -656,9 +656,9 @@ export default function ModuleDetail() {
 
         {/* Case Card */}
         <Card className="border-none shadow-xl">
-          <CardContent className="p-8">
-            {/* Case Info Badge and Edit Button */}
-            <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+          <CardContent className="p-3 md:p-8">
+            {/* Case Info Badge and Edit Button - hidden on mobile */}
+            <div className="hidden md:flex items-center justify-between gap-3 mb-4 flex-wrap">
               <div>
                 {currentCase.multiple_correct && (
                   <Badge className="bg-purple-100 text-purple-800 border border-purple-200">
@@ -690,9 +690,9 @@ export default function ModuleDetail() {
               </div>
             </div>
 
-            {/* Patient Info */}
+            {/* Patient Info - hidden on mobile */}
             {currentCase.patient_info && (
-              <Alert className="mb-6 bg-blue-50 border-blue-200">
+              <Alert className="hidden md:flex mb-6 bg-blue-50 border-blue-200">
                 <AlertDescription className="text-gray-700">
                   <strong>Dados do Paciente:</strong> {currentCase.patient_info}
                 </AlertDescription>
