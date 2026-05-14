@@ -104,6 +104,10 @@ export default function Layout({ children, currentPageName }) {
           --success: 142 60% 75%;
           --error: 0 70% 80%;
         }
+        html, body, #root {
+          height: 100%;
+          overflow: hidden;
+        }
       `}</style>
 
       {/* ── DESKTOP: sidebar + content ── */}
@@ -262,7 +266,7 @@ export default function Layout({ children, currentPageName }) {
       </div>
 
       {/* ── MOBILE: content + bottom nav ── */}
-      <div className="md:hidden flex flex-col min-h-screen w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+      <div className="md:hidden flex flex-col w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50" style={{ minHeight: '100dvh' }}>
         <main className="flex-1 overflow-auto pb-24">
           {children}
         </main>
