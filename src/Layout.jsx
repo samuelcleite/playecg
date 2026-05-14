@@ -263,12 +263,12 @@ export default function Layout({ children, currentPageName }) {
 
       {/* ── MOBILE: content + bottom nav ── */}
       <div className="md:hidden flex flex-col min-h-screen w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-        <main className="flex-1 overflow-auto pb-16">
+        <main className="flex-1 overflow-auto pb-24">
           {children}
         </main>
 
-        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-purple-100 shadow-lg">
-          <div className="flex items-center justify-around px-2 py-2">
+        <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, backgroundColor: 'rgba(255,255,255,0.97)', borderTop: '1px solid #e9d5ff', boxShadow: '0 -2px 10px rgba(0,0,0,0.08)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+          <div className="flex items-center justify-around px-2 py-3">
             {navigationItems.map((item) => {
               const isActive = location.pathname === item.url;
               return (
@@ -281,7 +281,7 @@ export default function Layout({ children, currentPageName }) {
                       : 'text-gray-500 hover:text-purple-600 hover:bg-purple-50'
                   }`}
                 >
-                  <item.icon className="w-5 h-5" />
+                  <item.icon className="w-6 h-6" />
                 </Link>
               );
             })}
