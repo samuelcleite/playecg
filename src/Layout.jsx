@@ -2,7 +2,6 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { calculateStreakDays } from "@/components/StreakCalculator";
 import {
   Activity,
   Home,
@@ -36,7 +35,6 @@ import {
   SidebarHeader,
   SidebarFooter,
   SidebarProvider,
-  SidebarTrigger
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -59,7 +57,6 @@ export default function Layout({ children, currentPageName }) {
     }
   };
 
-  // Não renderizar layout na página Home
   if (currentPageName === "Home") {
     return <>{children}</>;
   }
@@ -99,7 +96,7 @@ export default function Layout({ children, currentPageName }) {
   };
 
   return (
-    <SidebarProvider>
+    <>
       <style>{`
         :root {
           --primary: 210 80% 75%;
@@ -108,163 +105,169 @@ export default function Layout({ children, currentPageName }) {
           --error: 0 70% 80%;
         }
       `}</style>
-      <div className="min-h-screen flex w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-        {/* Sidebar — only on desktop */}
-        <Sidebar className="hidden md:flex border-r border-purple-100 bg-white/90 backdrop-blur-sm">
-          <SidebarHeader className="border-b border-purple-100 p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-200 to-pink-200 rounded-xl flex items-center justify-center shadow-md">
-                <Activity className="w-6 h-6 text-purple-700" />
-              </div>
-              <div>
-                <h2 className="font-bold text-gray-800 text-lg">PlayECG</h2>
-                <p className="text-xs text-gray-500">Aprenda ECG jogando</p>
-              </div>
-            </div>
-          </SidebarHeader>
 
-          <SidebarContent className="p-3">
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {navigationItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        className={`hover:bg-purple-50 hover:text-purple-700 transition-all duration-200 rounded-lg mb-1 ${
-                          location.pathname === item.url ? 'bg-purple-100 text-purple-700 font-medium' : ''
-                        }`}
-                      >
-                        <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5">
-                          <item.icon className="w-5 h-5" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            {isAdmin && (
-              <>
-                <Separator className="my-4" />
-                <SidebarGroup>
-                  <SidebarGroupLabel className="text-xs font-medium text-gray-500 uppercase tracking-wider px-2 py-2 flex items-center gap-2">
-                    <BookOpen className="w-4 h-4" />
-                    Gestão Educação
-                  </SidebarGroupLabel>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {educationItems.map((item) => (
-                        <SidebarMenuItem key={item.title}>
-                          <SidebarMenuButton
-                            asChild
-                            className={`hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 rounded-lg mb-1 ${
-                              location.pathname === item.url ? 'bg-blue-100 text-blue-700 font-medium' : ''
-                            }`}
-                          >
-                            <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5">
-                              <item.icon className="w-5 h-5" />
-                              <span>{item.title}</span>
-                            </Link>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-
-                <Separator className="my-4" />
-                <SidebarGroup>
-                  <SidebarGroupLabel className="text-xs font-medium text-gray-500 uppercase tracking-wider px-2 py-2 flex items-center gap-2">
-                    <Settings className="w-4 h-4" />
-                    Administração
-                  </SidebarGroupLabel>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {adminItems.map((item) => (
-                        <SidebarMenuItem key={item.title}>
-                          <SidebarMenuButton
-                            asChild
-                            className={`hover:bg-pink-50 hover:text-pink-700 transition-all duration-200 rounded-lg mb-1 ${
-                              location.pathname === item.url ? 'bg-pink-100 text-pink-700 font-medium' : ''
-                            }`}
-                          >
-                            <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5">
-                              <item.icon className="w-5 h-5" />
-                              <span>{item.title}</span>
-                            </Link>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-              </>
-            )}
-
-            {!isPremium && (
-              <div className="mt-4 mx-2">
-                <Link to={createPageUrl("Upgrade")}>
-                  <div className="bg-gradient-to-r from-amber-100 to-orange-100 rounded-xl p-4 text-amber-900 shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer border border-amber-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Crown className="w-5 h-5" />
-                      <span className="font-semibold">Upgrade Premium</span>
-                    </div>
-                    <p className="text-xs text-amber-800">
-                      Desbloqueie módulos estruturados e gamificação completa
-                    </p>
-                  </div>
-                </Link>
-              </div>
-            )}
-          </SidebarContent>
-
-          <SidebarFooter className="border-t border-purple-100 p-4">
-            {user && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-purple-200 to-pink-200 rounded-full flex items-center justify-center">
-                    <span className="text-purple-700 font-semibold text-sm">
-                      {user.full_name?.[0]?.toUpperCase() || 'U'}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-800 text-sm truncate">
-                      {user.full_name || 'Usuário'}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                      {isAdmin && (
-                        <Badge className="bg-pink-200 text-pink-800 text-xs">Admin</Badge>
-                      )}
-                    </div>
-                  </div>
+      {/* ── DESKTOP: sidebar + content ── */}
+      <div className="hidden md:flex min-h-screen w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+        <SidebarProvider>
+          <Sidebar className="border-r border-purple-100 bg-white/90 backdrop-blur-sm">
+            <SidebarHeader className="border-b border-purple-100 p-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-200 to-pink-200 rounded-xl flex items-center justify-center shadow-md">
+                  <Activity className="w-6 h-6 text-purple-700" />
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleLogout}
-                  className="w-full gap-2 border-purple-200 hover:bg-purple-50"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sair
-                </Button>
+                <div>
+                  <h2 className="font-bold text-gray-800 text-lg">PlayECG</h2>
+                  <p className="text-xs text-gray-500">Aprenda ECG jogando</p>
+                </div>
               </div>
-            )}
-          </SidebarFooter>
-        </Sidebar>
+            </SidebarHeader>
 
-        {/* Main content */}
-        <main className="flex-1 flex flex-col min-w-0">
-          <div className="flex-1 overflow-auto pb-16 md:pb-0">
+            <SidebarContent className="p-3">
+              <SidebarGroup>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {navigationItems.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton
+                          asChild
+                          className={`hover:bg-purple-50 hover:text-purple-700 transition-all duration-200 rounded-lg mb-1 ${
+                            location.pathname === item.url ? 'bg-purple-100 text-purple-700 font-medium' : ''
+                          }`}
+                        >
+                          <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5">
+                            <item.icon className="w-5 h-5" />
+                            <span>{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+
+              {isAdmin && (
+                <>
+                  <Separator className="my-4" />
+                  <SidebarGroup>
+                    <SidebarGroupLabel className="text-xs font-medium text-gray-500 uppercase tracking-wider px-2 py-2 flex items-center gap-2">
+                      <BookOpen className="w-4 h-4" />
+                      Gestão Educação
+                    </SidebarGroupLabel>
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        {educationItems.map((item) => (
+                          <SidebarMenuItem key={item.title}>
+                            <SidebarMenuButton
+                              asChild
+                              className={`hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 rounded-lg mb-1 ${
+                                location.pathname === item.url ? 'bg-blue-100 text-blue-700 font-medium' : ''
+                              }`}
+                            >
+                              <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5">
+                                <item.icon className="w-5 h-5" />
+                                <span>{item.title}</span>
+                              </Link>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </SidebarGroup>
+
+                  <Separator className="my-4" />
+                  <SidebarGroup>
+                    <SidebarGroupLabel className="text-xs font-medium text-gray-500 uppercase tracking-wider px-2 py-2 flex items-center gap-2">
+                      <Settings className="w-4 h-4" />
+                      Administração
+                    </SidebarGroupLabel>
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        {adminItems.map((item) => (
+                          <SidebarMenuItem key={item.title}>
+                            <SidebarMenuButton
+                              asChild
+                              className={`hover:bg-pink-50 hover:text-pink-700 transition-all duration-200 rounded-lg mb-1 ${
+                                location.pathname === item.url ? 'bg-pink-100 text-pink-700 font-medium' : ''
+                              }`}
+                            >
+                              <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5">
+                                <item.icon className="w-5 h-5" />
+                                <span>{item.title}</span>
+                              </Link>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </SidebarGroup>
+                </>
+              )}
+
+              {!isPremium && (
+                <div className="mt-4 mx-2">
+                  <Link to={createPageUrl("Upgrade")}>
+                    <div className="bg-gradient-to-r from-amber-100 to-orange-100 rounded-xl p-4 text-amber-900 shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer border border-amber-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Crown className="w-5 h-5" />
+                        <span className="font-semibold">Upgrade Premium</span>
+                      </div>
+                      <p className="text-xs text-amber-800">
+                        Desbloqueie módulos estruturados e gamificação completa
+                      </p>
+                    </div>
+                  </Link>
+                </div>
+              )}
+            </SidebarContent>
+
+            <SidebarFooter className="border-t border-purple-100 p-4">
+              {user && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-200 to-pink-200 rounded-full flex items-center justify-center">
+                      <span className="text-purple-700 font-semibold text-sm">
+                        {user.full_name?.[0]?.toUpperCase() || 'U'}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-800 text-sm truncate">
+                        {user.full_name || 'Usuário'}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                        {isAdmin && (
+                          <Badge className="bg-pink-200 text-pink-800 text-xs">Admin</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleLogout}
+                    className="w-full gap-2 border-purple-200 hover:bg-purple-50"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sair
+                  </Button>
+                </div>
+              )}
+            </SidebarFooter>
+          </Sidebar>
+
+          <main className="flex-1 overflow-auto bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
             {children}
-          </div>
+          </main>
+        </SidebarProvider>
+      </div>
+
+      {/* ── MOBILE: content + bottom nav ── */}
+      <div className="md:hidden flex flex-col min-h-screen w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+        <main className="flex-1 overflow-auto pb-16">
+          {children}
         </main>
 
-        {/* Bottom navigation — only on mobile */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-purple-100 shadow-lg">
+        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-purple-100 shadow-lg">
           <div className="flex items-center justify-around px-2 py-2">
             {navigationItems.map((item) => {
               const isActive = location.pathname === item.url;
@@ -285,6 +288,6 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </nav>
       </div>
-    </SidebarProvider>
+    </>
   );
 }
