@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { calculateStreakDays } from "@/components/StreakCalculator";
+// calculateStreakDays removed - using local version to avoid extra API call
 import { loadUserAchievements } from "@/components/AchievementChecker";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import LearningTrail from "@/components/home/LearningTrail";
@@ -19,6 +19,32 @@ import {
   Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+function calculateStreakFromAttempts(attempts) {
+  if (!attempts || attempts.length === 0) return 0;
+  const uniqueDates = [...new Set(
+    attempts.map(a => new Date(a.created_date).toISOString().split('T')[0])
+  )].sort().reverse();
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().split('T')[0];
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+  if (uniqueDates[0] !== todayStr && uniqueDates[0] !== yesterdayStr) return 0;
+
+  let streak = 0;
+  let currentDate = new Date(today);
+  for (const dateStr of uniqueDates) {
+    const practiceDate = new Date(dateStr + 'T00:00:00');
+    const diffDays = Math.floor((currentDate - practiceDate) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0 || diffDays === 1) { streak++; currentDate = practiceDate; }
+    else break;
+  }
+  return streak;
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -47,14 +73,12 @@ export default function Dashboard() {
         return;
       }
 
-      const [streakVal, modulesData, phasesData, attemptsData] = await Promise.all([
-        calculateStreakDays(userData.email),
+      const [modulesData, phasesData, attemptsData] = await Promise.all([
         base44.entities.Module.list("order"),
         base44.entities.Phase.list("order"),
         base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", 1000),
       ]);
 
-      setStreakDays(streakVal);
       setModules(modulesData);
       setPhases(phasesData);
       setAttempts(attemptsData);
@@ -68,8 +92,14 @@ export default function Dashboard() {
       };
       setStats(statsData);
 
-      const userAchievements = await loadUserAchievements(userData, statsData, streakVal);
-      setAchievements(userAchievements);
+      // Calcular streak a partir dos dados já carregados (evita chamada extra)
+      const streakVal = calculateStreakFromAttempts(attemptsData);
+      setStreakDays(streakVal);
+
+      try {
+        const userAchievements = await loadUserAchievements(userData, statsData, streakVal);
+        setAchievements(userAchievements);
+      } catch (_) {}
 
       try {
         const res = await base44.functions.invoke("getDailyCase", {});
