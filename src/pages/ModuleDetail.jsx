@@ -708,7 +708,8 @@ export default function ModuleDetail() {
                   <img 
                     src={currentCase.image_url} 
                     alt="ECG"
-                    className="w-full h-auto"
+                    className="h-auto mx-auto block"
+                    style={{ maxWidth: '100%', width: 'auto' }}
                   />
                 </div>
                 <Button
