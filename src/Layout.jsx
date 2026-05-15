@@ -5,7 +5,8 @@ import { base44 } from "@/api/base44Client";
 import {
   Activity,
   Home,
-  Brain,
+  Shuffle,
+  ListOrdered,
   BookOpen,
   Trophy,
   Crown,
@@ -66,8 +67,8 @@ export default function Layout({ children, currentPageName }) {
 
   const navigationItems = [
     { title: "Dashboard", url: createPageUrl("Dashboard"), icon: Home },
-    { title: "Quiz", url: createPageUrl("Quiz"), icon: Brain },
-    ...(isPremium ? [{ title: "Módulos", url: createPageUrl("Modules"), icon: BookOpen }] : []),
+    { title: "Quiz", url: createPageUrl("Quiz"), icon: Shuffle },
+    ...(isPremium ? [{ title: "Módulos", url: createPageUrl("Modules"), icon: ListOrdered }] : []),
     { title: "Troféus", url: createPageUrl("Achievements"), icon: Award },
     { title: "Aprenda ECG", url: createPageUrl("AprendaECG"), icon: BookOpen },
     { title: "Perfil", url: createPageUrl("Profile"), icon: Trophy },
