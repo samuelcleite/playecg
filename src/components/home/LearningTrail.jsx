@@ -20,7 +20,7 @@ function getPhaseProgress(phase, moduleAttempts) {
 }
 
 // X positions as percentage for zigzag path
-const ZIGZAG_X = [35, 60, 35, 10, 35, 60];
+const ZIGZAG_X = [50, 72, 50, 28, 50, 72];
 const NODE_SIZE = 64;
 const Y_STEP = 130;
 
