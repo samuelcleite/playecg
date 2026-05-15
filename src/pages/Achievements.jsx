@@ -3,23 +3,15 @@ import { base44 } from "@/api/base44Client";
 import { calculateStreakDays } from "@/components/StreakCalculator";
 import { loadUserAchievements } from "@/components/AchievementChecker";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import {
-  Award,
-  Trophy,
-  Lock,
-  CheckCircle2,
-  Target,
-  Loader2
-} from "lucide-react";
+import { Trophy, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Achievements() {
   const [user, setUser] = useState(null);
   const [achievements, setAchievements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tooltip, setTooltip] = useState(null); // { id, name, description, earned }
 
   useEffect(() => {
     loadData();
@@ -30,40 +22,26 @@ export default function Achievements() {
     setUser(userData);
 
     const streak = await calculateStreakDays(userData.email);
-
     const attempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email });
     const correctCount = attempts.filter(a => a.correct).length;
-    
-    // Calcular módulos completados a partir de QuizAttempt
+
     const phases = await base44.entities.Phase.list();
     const moduleAttempts = attempts.filter(a => a.quiz_type === "module");
-    
+
     let completedPhasesCount = 0;
     for (const phase of phases) {
       const phaseAttempts = moduleAttempts.filter(a => a.phase_id === phase.id);
       const attemptsByCase = {};
-      
       phaseAttempts.forEach(att => {
-        if (!attemptsByCase[att.case_id]) {
-          attemptsByCase[att.case_id] = [];
-        }
+        if (!attemptsByCase[att.case_id]) attemptsByCase[att.case_id] = [];
         attemptsByCase[att.case_id].push(att);
       });
-      
       let completedCases = 0;
       Object.keys(attemptsByCase).forEach(caseId => {
-        const caseAttempts = attemptsByCase[caseId];
-        const hasCorrect = caseAttempts.some(a => a.correct);
-        const hasThreeAttempts = caseAttempts.length >= 3;
-        
-        if (hasCorrect || hasThreeAttempts) {
-          completedCases++;
-        }
+        const ca = attemptsByCase[caseId];
+        if (ca.some(a => a.correct) || ca.length >= 3) completedCases++;
       });
-      
-      if (completedCases >= (phase.total_cases || 0)) {
-        completedPhasesCount++;
-      }
+      if (completedCases >= (phase.total_cases || 0)) completedPhasesCount++;
     }
 
     const statsData = {
@@ -79,9 +57,12 @@ export default function Achievements() {
     setLoading(false);
   };
 
-  const earnedCount = achievements?.filter(a => a.earned).length || 0;
-  const totalCount = achievements?.length || 0;
+  const earnedCount = achievements.filter(a => a.earned).length;
+  const totalCount = achievements.length;
   const completionPercentage = totalCount > 0 ? Math.round((earnedCount / totalCount) * 100) : 0;
+
+  const intensityAchievements = achievements.filter(a => a.achievement_type === "intensity");
+  const specializationAchievements = achievements.filter(a => a.achievement_type === "specialization");
 
   if (loading) {
     return (
@@ -92,172 +73,126 @@ export default function Achievements() {
   }
 
   return (
-    <div className="min-h-screen p-6 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="min-h-screen p-4 md:p-8" onClick={() => setTooltip(null)}>
+      <div className="max-w-2xl mx-auto space-y-8">
+
         {/* Header */}
-        <div className="text-center">
-          <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+        <div className="text-center pt-2">
+          <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
             <Trophy className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Troféus
-          </h1>
-          <p className="text-gray-600 text-lg">
-            Acompanhe seu progresso e desbloqueie todos os troféus
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">Troféus</h1>
+          <p className="text-gray-500 text-sm">{earnedCount} de {totalCount} desbloqueados</p>
         </div>
 
-        {/* Progress Overview */}
-        <Card className="border-none shadow-lg bg-gradient-to-br from-purple-50 to-pink-50">
-          <CardContent className="p-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-1">
-                  Seu Progresso
-                </h2>
-                <p className="text-gray-600">
-                  {earnedCount} de {totalCount} troféus desbloqueados
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-4xl font-bold text-purple-600">
-                  {completionPercentage}%
-                </p>
-                <p className="text-sm text-gray-600">Completo</p>
-              </div>
-            </div>
-            <Progress value={completionPercentage} className="h-3" />
-          </CardContent>
-        </Card>
-
-        {/* Stats Cards */}
-        <div className="grid md:grid-cols-3 gap-6">
-          <Card className="border-none shadow-lg bg-gradient-to-br from-green-50 to-emerald-50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Desbloqueadas</p>
-                  <p className="text-3xl font-bold text-green-600">{earnedCount}</p>
-                </div>
-                <CheckCircle2 className="w-10 h-10 text-green-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-lg bg-gradient-to-br from-amber-50 to-orange-50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Para Conquistar</p>
-                  <p className="text-3xl font-bold text-amber-600">{totalCount - earnedCount}</p>
-                </div>
-                <Target className="w-10 h-10 text-amber-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-lg bg-gradient-to-br from-blue-50 to-indigo-50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total</p>
-                  <p className="text-3xl font-bold text-blue-600">{totalCount}</p>
-                </div>
-                <Target className="w-10 h-10 text-blue-400" />
-              </div>
-            </CardContent>
-          </Card>
+        {/* Progress bar */}
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm text-gray-500">
+            <span>Progresso geral</span>
+            <span className="font-bold text-purple-600">{completionPercentage}%</span>
+          </div>
+          <Progress value={completionPercentage} className="h-3 rounded-full" />
         </div>
 
-        {/* Achievements Grid */}
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <Award className="w-6 h-6 text-purple-600" />
-            Todos os Troféus
-          </h2>
-
-          {achievements.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {achievements.map((achievement, index) => (
-                <motion.div
+        {/* Section renderer */}
+        {[
+          { label: "INTENSIDADE", items: intensityAchievements },
+          { label: "ESPECIALIZAÇÃO", items: specializationAchievements },
+        ].map(section => section.items.length > 0 && (
+          <div key={section.label}>
+            <p className="text-xs font-bold text-gray-400 tracking-widest mb-4">{section.label}</p>
+            <div className="grid grid-cols-4 gap-4">
+              {section.items.map((achievement, index) => (
+                <AchievementBadge
                   key={achievement.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <Card className={`border-2 shadow-lg transition-all duration-300 h-full ${
-                    achievement.earned 
-                      ? 'bg-gradient-to-br from-purple-50 to-pink-50 border-purple-300 shadow-purple-100' 
-                      : 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200 hover:border-amber-300 hover:shadow-md'
-                  }`}>
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-4 mb-4">
-                        <div className={`text-5xl ${achievement.earned ? '' : 'opacity-70'}`}>
-                          {achievement.icon}
-                        </div>
-                        <div className="flex-1">
-                          {achievement.earned && (
-                            <Badge className="bg-green-500 text-white mb-2">
-                              <CheckCircle2 className="w-3 h-3 mr-1" />
-                              Conquistado
-                            </Badge>
-                          )}
-                          {!achievement.earned && (
-                            <Badge variant="outline" className="bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 border-amber-300 mb-2">
-                              <Target className="w-3 h-3 mr-1" />
-                              Conquiste!
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <h3 className={`text-lg font-bold mb-2 ${
-                        achievement.earned ? 'text-gray-900' : 'text-gray-600'
-                      }`}>
-                        {achievement.name}
-                      </h3>
-                      
-                      <p className={`text-sm mb-3 ${
-                        achievement.earned ? 'text-gray-700' : 'text-gray-500'
-                      }`}>
-                        {achievement.description}
-                      </p>
-
-                      {!achievement.earned && achievement.requirement_type && (
-                        <div className="mt-3 pt-3 border-t border-gray-200">
-                          <p className="text-xs text-gray-500">
-                            <strong>Requisito:</strong> {achievement.requirement_type === 'first_correct' && 'Acerte sua primeira questão'}
-                            {achievement.requirement_type === 'streak_days' && `Pratique por ${achievement.requirement_value} dias seguidos`}
-                            {achievement.requirement_type === 'accuracy' && `Alcance ${achievement.requirement_value}% de precisão`}
-                            {achievement.requirement_type === 'level' && `Chegue ao nível ${achievement.requirement_value}`}
-                            {achievement.requirement_type === 'points' && `Acumule ${achievement.requirement_value} pontos`}
-                            {achievement.requirement_type === 'completed_modules' && `Complete ${achievement.requirement_value} módulos`}
-                            {achievement.requirement_type === 'total_attempts' && `Faça ${achievement.requirement_value} tentativas`}
-                          </p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </motion.div>
+                  achievement={achievement}
+                  index={index}
+                  tooltip={tooltip}
+                  setTooltip={setTooltip}
+                />
               ))}
             </div>
-          ) : (
-            <Card className="border-none shadow-lg">
-              <CardContent className="p-12 text-center">
-                <Award className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 mb-2">
-                  Nenhum troféu disponível ainda
-                </p>
-                <p className="text-sm text-gray-400">
-                  Os troféus serão adicionados em breve!
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
+          </div>
+        ))}
 
+        {achievements.length === 0 && (
+          <div className="text-center py-16 text-gray-400">
+            <Trophy className="w-14 h-14 mx-auto mb-3 opacity-30" />
+            <p>Nenhum troféu disponível ainda</p>
+          </div>
+        )}
+
+      </div>
       <FaleConoscoButton />
     </div>
+  );
+}
+
+function AchievementBadge({ achievement, index, tooltip, setTooltip }) {
+  const isOpen = tooltip?.id === achievement.id;
+
+  const handleClick = (e) => {
+    e.stopPropagation();
+    setTooltip(isOpen ? null : {
+      id: achievement.id,
+      name: achievement.name,
+      description: achievement.description,
+      earned: achievement.earned,
+    });
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.7 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: index * 0.04, type: "spring", stiffness: 300, damping: 20 }}
+      className="relative flex flex-col items-center gap-1"
+    >
+      {/* Badge circle */}
+      <button
+        onClick={handleClick}
+        className={`
+          relative w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center text-3xl md:text-4xl
+          transition-all duration-200 border-4 shadow-md
+          ${achievement.earned
+            ? 'border-purple-400 bg-gradient-to-br from-purple-100 to-pink-100 shadow-purple-200 scale-100 hover:scale-105'
+            : 'border-gray-200 bg-gray-100 grayscale opacity-50 hover:opacity-70'
+          }
+        `}
+      >
+        {achievement.icon}
+        {achievement.earned && (
+          <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+            <span className="text-white text-[9px] font-bold">✓</span>
+          </span>
+        )}
+      </button>
+
+      {/* Name below badge */}
+      <span className={`text-[10px] text-center leading-tight font-medium max-w-[72px] ${achievement.earned ? 'text-gray-700' : 'text-gray-400'}`}>
+        {achievement.name}
+      </span>
+
+      {/* Tooltip popup */}
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 z-50 w-44 bg-white rounded-2xl shadow-xl border border-purple-100 p-3 text-center"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="text-3xl mb-1">{achievement.icon}</div>
+          <p className="font-bold text-gray-900 text-sm mb-1">{achievement.name}</p>
+          <p className="text-xs text-gray-500 leading-snug">{achievement.description}</p>
+          {achievement.earned ? (
+            <span className="inline-block mt-2 text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">Conquistado ✓</span>
+          ) : (
+            <span className="inline-block mt-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Bloqueado 🔒</span>
+          )}
+          {/* Arrow */}
+          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-r border-b border-purple-100 rotate-45" />
+        </motion.div>
+      )}
+    </motion.div>
   );
 }
