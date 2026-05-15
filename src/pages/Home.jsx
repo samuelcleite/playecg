@@ -104,7 +104,7 @@ export default function Home() {
       <section className="py-20 px-6">
         <div className="max-w-4xl mx-auto text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <Badge className="bg-purple-100 text-purple-800 border border-purple-200 mb-6 text-sm px-4 py-1">
+            <Badge className="bg-purple-100 text-purple-800 border border-purple-200 mb-6 text-sm px-4 py-1 hover:bg-purple-100 pointer-events-none">
               <Zap className="w-3 h-3 mr-1" />
               Aprenda ECG de forma inteligente
             </Badge>
