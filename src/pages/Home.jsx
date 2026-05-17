@@ -186,10 +186,6 @@ export default function Home() {
                       </li>
                     ))}
                   </ul>
-                  <div className="flex items-baseline gap-2 mb-6">
-                    <span className="text-4xl font-bold text-gray-900">R$ 10</span>
-                    <span className="text-gray-600">/mês</span>
-                  </div>
                   <Link to={createPageUrl("Upgrade")}>
                     <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2 px-8 py-3 text-base shadow-lg">
                       <Crown className="w-5 h-5" />

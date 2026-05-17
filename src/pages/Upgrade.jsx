@@ -203,8 +203,7 @@ export default function Upgrade() {
               </div>
               <CardTitle className="text-2xl">Versão Gratuita</CardTitle>
               <div className="mt-4">
-                <span className="text-4xl font-bold text-gray-900">R$ 0</span>
-                <span className="text-gray-600">/mês</span>
+                <span className="text-2xl font-bold text-gray-500">Gratuito</span>
               </div>
             </CardHeader>
             <CardContent>
@@ -239,26 +238,13 @@ export default function Upgrade() {
                 Versão Premium
                 <Sparkles className="w-5 h-5 text-amber-600" />
               </CardTitle>
-              <div className="mt-4">
-                {appliedCoupon ? (
-                  <div>
-                    <span className="text-2xl line-through text-gray-500">R$ {originalPrice.toFixed(2)}</span>
-                    <div className="text-4xl font-bold text-gray-900 mt-1">
-                      R$ {finalPrice.toFixed(2)}
-                    </div>
-                    {discountAmount > 0 && (
-                      <Badge className="bg-green-500 text-white mt-2">
-                        Economia de R$ {discountAmount.toFixed(2)}
-                      </Badge>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <span className="text-4xl font-bold text-gray-900">R$ 10</span>
-                    <span className="text-gray-600">/mês</span>
-                  </>
-                )}
-              </div>
+              {appliedCoupon && discountAmount > 0 && (
+                <div className="mt-4">
+                  <Badge className="bg-green-500 text-white">
+                    Desconto de R$ {discountAmount.toFixed(2)} aplicado!
+                  </Badge>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               {/* Coupon Section */}
@@ -350,7 +336,7 @@ export default function Upgrade() {
                       Aceita cartão de crédito, débito, PIX e boleto.
                     </p>
                     <p className="text-xs font-semibold text-blue-700">
-                      🔒 Pagamento de R$ {finalPrice.toFixed(2)}
+                      🔒 Pagamento seguro via Mercado Pago
                     </p>
                   </div>
                 </AlertDescription>
@@ -369,7 +355,7 @@ export default function Upgrade() {
                 ) : (
                   <>
                     <CreditCard className="w-5 h-5 mr-2" />
-                    Ir para Checkout Seguro - R$ {finalPrice.toFixed(2)}
+                    Ir para Checkout Seguro
                   </>
                 )}
               </Button>
