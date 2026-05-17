@@ -610,9 +610,9 @@ export default function Quiz() {
     <div className="min-h-screen p-0 md:p-8 w-full overflow-x-hidden">
       <TopBar />
       <div className="max-w-4xl mx-auto md:space-y-6 w-full">
-        {/* Header - hidden on mobile */}
+        {/* Header */}
         <div className="hidden md:block">
-          <h1 className="text-3xl font-bold text-gray-800">Quiz de ECG</h1>
+          <h1 className="text-3xl font-bold text-gray-800">Modo Quiz - Casos Aleatórios</h1>
           <p className="text-gray-500 mt-1">Analise o traçado e faça seu diagnóstico</p>
         </div>
 
