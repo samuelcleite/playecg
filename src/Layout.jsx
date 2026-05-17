@@ -22,7 +22,8 @@ import {
   Users,
   Award,
   FileText,
-  Calendar
+  Calendar,
+  User
 } from "lucide-react";
 import {
   Sidebar,
@@ -71,7 +72,7 @@ export default function Layout({ children, currentPageName }) {
     ...(isPremium ? [{ title: "Módulos", url: createPageUrl("Modules"), icon: ListOrdered }] : []),
     { title: "Troféus", url: createPageUrl("Achievements"), icon: Award },
     { title: "Aprenda ECG", url: createPageUrl("AprendaECG"), icon: BookOpen },
-    { title: "Perfil", url: createPageUrl("Profile"), icon: Trophy },
+    { title: "Perfil", url: createPageUrl("Profile"), icon: User },
   ];
 
   const educationItems = [
