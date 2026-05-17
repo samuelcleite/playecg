@@ -611,9 +611,9 @@ export default function Quiz() {
       <TopBar />
       <div className="max-w-4xl mx-auto md:space-y-6 w-full">
         {/* Header */}
-        <div className="hidden md:block">
-          <h1 className="text-3xl font-bold text-gray-800">Modo Quiz - Casos Aleatórios</h1>
-          <p className="text-gray-500 mt-1">Analise o traçado e faça seu diagnóstico</p>
+        <div className="px-4 pt-4 md:px-0 md:pt-0">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Modo Quiz - Casos Aleatórios</h1>
+          <p className="text-gray-500 mt-1 text-sm md:text-base">Analise o traçado e faça seu diagnóstico</p>
         </div>
 
         {/* Daily Limit Warning for Free Users - hidden on mobile */}
