@@ -82,7 +82,7 @@ export default function Achievements() {
             <Trophy className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-1">Troféus</h1>
-          <p className="text-gray-500 text-sm">{earnedCount} de {totalCount} desbloqueados</p>
+          <p className="text-gray-500 text-sm">{earnedCount} de {totalCount} conquistados</p>
         </div>
 
         {/* Progress bar */}
