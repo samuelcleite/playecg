@@ -612,7 +612,7 @@ export default function Quiz() {
       <div className="max-w-4xl mx-auto md:space-y-6 w-full">
         {/* Header */}
         <div className="px-4 pt-4 md:px-0 md:pt-0">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Modo Quiz - Casos Aleatórios</h1>
+          <h1 className="text-lg md:text-3xl font-bold text-gray-800">Modo Quiz - Casos Aleatórios</h1>
           <p className="text-gray-500 mt-1 text-sm md:text-base">Analise o traçado e faça seu diagnóstico</p>
         </div>
 
