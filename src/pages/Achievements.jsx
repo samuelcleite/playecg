@@ -4,12 +4,14 @@ import { calculateStreakDays } from "@/components/StreakCalculator";
 import { loadUserAchievements } from "@/components/AchievementChecker";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import { Progress } from "@/components/ui/progress";
-import { Trophy, Loader2 } from "lucide-react";
+import { Trophy, Loader2, Flame, Target, CheckCircle2, Star, BookOpen } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Achievements() {
   const [user, setUser] = useState(null);
   const [achievements, setAchievements] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const [tooltip, setTooltip] = useState(null); // { id, name, description, earned }
 
@@ -21,7 +23,9 @@ export default function Achievements() {
     const userData = await base44.auth.me();
     setUser(userData);
 
-    const streak = await calculateStreakDays(userData.email);
+    const streakDays = await calculateStreakDays(userData.email);
+    setStreak(streakDays);
+
     const attempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email });
     const correctCount = attempts.filter(a => a.correct).length;
 
@@ -52,7 +56,9 @@ export default function Achievements() {
       completedModules: completedPhasesCount || 0
     };
 
-    const userAchievements = await loadUserAchievements(userData, statsData, streak);
+    setStats(statsData);
+
+    const userAchievements = await loadUserAchievements(userData, statsData, streakDays);
     setAchievements(userAchievements);
     setLoading(false);
   };
@@ -84,6 +90,32 @@ export default function Achievements() {
           <h1 className="text-3xl font-bold text-gray-900 mb-1">Troféus</h1>
           <p className="text-gray-500 text-sm">{earnedCount} de {totalCount} conquistados</p>
         </div>
+
+        {/* Stats Grid */}
+        {stats && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100 rounded-2xl p-4 text-center">
+              <Flame className="w-6 h-6 text-orange-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-orange-600">{streak}</p>
+              <p className="text-xs text-gray-500 mt-0.5">Dias seguidos</p>
+            </div>
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-4 text-center">
+              <Target className="w-6 h-6 text-blue-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-blue-600">{stats.totalAttempts}</p>
+              <p className="text-xs text-gray-500 mt-0.5">Questões respondidas</p>
+            </div>
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100 rounded-2xl p-4 text-center">
+              <CheckCircle2 className="w-6 h-6 text-green-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-green-600">{stats.accuracy}%</p>
+              <p className="text-xs text-gray-500 mt-0.5">Taxa de acerto</p>
+            </div>
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100 rounded-2xl p-4 text-center">
+              <BookOpen className="w-6 h-6 text-purple-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-purple-600">{stats.completedModules}</p>
+              <p className="text-xs text-gray-500 mt-0.5">Fases concluídas</p>
+            </div>
+          </div>
+        )}
 
         {/* Progress bar */}
         <div className="space-y-2">
