@@ -63,7 +63,7 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
   useEffect(() => {
     if (nextPhaseRef.current) {
       setTimeout(() => {
-        nextPhaseRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+        nextPhaseRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 400);
     }
   }, [nextPhase?.phase?.id]);
