@@ -73,7 +73,7 @@ export default function Modules() {
 
     const progressMap = {};
     modulesData.forEach(module => {
-      const modulePhases = phases.filter(p => p.module_id === module.id);
+      const modulePhases = phasesData.filter(p => p.module_id === module.id);
 
       let completedPhasesCount = 0;
 
