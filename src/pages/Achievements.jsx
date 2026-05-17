@@ -178,7 +178,18 @@ function AchievementBadge({ achievement, index, tooltip, setTooltip }) {
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 z-50 w-44 bg-white rounded-2xl shadow-xl border border-purple-100 p-3 text-center"
+          style={{ position: 'fixed', zIndex: 9999, transform: 'translateX(-50%)' }}
+          className="w-44 bg-white rounded-2xl shadow-xl border border-purple-100 p-3 text-center pointer-events-none"
+          ref={el => {
+            if (el) {
+              const btn = el.parentElement?.querySelector('button');
+              if (btn) {
+                const rect = btn.getBoundingClientRect();
+                el.style.left = (rect.left + rect.width / 2) + 'px';
+                el.style.top = (rect.top - el.offsetHeight - 12) + 'px';
+              }
+            }
+          }}
           onClick={e => e.stopPropagation()}
         >
           <div className="text-3xl mb-1">{achievement.icon}</div>
