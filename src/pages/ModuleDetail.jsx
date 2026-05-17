@@ -728,14 +728,24 @@ export default function ModuleDetail() {
                 <h3 className="font-semibold text-gray-900 text-xl flex-1">
                   {currentCase.title}
                 </h3>
-                {phaseContent && (
-                  <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`}>
-                    <Button variant="outline" size="sm" className="gap-2 border-purple-200 hover:bg-purple-50">
-                      <BookOpen className="w-4 h-4" />
-                      Tem dúvidas?
-                    </Button>
-                  </Link>
-                )}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {phaseContent && (
+                    <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`}>
+                      <Button variant="outline" size="sm" className="gap-2 border-purple-200 hover:bg-purple-50">
+                        <BookOpen className="w-4 h-4" />
+                        <span className="hidden sm:inline">Tem dúvidas?</span>
+                      </Button>
+                    </Link>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowReportDialog(true)}
+                    className="gap-2 border-red-200 hover:bg-red-50 text-red-600 md:hidden"
+                  >
+                    <AlertCircle className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
               {currentCase.multiple_correct && (
                 <p className="text-gray-700 mb-4">
