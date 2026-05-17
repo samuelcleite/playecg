@@ -31,6 +31,8 @@ export default function AprendaECG() {
   const [moduleContents, setModuleContents] = useState([]);
   const [modules, setModules] = useState([]);
   const [phases, setPhases] = useState([]);
+  const [unlockedModuleIds, setUnlockedModuleIds] = useState(new Set());
+  const [unlockedPhaseIds, setUnlockedPhaseIds] = useState(new Set());
 
   useEffect(() => {
     loadData();
@@ -40,10 +42,11 @@ export default function AprendaECG() {
     const userData = await base44.auth.me();
     setUser(userData);
 
-    const [contentsData, modulesData, phasesData] = await Promise.all([
+    const [contentsData, modulesData, phasesData, attemptsData] = await Promise.all([
       base44.entities.Content.list(),
       base44.entities.Module.list("order"),
-      base44.entities.Phase.list("order")
+      base44.entities.Phase.list("order"),
+      base44.entities.QuizAttempt.filter({ user_email: userData.email, quiz_type: "module" })
     ]);
 
     // Separar introdução
@@ -70,6 +73,64 @@ export default function AprendaECG() {
       }
     });
 
+    // Calcular progresso por fase
+    const getPhaseProgress = (phase) => {
+      const phaseAttempts = attemptsData.filter(a => a.phase_id === phase.id);
+      const byCase = {};
+      phaseAttempts.forEach(att => {
+        if (!byCase[att.case_id]) byCase[att.case_id] = [];
+        byCase[att.case_id].push(att);
+      });
+      let completed = 0;
+      Object.values(byCase).forEach(caseAtts => {
+        if (caseAtts.some(a => a.correct) || caseAtts.length >= 3) completed++;
+      });
+      const total = phase.total_cases || 0;
+      return { completed, total, done: total > 0 && completed >= total };
+    };
+
+    // Determinar módulos e fases desbloqueadas
+    const sortedModules = [...modulesData].sort((a, b) => a.order - b.order);
+    const sortedPhases = [...phasesData].sort((a, b) => a.order - b.order);
+
+    const unlockedMods = new Set();
+    const unlockedPhases = new Set();
+
+    for (const mod of sortedModules) {
+      // Módulo 1 sempre desbloqueado
+      if (mod.order === 1) {
+        unlockedMods.add(mod.id);
+      } else {
+        // Módulo desbloqueado se todos anteriores estão completos
+        const prevModules = sortedModules.filter(m => m.order < mod.order);
+        const allPrevDone = prevModules.every(prevMod => {
+          const prevPhases = sortedPhases.filter(p => p.module_id === prevMod.id);
+          return prevPhases.length > 0 && prevPhases.every(p => getPhaseProgress(p).done);
+        });
+        if (allPrevDone) unlockedMods.add(mod.id);
+      }
+
+      if (!unlockedMods.has(mod.id)) continue;
+
+      // Fases do módulo: desbloquear sequencialmente
+      const modPhases = sortedPhases.filter(p => p.module_id === mod.id).sort((a, b) => a.order - b.order);
+      for (let i = 0; i < modPhases.length; i++) {
+        if (i === 0) {
+          // Primeira fase sempre desbloqueada se módulo desbloqueado
+          unlockedPhases.add(modPhases[i].id);
+        } else {
+          // Fase i desbloqueada se fase i-1 está completa
+          if (getPhaseProgress(modPhases[i - 1]).done) {
+            unlockedPhases.add(modPhases[i].id);
+          } else {
+            break; // Fases seguintes também bloqueadas
+          }
+        }
+      }
+    }
+
+    setUnlockedModuleIds(unlockedMods);
+    setUnlockedPhaseIds(unlockedPhases);
     setModuleContents(contentsByModule);
     setModules(modulesData);
     setPhases(phasesData);
@@ -208,6 +269,8 @@ export default function AprendaECG() {
             const moduleData = moduleContents[module.id];
             if (!moduleData) return null;
 
+            const isModuleUnlocked = unlockedModuleIds.has(module.id);
+
             const modulePhasesOrdered = phases
               .filter(p => p.module_id === module.id)
               .sort((a, b) => a.order - b.order);
@@ -219,87 +282,109 @@ export default function AprendaECG() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card className="border-none shadow-lg">
-                  <Accordion type="single" collapsible className="w-full">
+                <Card className={`border-none shadow-lg ${!isModuleUnlocked ? "opacity-60" : ""}`}>
+                  <Accordion type="single" collapsible className="w-full" disabled={!isModuleUnlocked}>
                     <AccordionItem value="module" className="border-none">
-                      <AccordionTrigger className="hover:no-underline px-6 py-4 bg-gradient-to-r from-indigo-50 to-purple-50">
+                      <AccordionTrigger className={`hover:no-underline px-6 py-4 ${isModuleUnlocked ? "bg-gradient-to-r from-indigo-50 to-purple-50" : "bg-gray-50 cursor-not-allowed"}`}>
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">
-                            {module.order}
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold ${isModuleUnlocked ? "bg-gradient-to-br from-indigo-500 to-purple-600" : "bg-gray-400"}`}>
+                            {isModuleUnlocked ? module.order : <Lock className="w-5 h-5" />}
                           </div>
                           <div className="text-left">
                             <div className="flex items-center gap-2">
-                              <FolderOpen className="w-5 h-5 text-indigo-600" />
-                              <h3 className="text-xl font-bold text-gray-900">{module.name}</h3>
+                              <FolderOpen className={`w-5 h-5 ${isModuleUnlocked ? "text-indigo-600" : "text-gray-400"}`} />
+                              <h3 className={`text-xl font-bold ${isModuleUnlocked ? "text-gray-900" : "text-gray-500"}`}>{module.name}</h3>
                             </div>
-                            {module.description && (
-                              <p className="text-sm text-gray-600 mt-1">
-                                {module.description}
-                              </p>
+                            {!isModuleUnlocked && (
+                              <p className="text-xs text-gray-400 mt-1">Complete os módulos anteriores para desbloquear</p>
+                            )}
+                            {isModuleUnlocked && module.description && (
+                              <p className="text-sm text-gray-600 mt-1">{module.description}</p>
                             )}
                           </div>
                         </div>
                       </AccordionTrigger>
-                      <AccordionContent className="px-6 pb-6 pt-4">
-                        <div className="space-y-3">
-                          {/* Link para Conteúdo Geral do Módulo */}
-                          {moduleData.moduleContent && (
-                            <Link to={`${createPageUrl("ConteudoECG")}?type=module&module_id=${module.id}`}>
-                              <div className="p-4 border-2 border-indigo-200 rounded-lg hover:bg-indigo-50 transition-all cursor-pointer">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <BookOpen className="w-5 h-5 text-indigo-600" />
-                                    <div>
-                                      <p className="font-semibold text-gray-900">Conteúdo do Módulo</p>
-                                      <p className="text-sm text-gray-600">Visão geral e fundamentos</p>
-                                    </div>
-                                  </div>
-                                  <ChevronRight className="w-5 h-5 text-indigo-600" />
-                                </div>
-                              </div>
-                            </Link>
-                          )}
-
-                          {/* Links para Conteúdos por Fase */}
-                          {moduleData.phaseContents.length > 0 && (
-                            <div className="space-y-2">
-                              <h4 className="font-semibold text-gray-900 flex items-center gap-2 mt-4 mb-2">
-                                <Layers className="w-5 h-5 text-purple-600" />
-                                Fases do Módulo
-                              </h4>
-                              {modulePhasesOrdered.map(phase => {
-                                const phaseContent = moduleData.phaseContents.find(
-                                  pc => pc.phase_id === phase.id
-                                );
-                                
-                                if (!phaseContent) return null;
-
-                                return (
-                                  <Link 
-                                    key={phase.id}
-                                    to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`}
-                                  >
-                                    <div className="p-4 border-2 border-purple-200 rounded-lg hover:bg-purple-50 transition-all cursor-pointer">
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                          <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm">
-                                            {phase.order}
-                                          </div>
-                                          <div>
-                                            <p className="font-semibold text-gray-900">{phase.name}</p>
-                                            <p className="text-sm text-gray-600">Conteúdo da fase</p>
-                                          </div>
-                                        </div>
-                                        <ChevronRight className="w-5 h-5 text-purple-600" />
+                      {isModuleUnlocked && (
+                        <AccordionContent className="px-6 pb-6 pt-4">
+                          <div className="space-y-3">
+                            {/* Link para Conteúdo Geral do Módulo */}
+                            {moduleData.moduleContent && (
+                              <Link to={`${createPageUrl("ConteudoECG")}?type=module&module_id=${module.id}`}>
+                                <div className="p-4 border-2 border-indigo-200 rounded-lg hover:bg-indigo-50 transition-all cursor-pointer">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <BookOpen className="w-5 h-5 text-indigo-600" />
+                                      <div>
+                                        <p className="font-semibold text-gray-900">Conteúdo do Módulo</p>
+                                        <p className="text-sm text-gray-600">Visão geral e fundamentos</p>
                                       </div>
                                     </div>
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </AccordionContent>
+                                    <ChevronRight className="w-5 h-5 text-indigo-600" />
+                                  </div>
+                                </div>
+                              </Link>
+                            )}
+
+                            {/* Links para Conteúdos por Fase */}
+                            {moduleData.phaseContents.length > 0 && (
+                              <div className="space-y-2">
+                                <h4 className="font-semibold text-gray-900 flex items-center gap-2 mt-4 mb-2">
+                                  <Layers className="w-5 h-5 text-purple-600" />
+                                  Fases do Módulo
+                                </h4>
+                                {modulePhasesOrdered.map(phase => {
+                                  const phaseContent = moduleData.phaseContents.find(
+                                    pc => pc.phase_id === phase.id
+                                  );
+                                  if (!phaseContent) return null;
+
+                                  const isPhaseUnlocked = unlockedPhaseIds.has(phase.id);
+
+                                  if (!isPhaseUnlocked) {
+                                    return (
+                                      <div key={phase.id} className="p-4 border-2 border-gray-200 rounded-lg bg-gray-50 opacity-60 cursor-not-allowed">
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-gray-200 flex items-center justify-center text-gray-400">
+                                              <Lock className="w-4 h-4" />
+                                            </div>
+                                            <div>
+                                              <p className="font-semibold text-gray-400">{phase.name}</p>
+                                              <p className="text-xs text-gray-400">Complete a fase anterior para desbloquear</p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+
+                                  return (
+                                    <Link
+                                      key={phase.id}
+                                      to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`}
+                                    >
+                                      <div className="p-4 border-2 border-purple-200 rounded-lg hover:bg-purple-50 transition-all cursor-pointer">
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm">
+                                              {phase.order}
+                                            </div>
+                                            <div>
+                                              <p className="font-semibold text-gray-900">{phase.name}</p>
+                                              <p className="text-sm text-gray-600">Conteúdo da fase</p>
+                                            </div>
+                                          </div>
+                                          <ChevronRight className="w-5 h-5 text-purple-600" />
+                                        </div>
+                                      </div>
+                                    </Link>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </AccordionContent>
+                      )}
                     </AccordionItem>
                   </Accordion>
                 </Card>
