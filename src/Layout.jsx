@@ -100,29 +100,23 @@ export default function Layout({ children, currentPageName }) {
   return (
     <>
       <style>{`
-        :root {
-          --primary: 210 80% 75%;
-          --primary-foreground: 210 40% 25%;
-          --success: 142 60% 75%;
-          --error: 0 70% 80%;
-        }
         html, body, #root {
           height: 100%;
         }
       `}</style>
 
       {/* ── DESKTOP: sidebar + content ── */}
-      <div className="hidden md:flex min-h-screen w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+      <div className="hidden md:flex min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50">
         <SidebarProvider>
-          <Sidebar className="border-r border-purple-100 bg-white/90 backdrop-blur-sm">
-            <SidebarHeader className="border-b border-purple-100 p-6">
+          <Sidebar className="border-r border-blue-900 bg-[#0D3B66]">
+            <SidebarHeader className="border-b border-blue-800 p-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-200 to-pink-200 rounded-xl flex items-center justify-center shadow-md">
-                  <Activity className="w-6 h-6 text-purple-700" />
+                <div className="w-10 h-10 bg-gradient-to-br from-[#1976D2] to-[#22C55E] rounded-xl flex items-center justify-center shadow-md">
+                  <Activity className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="font-bold text-gray-800 text-lg">PlayECG</h2>
-                  <p className="text-xs text-gray-500">Aprenda ECG jogando</p>
+                  <h2 className="font-bold text-white text-lg">PlayECG</h2>
+                  <p className="text-xs text-blue-200">Aprenda ECG jogando</p>
                 </div>
               </div>
             </SidebarHeader>
@@ -135,8 +129,8 @@ export default function Layout({ children, currentPageName }) {
                       <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton
                           asChild
-                          className={`hover:bg-purple-50 hover:text-purple-700 transition-all duration-200 rounded-lg mb-1 ${
-                            location.pathname === item.url ? 'bg-purple-100 text-purple-700 font-medium' : ''
+                          className={`hover:bg-blue-800 hover:text-white transition-all duration-200 rounded-lg mb-1 text-blue-100 ${
+                            location.pathname === item.url ? 'bg-[#1976D2] text-white font-medium' : ''
                           }`}
                         >
                           <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5">
@@ -154,7 +148,7 @@ export default function Layout({ children, currentPageName }) {
                 <>
                   <Separator className="my-4" />
                   <SidebarGroup>
-                    <SidebarGroupLabel className="text-xs font-medium text-gray-500 uppercase tracking-wider px-2 py-2 flex items-center gap-2">
+                    <SidebarGroupLabel className="text-xs font-medium text-blue-300 uppercase tracking-wider px-2 py-2 flex items-center gap-2">
                       <BookOpen className="w-4 h-4" />
                       Gestão Educação
                     </SidebarGroupLabel>
@@ -164,8 +158,8 @@ export default function Layout({ children, currentPageName }) {
                           <SidebarMenuItem key={item.title}>
                             <SidebarMenuButton
                               asChild
-                              className={`hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 rounded-lg mb-1 ${
-                                location.pathname === item.url ? 'bg-blue-100 text-blue-700 font-medium' : ''
+                              className={`hover:bg-blue-800 hover:text-white transition-all duration-200 rounded-lg mb-1 text-blue-100 ${
+                                location.pathname === item.url ? 'bg-[#1976D2] text-white font-medium' : ''
                               }`}
                             >
                               <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5">
@@ -181,7 +175,7 @@ export default function Layout({ children, currentPageName }) {
 
                   <Separator className="my-4" />
                   <SidebarGroup>
-                    <SidebarGroupLabel className="text-xs font-medium text-gray-500 uppercase tracking-wider px-2 py-2 flex items-center gap-2">
+                    <SidebarGroupLabel className="text-xs font-medium text-blue-300 uppercase tracking-wider px-2 py-2 flex items-center gap-2">
                       <Settings className="w-4 h-4" />
                       Administração
                     </SidebarGroupLabel>
@@ -191,8 +185,8 @@ export default function Layout({ children, currentPageName }) {
                           <SidebarMenuItem key={item.title}>
                             <SidebarMenuButton
                               asChild
-                              className={`hover:bg-pink-50 hover:text-pink-700 transition-all duration-200 rounded-lg mb-1 ${
-                                location.pathname === item.url ? 'bg-pink-100 text-pink-700 font-medium' : ''
+                              className={`hover:bg-blue-800 hover:text-white transition-all duration-200 rounded-lg mb-1 text-blue-100 ${
+                                location.pathname === item.url ? 'bg-[#1976D2] text-white font-medium' : ''
                               }`}
                             >
                               <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5">
@@ -225,23 +219,23 @@ export default function Layout({ children, currentPageName }) {
               )}
             </SidebarContent>
 
-            <SidebarFooter className="border-t border-purple-100 p-4">
+            <SidebarFooter className="border-t border-blue-800 p-4">
               {user && (
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-200 to-pink-200 rounded-full flex items-center justify-center">
-                      <span className="text-purple-700 font-semibold text-sm">
+                    <div className="w-10 h-10 bg-gradient-to-br from-[#1976D2] to-[#22C55E] rounded-full flex items-center justify-center">
+                      <span className="text-white font-semibold text-sm">
                         {user.full_name?.[0]?.toUpperCase() || 'U'}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-800 text-sm truncate">
+                      <p className="font-medium text-white text-sm truncate">
                         {user.full_name || 'Usuário'}
                       </p>
                       <div className="flex items-center gap-2">
-                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                        <p className="text-xs text-blue-200 truncate">{user.email}</p>
                         {isAdmin && (
-                          <Badge className="bg-pink-200 text-pink-800 text-xs">Admin</Badge>
+                          <Badge className="bg-[#22C55E] text-white text-xs">Admin</Badge>
                         )}
                       </div>
                     </div>
@@ -250,7 +244,7 @@ export default function Layout({ children, currentPageName }) {
                     variant="outline"
                     size="sm"
                     onClick={handleLogout}
-                    className="w-full gap-2 border-purple-200 hover:bg-purple-50"
+                    className="w-full gap-2 border-blue-700 text-blue-100 hover:bg-blue-800 hover:text-white"
                   >
                     <LogOut className="w-4 h-4" />
                     Sair
@@ -267,12 +261,12 @@ export default function Layout({ children, currentPageName }) {
       </div>
 
       {/* ── MOBILE: content + bottom nav ── */}
-      <div className="md:hidden flex flex-col w-full bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50" style={{ minHeight: '100dvh' }}>
+      <div className="md:hidden flex flex-col w-full bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50" style={{ minHeight: '100dvh' }}>
         <main className="flex-1 overflow-y-auto pb-32" style={{ height: '100%' }}>
           {children}
         </main>
 
-        <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, backgroundColor: 'rgba(255,255,255,0.97)', borderTop: '1px solid #e9d5ff', boxShadow: '0 -2px 10px rgba(0,0,0,0.08)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+        <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, backgroundColor: 'rgba(255,255,255,0.97)', borderTop: '1px solid #1976D2', boxShadow: '0 -2px 10px rgba(13,59,102,0.12)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           <div className="flex items-center justify-around px-2 py-3">
             {navigationItems.map((item) => {
               const isActive = location.pathname === item.url;
@@ -282,8 +276,8 @@ export default function Layout({ children, currentPageName }) {
                   to={item.url}
                   className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-200 min-w-[44px] ${
                     isActive
-                      ? 'text-purple-700 bg-purple-100'
-                      : 'text-gray-500 hover:text-purple-600 hover:bg-purple-50'
+                      ? 'text-[#0D3B66] bg-blue-100'
+                      : 'text-gray-500 hover:text-[#1976D2] hover:bg-blue-50'
                   }`}
                 >
                   <item.icon className="w-6 h-6" />

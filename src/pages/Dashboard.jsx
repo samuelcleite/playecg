@@ -119,12 +119,12 @@ export default function Dashboard() {
   const earnedAchievements = achievements.filter(a => a.earned);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 w-full max-w-full">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 w-full max-w-full">
       {/* Top Bar */}
       <header className="bg-white/90 backdrop-blur-sm border-b border-purple-100 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-[#0D3B66] to-[#1976D2] rounded-lg flex items-center justify-center">
               <Activity className="w-5 h-5 text-white" />
             </div>
             <span className="font-bold text-gray-900 text-lg">PlayECG</span>
@@ -199,16 +199,16 @@ export default function Dashboard() {
 
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }}>
             <Link to={createPageUrl("Quiz")}>
-              <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 cursor-pointer hover:shadow-lg transition-all h-full">
+              <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 cursor-pointer hover:shadow-lg transition-all h-full">
                 <CardContent className="p-4 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md flex-shrink-0">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#1976D2] to-[#0D3B66] flex items-center justify-center shadow-md flex-shrink-0">
                     <Brain className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 text-sm">Quiz Aleatório</p>
                     <p className="text-xs text-gray-500 mt-0.5">Pratique com casos variados</p>
                   </div>
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white flex-shrink-0">
+                  <Button size="sm" className="bg-[#1976D2] hover:bg-[#0D3B66] text-white flex-shrink-0">
                     Jogar
                   </Button>
                 </CardContent>
@@ -220,16 +220,16 @@ export default function Dashboard() {
         {/* Learning Trail */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mb-6">
           <Link to={createPageUrl("Modules")}>
-            <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 cursor-pointer hover:shadow-lg transition-all">
+            <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 cursor-pointer hover:shadow-lg transition-all">
               <CardContent className="p-4 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-md flex-shrink-0">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#22C55E] to-[#16a34a] flex items-center justify-center shadow-md flex-shrink-0">
                   <BookOpen className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-gray-900 text-sm">Trilha de Aprendizado</p>
                   <p className="text-xs text-gray-500 mt-0.5">Continue seu aprendizado de onde parou!</p>
                 </div>
-                <ChevronRight className="w-5 h-5 text-purple-400 flex-shrink-0" />
+                <ChevronRight className="w-5 h-5 text-green-400 flex-shrink-0" />
               </CardContent>
             </Card>
           </Link>
