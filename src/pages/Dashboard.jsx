@@ -15,7 +15,9 @@ import {
   Star,
   Brain,
   Crown,
-  Loader2
+  Loader2,
+  BookOpen,
+  ChevronRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -214,6 +216,24 @@ export default function Dashboard() {
             </Link>
           </motion.div>
         </div>
+
+        {/* Learning Trail */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mb-6">
+          <Link to={createPageUrl("Modules")}>
+            <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 cursor-pointer hover:shadow-lg transition-all">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-md flex-shrink-0">
+                  <BookOpen className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-gray-900 text-sm">Trilha de Aprendizado</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Continue seu aprendizado de onde parou!</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-purple-400 flex-shrink-0" />
+              </CardContent>
+            </Card>
+          </Link>
+        </motion.div>
 
         {/* Stats */}
         <StatsPanel
