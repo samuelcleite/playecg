@@ -5,7 +5,6 @@ import { base44 } from "@/api/base44Client";
 // calculateStreakDays removed - using local version to avoid extra API call
 import { loadUserAchievements } from "@/components/AchievementChecker";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
-import LearningTrail from "@/components/home/LearningTrail";
 import StatsPanel from "@/components/home/StatsPanel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -51,8 +50,6 @@ export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [streakDays, setStreakDays] = useState(0);
-  const [modules, setModules] = useState([]);
-  const [phases, setPhases] = useState([]);
   const [attempts, setAttempts] = useState([]);
   const [achievements, setAchievements] = useState([]);
   const [dailyCaseAvailable, setDailyCaseAvailable] = useState(false);
@@ -73,14 +70,8 @@ export default function Dashboard() {
         return;
       }
 
-      const [modulesData, phasesData, attemptsData] = await Promise.all([
-        base44.entities.Module.list("order"),
-        base44.entities.Phase.list("order"),
-        base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", 1000),
-      ]);
+      const attemptsData = await base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", 1000);
 
-      setModules(modulesData);
-      setPhases(phasesData);
       setAttempts(attemptsData);
 
       const correct = attemptsData.filter(a => a.correct).length;
@@ -224,25 +215,13 @@ export default function Dashboard() {
           </motion.div>
         </div>
 
-        {/* Main content: Trail + Sidebar */}
-        <div className="flex flex-col lg:flex-row gap-6">
-          <div className="flex-1 min-w-0">
-            <LearningTrail
-              modules={modules}
-              phases={phases}
-              attempts={attempts}
-              isPremium={isPremium}
-            />
-          </div>
-          <div className="lg:w-72 flex-shrink-0">
-            <StatsPanel
-              stats={stats}
-              streakDays={streakDays}
-              earnedAchievements={earnedAchievements}
-              isPremium={isPremium}
-            />
-          </div>
-        </div>
+        {/* Stats */}
+        <StatsPanel
+          stats={stats}
+          streakDays={streakDays}
+          earnedAchievements={earnedAchievements}
+          isPremium={isPremium}
+        />
       </div>
 
       <FaleConoscoButton />
