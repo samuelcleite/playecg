@@ -151,7 +151,7 @@ export default function AprendaECG() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-[#1976D2] mx-auto mb-4" />
           <p className="text-gray-600">Carregando conteúdos...</p>
         </div>
       </div>
@@ -285,14 +285,14 @@ export default function AprendaECG() {
                 <Card className={`border-none shadow-lg ${!isModuleUnlocked ? "opacity-60" : ""}`}>
                   <Accordion type="single" collapsible className="w-full" disabled={!isModuleUnlocked}>
                     <AccordionItem value="module" className="border-none">
-                      <AccordionTrigger className={`hover:no-underline px-6 py-4 ${isModuleUnlocked ? "bg-gradient-to-r from-indigo-50 to-purple-50" : "bg-gray-50 cursor-not-allowed"}`}>
+                      <AccordionTrigger className={`hover:no-underline px-6 py-4 ${isModuleUnlocked ? "bg-blue-50" : "bg-gray-50 cursor-not-allowed"}`}>
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold ${isModuleUnlocked ? "bg-gradient-to-br from-indigo-500 to-purple-600" : "bg-gray-400"}`}>
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold ${isModuleUnlocked ? "bg-[#1976D2]" : "bg-gray-400"}`}>
                             {isModuleUnlocked ? module.order : <Lock className="w-5 h-5" />}
                           </div>
                           <div className="text-left">
                             <div className="flex items-center gap-2">
-                              <FolderOpen className={`w-5 h-5 ${isModuleUnlocked ? "text-indigo-600" : "text-gray-400"}`} />
+                              <FolderOpen className={`w-5 h-5 ${isModuleUnlocked ? "text-[#1976D2]" : "text-gray-400"}`} />
                               <h3 className={`text-xl font-bold ${isModuleUnlocked ? "text-gray-900" : "text-gray-500"}`}>{module.name}</h3>
                             </div>
                             {!isModuleUnlocked && (
@@ -310,16 +310,16 @@ export default function AprendaECG() {
                             {/* Link para Conteúdo Geral do Módulo */}
                             {moduleData.moduleContent && (
                               <Link to={`${createPageUrl("ConteudoECG")}?type=module&module_id=${module.id}`}>
-                                <div className="p-4 border-2 border-indigo-200 rounded-lg hover:bg-indigo-50 transition-all cursor-pointer">
+                                <div className="p-4 border-2 border-blue-200 rounded-lg hover:bg-blue-50 transition-all cursor-pointer">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                      <BookOpen className="w-5 h-5 text-indigo-600" />
+                                      <BookOpen className="w-5 h-5 text-[#1976D2]" />
                                       <div>
                                         <p className="font-semibold text-gray-900">Conteúdo do Módulo</p>
                                         <p className="text-sm text-gray-600">Visão geral e fundamentos</p>
                                       </div>
                                     </div>
-                                    <ChevronRight className="w-5 h-5 text-indigo-600" />
+                                    <ChevronRight className="w-5 h-5 text-[#1976D2]" />
                                   </div>
                                 </div>
                               </Link>
@@ -329,7 +329,7 @@ export default function AprendaECG() {
                             {moduleData.phaseContents.length > 0 && (
                               <div className="space-y-2">
                                 <h4 className="font-semibold text-gray-900 flex items-center gap-2 mt-4 mb-2">
-                                  <Layers className="w-5 h-5 text-purple-600" />
+                                  <Layers className="w-5 h-5 text-[#0D3B66]" />
                                   Fases do Módulo
                                 </h4>
                                 {modulePhasesOrdered.map(phase => {
@@ -363,10 +363,10 @@ export default function AprendaECG() {
                                       key={phase.id}
                                       to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`}
                                     >
-                                      <div className="p-4 border-2 border-purple-200 rounded-lg hover:bg-purple-50 transition-all cursor-pointer">
-                                        <div className="flex items-center justify-between">
-                                          <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm">
+                                      <div className="p-4 border-2 border-blue-200 rounded-lg hover:bg-blue-50 transition-all cursor-pointer">
+                                       <div className="flex items-center justify-between">
+                                         <div className="flex items-center gap-3">
+                                           <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-[#0D3B66] font-bold text-sm">
                                               {phase.order}
                                             </div>
                                             <div>
@@ -374,7 +374,7 @@ export default function AprendaECG() {
                                               <p className="text-sm text-gray-600">Conteúdo da fase</p>
                                             </div>
                                           </div>
-                                          <ChevronRight className="w-5 h-5 text-purple-600" />
+                                          <ChevronRight className="w-5 h-5 text-[#1976D2]" />
                                         </div>
                                       </div>
                                     </Link>

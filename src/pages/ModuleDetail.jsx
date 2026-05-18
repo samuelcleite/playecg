@@ -542,10 +542,10 @@ export default function ModuleDetail() {
                 Fase Concluída!
               </h3>
               <p className="text-xl text-gray-600 mb-6">
-                Você completou a fase <span className="font-bold text-purple-600">{phase?.name}</span> do módulo <span className="font-bold text-blue-600">{module?.name}</span>
+                Você completou a fase <span className="font-bold text-[#22C55E]">{phase?.name}</span> do módulo <span className="font-bold text-[#1976D2]">{module?.name}</span>
               </p>
               
-              <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-6 mb-8">
+              <div className="bg-blue-50 rounded-xl p-6 mb-8">
                 <p className="text-lg text-gray-700 mb-2">
                   <span className="font-bold text-2xl text-green-600">10</span> casos completados
                 </p>
@@ -559,7 +559,7 @@ export default function ModuleDetail() {
                   <>
                     <Button
                       onClick={() => window.location.href = `${createPageUrl("ModuleDetail")}?module_id=${module.id}&phase_id=${nextPhase.id}`}
-                      className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-8 py-6 text-lg font-semibold"
+                      className="bg-[#22C55E] hover:bg-green-600 text-white px-8 py-6 text-lg font-semibold"
                       size="lg"
                     >
                       Próxima Fase: {nextPhase.name}
@@ -567,7 +567,7 @@ export default function ModuleDetail() {
                     <Button
                       onClick={() => navigate(createPageUrl("Modules"))}
                       variant="outline"
-                      className="border-purple-300 hover:bg-purple-50 px-8 py-6 text-lg font-semibold"
+                      className="border-blue-300 hover:bg-blue-50 px-8 py-6 text-lg font-semibold"
                       size="lg"
                     >
                       Ver Módulos
@@ -576,7 +576,7 @@ export default function ModuleDetail() {
                 ) : (
                   <Button
                     onClick={() => navigate(createPageUrl("Modules"))}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-6 text-lg font-semibold"
+                    className="bg-[#0D3B66] hover:bg-[#1976D2] text-white px-8 py-6 text-lg font-semibold"
                     size="lg"
                   >
                     Voltar aos Módulos
@@ -630,7 +630,7 @@ export default function ModuleDetail() {
         </div>
 
         {/* Module Info - hidden on mobile */}
-        <Card className="hidden md:block border-none shadow-lg bg-gradient-to-br from-blue-50 to-indigo-50">
+        <Card className="hidden md:block border-none shadow-lg bg-blue-50">
           <CardContent className="p-6">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{module.name}</h1>
             <p className="text-gray-600 mb-4">{module.description}</p>
@@ -652,18 +652,18 @@ export default function ModuleDetail() {
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${completionPercentage}%` }}
-            className="h-full bg-gradient-to-r from-blue-600 to-indigo-600"
+            className="h-full bg-[#1976D2]"
           />
         </div>
 
         {/* Case Card */}
-        <Card className="border-0 md:border border-purple-100 shadow-none md:shadow-xl rounded-none md:rounded-lg">
+        <Card className="border-0 md:border border-blue-100 shadow-none md:shadow-xl rounded-none md:rounded-lg">
           <CardContent className="p-0 md:p-8">
             {/* Case Info Badge and Edit Button - hidden on mobile */}
             <div className="hidden md:flex items-center justify-between gap-3 mb-4 flex-wrap">
               <div>
                 {currentCase.multiple_correct && (
-                  <Badge className="bg-purple-100 text-purple-800 border border-purple-200">
+                  <Badge className="bg-blue-100 text-[#0D3B66] border border-blue-200">
                     Múltiplas Respostas Corretas
                   </Badge>
                 )}
@@ -683,7 +683,7 @@ export default function ModuleDetail() {
                     variant="outline"
                     size="sm"
                     onClick={() => navigate(`${createPageUrl("AdminCases")}?edit_case=${currentCase.id}`)}
-                    className="gap-2 border-purple-200 hover:bg-purple-50"
+                    className="gap-2 border-blue-200 hover:bg-blue-50"
                   >
                     <Pencil className="w-4 h-4" />
                     Editar Caso
@@ -714,7 +714,7 @@ export default function ModuleDetail() {
                 </div>
                 <Button
                   onClick={openZoom}
-                  className="absolute top-4 right-4 bg-white/95 hover:bg-white text-gray-800 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 border border-purple-200"
+                  className="absolute top-4 right-4 bg-white/95 hover:bg-white text-gray-800 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 border border-blue-200"
                   size="icon"
                 >
                   <Maximize2 className="w-5 h-5" />
@@ -731,7 +731,7 @@ export default function ModuleDetail() {
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {phaseContent && (
                     <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`}>
-                      <Button variant="outline" size="sm" className="gap-2 border-purple-200 hover:bg-purple-50">
+                      <Button variant="outline" size="sm" className="gap-2 border-blue-200 hover:bg-blue-50">
                         <BookOpen className="w-4 h-4" />
                         <span className="hidden sm:inline">Tem dúvidas?</span>
                       </Button>
@@ -769,8 +769,8 @@ export default function ModuleDetail() {
                         : showAsIncorrect
                           ? 'bg-red-50 border-red-500 border-2'
                           : isSelected
-                            ? 'bg-purple-50 border-purple-500 border-2'
-                            : 'hover:bg-gray-50'
+                          ? 'bg-blue-50 border-[#1976D2] border-2'
+                          : 'hover:bg-gray-50'
                     }`}
                     onClick={() => handleAnswerToggle(option)}
                     disabled={showResult}
@@ -782,8 +782,8 @@ export default function ModuleDetail() {
                           : showAsIncorrect
                             ? 'bg-red-500'
                             : isSelected
-                              ? 'bg-purple-500'
-                              : 'bg-gray-200'
+                            ? 'bg-[#1976D2]'
+                            : 'bg-gray-200'
                       }`}>
                         {(showAsCorrect || showAsCorrectAfterFail) && (
                           <CheckCircle2 className="w-5 h-5 text-white" />
@@ -808,7 +808,7 @@ export default function ModuleDetail() {
               <Button
                 onClick={handleSubmitAnswer}
                 disabled={selectedAnswers.length === 0}
-                className="w-full bg-purple-600 hover:bg-purple-700 mb-6"
+                className="w-full bg-[#0D3B66] hover:bg-[#1976D2] mb-6"
               >
                 {currentCase.multiple_correct 
                   ? `Confirmar Respostas (${selectedAnswers.length} selecionada${selectedAnswers.length !== 1 ? 's' : ''})` 
@@ -862,7 +862,7 @@ export default function ModuleDetail() {
 
                       <Button
                         onClick={handleNextCase}
-                        className="w-full mt-6 bg-purple-600 hover:bg-purple-700"
+                        className="w-full mt-6 bg-[#1976D2] hover:bg-[#0D3B66]"
                       >
                         {currentCaseIndex < cases.length - 1 ? 'Próximo Caso' : 'Finalizar Fase'}
                       </Button>
@@ -941,7 +941,7 @@ export default function ModuleDetail() {
 
                       <Button
                         onClick={handleNextCase}
-                        className="w-full mt-6 bg-purple-600 hover:bg-purple-700"
+                        className="w-full mt-6 bg-[#1976D2] hover:bg-[#0D3B66]"
                       >
                         {currentCaseIndex < cases.length - 1 ? 'Próximo Caso' : 'Finalizar Fase'}
                       </Button>
@@ -957,7 +957,7 @@ export default function ModuleDetail() {
 
       {/* Zoom Dialog */}
       <Dialog open={showZoom} onOpenChange={closeZoom}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 border-purple-200">
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 border-blue-200">
           <DialogHeader className="px-4 pt-4 pb-3 md:px-6 md:pt-6">
             <div className="flex flex-col gap-3">
               <DialogTitle className="flex items-center gap-2 text-gray-800 text-base md:text-lg">
@@ -970,11 +970,11 @@ export default function ModuleDetail() {
                   size="icon"
                   onClick={handleZoomOut}
                   disabled={zoomLevel <= 1}
-                  className="border-purple-200 hover:bg-purple-50 h-9 w-9"
+                  className="border-blue-200 hover:bg-blue-50 h-9 w-9"
                 >
                   <ZoomOut className="w-4 h-4" />
                 </Button>
-                <Badge variant="outline" className="px-3 py-1 border-purple-200">
+                <Badge variant="outline" className="px-3 py-1 border-blue-200">
                   {Math.round(zoomLevel * 100)}%
                 </Badge>
                 <Button
@@ -982,7 +982,7 @@ export default function ModuleDetail() {
                   size="icon"
                   onClick={handleZoomIn}
                   disabled={zoomLevel >= 4}
-                  className="border-purple-200 hover:bg-purple-50 h-9 w-9"
+                  className="border-blue-200 hover:bg-blue-50 h-9 w-9"
                 >
                   <ZoomIn className="w-4 h-4" />
                 </Button>
@@ -990,7 +990,7 @@ export default function ModuleDetail() {
                   variant="outline"
                   size="icon"
                   onClick={handleResetZoom}
-                  className="border-purple-200 hover:bg-purple-50 h-9 w-9"
+                  className="border-blue-200 hover:bg-blue-50 h-9 w-9"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </Button>
@@ -1000,7 +1000,7 @@ export default function ModuleDetail() {
 
           <div className="px-4 pb-4 md:px-6 md:pb-6">
             <div
-              className="relative bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg overflow-hidden touch-none border border-purple-200"
+              className="relative bg-blue-50 rounded-lg overflow-hidden touch-none border border-blue-200"
               style={{ height: '60vh' }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
@@ -1029,7 +1029,7 @@ export default function ModuleDetail() {
               </div>
             </div>
 
-            <div className="mt-4 text-center text-sm text-gray-600 bg-purple-50 p-3 rounded-lg border border-purple-100">
+            <div className="mt-4 text-center text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-100">
               {zoomLevel > 1 ? (
                 <p>
                   <span className="hidden md:inline">Use o mouse para arrastar e mover a imagem &bull; Role o mouse para ajustar o zoom</span>

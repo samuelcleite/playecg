@@ -139,7 +139,7 @@ export default function Modules() {
 
         {/* Stats Banner */}
         <div className="grid md:grid-cols-2 gap-6 mb-12">
-          <Card className="border-none shadow-lg bg-gradient-to-br from-blue-500 to-indigo-600">
+          <Card className="border-none shadow-lg bg-[#0D3B66]">
             <CardContent className="p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
@@ -153,7 +153,7 @@ export default function Modules() {
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-lg bg-gradient-to-br from-purple-500 to-pink-600">
+          <Card className="border-none shadow-lg bg-[#1976D2]">
             <CardContent className="p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
@@ -170,16 +170,16 @@ export default function Modules() {
 
         {/* Introduction Section */}
         {introContent && (
-          <Card className="border-2 border-amber-300 shadow-xl bg-gradient-to-br from-amber-50 to-orange-50">
+          <Card className="border-2 border-blue-200 shadow-xl bg-blue-50">
             <CardContent className="p-6 flex flex-col md:flex-row gap-4 items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg flex-shrink-0">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-[#1976D2] shadow-lg flex-shrink-0">
                   <Sparkles className="w-7 h-7 text-white" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="text-lg font-bold text-gray-900">Introdução ao ECG</h3>
-                    <Badge className="bg-amber-200 text-amber-900">Recomendado</Badge>
+                    <Badge className="bg-[#22C55E] text-white">Recomendado</Badge>
                   </div>
                   <p className="text-sm text-gray-600 flex items-center gap-1">
                     <BookOpen className="w-3.5 h-3.5" />
@@ -189,7 +189,7 @@ export default function Modules() {
               </div>
               <Button
                 onClick={handleOpenIntro}
-                className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 flex-shrink-0"
+                className="gap-2 bg-[#0D3B66] hover:bg-[#1976D2] text-white flex-shrink-0"
               >
                 Ler Introdução
               </Button>
@@ -211,7 +211,7 @@ export default function Modules() {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-[#1976D2] flex items-center justify-center">
                 <Sparkles className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -226,7 +226,7 @@ export default function Modules() {
           </DialogHeader>
 
           <div className="py-4">
-            <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-6">
+            <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6">
               <div className="flex items-start gap-3 mb-4">
                 <Lightbulb className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
                 <div className="flex-1">
@@ -242,7 +242,7 @@ export default function Modules() {
           <div className="flex justify-end">
             <Button 
               onClick={() => setShowIntroDialog(false)}
-              className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+              className="bg-[#1976D2] hover:bg-[#0D3B66] text-white"
             >
               Fechar
             </Button>

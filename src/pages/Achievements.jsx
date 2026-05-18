@@ -73,7 +73,7 @@ export default function Achievements() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-12 h-12 animate-spin text-purple-600" />
+        <Loader2 className="w-12 h-12 animate-spin text-[#1976D2]" />
       </div>
     );
   }
@@ -84,7 +84,7 @@ export default function Achievements() {
 
         {/* Header */}
         <div className="text-center pt-2">
-          <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+          <div className="w-20 h-20 bg-gradient-to-br from-[#1976D2] to-[#0D3B66] rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
             <Trophy className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-1">Troféus</h1>
@@ -99,7 +99,7 @@ export default function Achievements() {
               <p className="text-2xl font-bold text-orange-600">{streak}</p>
               <p className="text-xs text-gray-500 mt-0.5">Dias seguidos</p>
             </div>
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-4 text-center">
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-center">
               <Target className="w-6 h-6 text-blue-500 mx-auto mb-1" />
               <p className="text-2xl font-bold text-blue-600">{stats.totalAttempts}</p>
               <p className="text-xs text-gray-500 mt-0.5">Questões respondidas</p>
@@ -109,9 +109,9 @@ export default function Achievements() {
               <p className="text-2xl font-bold text-green-600">{stats.accuracy}%</p>
               <p className="text-xs text-gray-500 mt-0.5">Taxa de acerto</p>
             </div>
-            <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100 rounded-2xl p-4 text-center">
-              <BookOpen className="w-6 h-6 text-purple-500 mx-auto mb-1" />
-              <p className="text-2xl font-bold text-purple-600">{stats.completedModules}</p>
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-center">
+              <BookOpen className="w-6 h-6 text-[#1976D2] mx-auto mb-1" />
+              <p className="text-2xl font-bold text-[#1976D2]">{stats.completedModules}</p>
               <p className="text-xs text-gray-500 mt-0.5">Fases concluídas</p>
             </div>
           </div>
@@ -121,7 +121,7 @@ export default function Achievements() {
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-gray-500">
             <span>Progresso geral</span>
-            <span className="font-bold text-purple-600">{completionPercentage}%</span>
+            <span className="font-bold text-[#1976D2]">{completionPercentage}%</span>
           </div>
           <Progress value={completionPercentage} className="h-3 rounded-full" />
         </div>
@@ -187,7 +187,7 @@ function AchievementBadge({ achievement, index, tooltip, setTooltip }) {
           relative w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center text-3xl md:text-4xl
           transition-all duration-200 border-4 shadow-md
           ${achievement.earned
-            ? 'border-purple-400 bg-gradient-to-br from-purple-100 to-pink-100 shadow-purple-200 scale-100 hover:scale-105'
+            ? 'border-[#1976D2] bg-blue-50 shadow-blue-200 scale-100 hover:scale-105'
             : 'border-gray-200 bg-gray-100 grayscale opacity-50 hover:opacity-70'
           }
         `}
@@ -211,7 +211,7 @@ function AchievementBadge({ achievement, index, tooltip, setTooltip }) {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           style={{ position: 'fixed', zIndex: 9999, transform: 'translateX(-50%)' }}
-          className="w-44 bg-white rounded-2xl shadow-xl border border-purple-100 p-3 text-center pointer-events-none"
+          className="w-44 bg-white rounded-2xl shadow-xl border border-blue-100 p-3 text-center pointer-events-none"
           ref={el => {
             if (el) {
               const btn = el.parentElement?.querySelector('button');
@@ -233,7 +233,7 @@ function AchievementBadge({ achievement, index, tooltip, setTooltip }) {
             <span className="inline-block mt-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Bloqueado 🔒</span>
           )}
           {/* Arrow */}
-          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-r border-b border-purple-100 rotate-45" />
+          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-r border-b border-blue-100 rotate-45" />
         </motion.div>
       )}
     </motion.div>

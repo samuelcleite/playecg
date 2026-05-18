@@ -263,7 +263,7 @@ export default function Profile() {
 
         {/* Header */}
         <div className="text-center">
-          <div className="w-24 h-24 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <div className="w-24 h-24 bg-[#0D3B66] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
             <span className="text-white text-4xl font-bold">
               {user?.full_name?.[0]?.toUpperCase() || 'U'}
             </span>
@@ -390,7 +390,7 @@ export default function Profile() {
                   <Button onClick={() => setIsEditing(false)} variant="outline">
                     Cancelar
                   </Button>
-                  <Button onClick={handleSaveProfile} className="bg-blue-600 hover:bg-blue-700">
+                  <Button onClick={handleSaveProfile} className="bg-[#1976D2] hover:bg-[#0D3B66]">
                     Salvar
                   </Button>
                 </div>
@@ -477,7 +477,7 @@ export default function Profile() {
                     transition={{ delay: index * 0.05 }}
                     className={`p-4 rounded-xl text-center transition-all duration-300 ${
                       achievement.earned 
-                        ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-md' 
+                        ? 'bg-blue-50 border-2 border-blue-200 shadow-md' 
                         : 'bg-gray-100 opacity-50'
                     }`}
                   >
@@ -539,7 +539,7 @@ export default function Profile() {
               </div>
               <div>
                 <p className="text-sm text-gray-600 mb-1">Módulos Completos</p>
-                <p className="text-2xl font-bold text-purple-600">{stats.completedModules}</p>
+                <p className="text-2xl font-bold text-[#1976D2]">{stats.completedModules}</p>
               </div>
             </div>
           </CardContent>

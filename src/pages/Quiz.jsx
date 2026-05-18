@@ -473,7 +473,7 @@ export default function Quiz() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-[#1976D2] mx-auto mb-4" />
           <p className="text-gray-600">Carregando caso...</p>
         </div>
       </div>
@@ -577,7 +577,7 @@ export default function Quiz() {
             </p>
             <Button
               onClick={handleResetProgress}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white gap-2"
+              className="w-full bg-[#1976D2] hover:bg-[#0D3B66] text-white gap-2"
             >
               <RefreshCw className="w-5 h-5" />
               Recomeçar Quiz
@@ -639,13 +639,13 @@ export default function Quiz() {
         )}
 
         {/* Case Card */}
-        <Card className="border-0 md:border border-purple-100 shadow-lg rounded-none md:rounded-lg">
+        <Card className="border-0 md:border border-blue-100 shadow-lg rounded-none md:rounded-lg">
           <CardContent className="p-0 md:p-8">
             {/* Case Info - hidden on mobile */}
             <div className="hidden md:flex items-center justify-between gap-3 mb-6 flex-wrap">
               <div className="flex items-center gap-3 flex-wrap">
                 {currentCase.multiple_correct && (
-                  <Badge className="bg-purple-100 text-purple-800 border border-purple-200">
+                  <Badge className="bg-blue-100 text-[#0D3B66] border border-blue-200">
                     Múltiplas Respostas
                   </Badge>
                 )}
@@ -706,7 +706,7 @@ export default function Quiz() {
                 </div>
                 <Button
                   onClick={openZoom}
-                  className="absolute top-4 right-4 bg-white/95 hover:bg-white text-gray-800 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 border border-purple-200"
+                  className="absolute top-4 right-4 bg-white/95 hover:bg-white text-gray-800 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 border border-blue-200"
                   size="icon"
                 >
                   <Maximize2 className="w-5 h-5" />
@@ -762,8 +762,8 @@ export default function Quiz() {
                             : showAsIncorrect
                               ? 'bg-rose-50 border-rose-300 border-2'
                               : isSelected
-                                ? 'bg-purple-50 border-purple-300 border-2'
-                                : 'hover:bg-purple-50 border-purple-100'
+                                ? 'bg-blue-50 border-[#1976D2] border-2'
+                                : 'hover:bg-blue-50 border-blue-100'
                         }`}
                         onClick={() => handleAnswerToggle(option)}
                         disabled={showResult}
@@ -775,8 +775,8 @@ export default function Quiz() {
                               : showAsIncorrect
                                 ? 'bg-rose-300 border-2 border-rose-400'
                                 : isSelected
-                                  ? 'bg-purple-300 border-2 border-purple-400'
-                                  : 'bg-gray-100'
+                                   ? 'bg-[#1976D2] border-2 border-[#0D3B66]'
+                                   : 'bg-gray-100'
                           }`}>
                             {(showAsCorrect || showAsCorrectAfterFail) && (
                               <CheckCircle2 className="w-5 h-5 text-green-700" />
@@ -785,7 +785,7 @@ export default function Quiz() {
                               <XCircle className="w-5 h-5 text-rose-700" />
                             )}
                             {!showResult && isSelected && (
-                              <CheckCircle2 className="w-5 h-5 text-purple-700" />
+                              <CheckCircle2 className="w-5 h-5 text-white" />
                             )}
                           </div>
                           <span className="flex-1 font-medium text-gray-800 whitespace-normal break-words">{option}</span>
@@ -803,7 +803,7 @@ export default function Quiz() {
               <Button
                 onClick={handleSubmitAnswer}
                 disabled={selectedAnswers.length === 0}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white py-6 text-lg font-semibold"
+                className="w-full bg-[#0D3B66] hover:bg-[#1976D2] text-white py-6 text-lg font-semibold"
               >
                 {currentCase.multiple_correct
                   ? `Confirmar Respostas (${selectedAnswers.length} selecionada${selectedAnswers.length !== 1 ? 's' : ''})`
@@ -865,7 +865,7 @@ export default function Quiz() {
 
                       <Button
                         onClick={() => loadNextCase()}
-                        className="w-full mt-6 bg-gradient-to-r from-purple-200 to-pink-200 hover:from-purple-300 hover:to-pink-300 text-purple-900 gap-2 border border-purple-300"
+                        className="w-full mt-6 bg-[#1976D2] hover:bg-[#0D3B66] text-white gap-2"
                       >
                         Próximo Caso
                         <ArrowRight className="w-4 h-4" />
@@ -953,7 +953,7 @@ export default function Quiz() {
 
                       <Button
                         onClick={() => loadNextCase()}
-                        className="w-full mt-6 bg-gradient-to-r from-purple-200 to-pink-200 hover:from-purple-300 hover:to-pink-300 text-purple-900 gap-2 border border-purple-300"
+                        className="w-full mt-6 bg-[#1976D2] hover:bg-[#0D3B66] text-white gap-2"
                       >
                         Próximo Caso
                         <ArrowRight className="w-4 h-4" />
@@ -970,7 +970,7 @@ export default function Quiz() {
 
       {/* Zoom Dialog */}
       <Dialog open={showZoom} onOpenChange={closeZoom}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 border-purple-200">
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 border-blue-200">
           <DialogHeader className="px-4 pt-4 pb-3 md:px-6 md:pt-6">
             <div className="flex flex-col gap-3">
               <DialogTitle className="flex items-center gap-2 text-gray-800 text-base md:text-lg">
@@ -983,11 +983,11 @@ export default function Quiz() {
                   size="icon"
                   onClick={handleZoomOut}
                   disabled={zoomLevel <= 1}
-                  className="border-purple-200 hover:bg-purple-50 h-9 w-9"
+                  className="border-blue-200 hover:bg-blue-50 h-9 w-9"
                 >
                   <ZoomOut className="w-4 h-4" />
                 </Button>
-                <Badge variant="outline" className="px-3 py-1 border-purple-200">
+                <Badge variant="outline" className="px-3 py-1 border-blue-200">
                   {Math.round(zoomLevel * 100)}%
                 </Badge>
                 <Button
@@ -995,7 +995,7 @@ export default function Quiz() {
                   size="icon"
                   onClick={handleZoomIn}
                   disabled={zoomLevel >= 4}
-                  className="border-purple-200 hover:bg-purple-50 h-9 w-9"
+                  className="border-blue-200 hover:bg-blue-50 h-9 w-9"
                 >
                   <ZoomIn className="w-4 h-4" />
                 </Button>
@@ -1003,7 +1003,7 @@ export default function Quiz() {
                   variant="outline"
                   size="icon"
                   onClick={handleResetZoom}
-                  className="border-purple-200 hover:bg-purple-50 h-9 w-9"
+                  className="border-blue-200 hover:bg-blue-50 h-9 w-9"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </Button>
@@ -1013,7 +1013,7 @@ export default function Quiz() {
 
           <div className="px-4 pb-4 md:px-6 md:pb-6">
             <div
-              className="relative bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg overflow-hidden touch-none border border-purple-200"
+              className="relative bg-blue-50 rounded-lg overflow-hidden touch-none border border-blue-200"
               style={{ height: '60vh' }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
@@ -1042,7 +1042,7 @@ export default function Quiz() {
               </div>
             </div>
 
-            <div className="mt-4 text-center text-sm text-gray-600 bg-purple-50 p-3 rounded-lg border border-purple-100">
+            <div className="mt-4 text-center text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-100">
               {zoomLevel > 1 ? (
                 <p>
                   <span className="hidden md:inline">Use o mouse para arrastar e mover a imagem • Role o mouse para ajustar o zoom</span>
@@ -1063,7 +1063,7 @@ export default function Quiz() {
       <Dialog open={showContentSuggestionDialog} onOpenChange={setShowContentSuggestionDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-blue-600">
+            <DialogTitle className="flex items-center gap-2 text-[#1976D2]">
               <BookOpen className="w-5 h-5" />
               Sugestão de Estudo
             </DialogTitle>

@@ -119,7 +119,7 @@ export default function DailyCase() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-[#1976D2] mx-auto mb-4" />
           <p className="text-gray-600">Carregando caso do dia...</p>
         </div>
       </div>
@@ -163,10 +163,10 @@ export default function DailyCase() {
         </div>
 
         {/* Title Card */}
-        <Card className="border-2 border-purple-300 bg-gradient-to-r from-purple-50 to-pink-50 shadow-lg">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+        <Card className="border-2 border-blue-200 bg-blue-50 shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-[#0D3B66] rounded-full flex items-center justify-center">
                 <Sparkles className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -188,11 +188,11 @@ export default function DailyCase() {
         )}
 
         {/* Case Card */}
-        <Card className="border border-purple-100 shadow-lg">
+        <Card className="border border-blue-100 shadow-lg">
           <CardContent className="p-8">
             {/* Case Info */}
             <div className="flex items-center gap-3 mb-6 flex-wrap">
-              <Badge className="bg-purple-100 text-purple-800 border border-purple-200">
+              <Badge className="bg-blue-100 text-[#0D3B66] border border-blue-200">
                 <Calendar className="w-3 h-3 mr-1" />
                 {new Date().toLocaleDateString('pt-BR')}
               </Badge>
@@ -214,7 +214,7 @@ export default function DailyCase() {
 
             {/* ECG Image */}
             {ecgCase.image_url && (
-              <div className="mb-6 rounded-xl overflow-hidden border-2 border-purple-200">
+              <div className="mb-6 rounded-xl overflow-hidden border-2 border-blue-200">
                 <img
                   src={ecgCase.image_url}
                   alt="ECG"
@@ -252,8 +252,8 @@ export default function DailyCase() {
                             : showAsIncorrect
                               ? 'bg-rose-50 border-rose-300 border-2'
                               : isSelected
-                                ? 'bg-purple-50 border-purple-300 border-2'
-                                : 'hover:bg-purple-50 border-purple-100'
+                                ? 'bg-blue-50 border-[#1976D2] border-2'
+                                : 'hover:bg-blue-50 border-blue-100'
                         }`}
                         onClick={() => handleAnswerToggle(option)}
                         disabled={showResult}
@@ -265,12 +265,12 @@ export default function DailyCase() {
                               : showAsIncorrect
                                 ? 'bg-rose-300 border-2 border-rose-400'
                                 : isSelected
-                                  ? 'bg-purple-300 border-2 border-purple-400'
+                                  ? 'bg-[#1976D2] border-2 border-[#0D3B66]'
                                   : 'bg-gray-100'
                           }`}>
                             {showAsCorrect && <CheckCircle2 className="w-5 h-5 text-green-700" />}
                             {showAsIncorrect && <XCircle className="w-5 h-5 text-rose-700" />}
-                            {!showResult && isSelected && <CheckCircle2 className="w-5 h-5 text-purple-700" />}
+                            {!showResult && isSelected && <CheckCircle2 className="w-5 h-5 text-white" />}
                           </div>
                           <span className="flex-1 font-medium text-gray-800 whitespace-normal break-words">{option}</span>
                         </div>
@@ -286,7 +286,7 @@ export default function DailyCase() {
               <Button
                 onClick={handleSubmitAnswer}
                 disabled={selectedAnswers.length === 0}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white py-6 text-lg font-semibold"
+                className="w-full bg-[#0D3B66] hover:bg-[#1976D2] text-white py-6 text-lg font-semibold"
               >
                 {ecgCase.multiple_correct
                   ? `Confirmar Respostas (${selectedAnswers.length} selecionada${selectedAnswers.length !== 1 ? 's' : ''})`
@@ -350,7 +350,7 @@ export default function DailyCase() {
 
                     <Link to={createPageUrl("Dashboard")}>
                       <Button
-                        className="w-full mt-6 bg-gradient-to-r from-purple-200 to-pink-200 hover:from-purple-300 hover:to-pink-300 text-purple-900 gap-2 border border-purple-300"
+                        className="w-full mt-6 bg-[#1976D2] hover:bg-[#0D3B66] text-white gap-2"
                       >
                         Voltar ao Dashboard
                       </Button>

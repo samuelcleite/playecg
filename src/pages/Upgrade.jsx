@@ -181,7 +181,7 @@ export default function Upgrade() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", duration: 0.6 }}
-            className="w-20 h-20 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl"
+            className="w-20 h-20 bg-[#0D3B66] rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl"
           >
             <Crown className="w-10 h-10 text-white" />
           </motion.div>
@@ -226,12 +226,12 @@ export default function Upgrade() {
           </Card>
 
           {/* Premium Plan */}
-          <Card className="border-none shadow-2xl bg-gradient-to-br from-amber-50 to-orange-50 relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-gradient-to-br from-amber-500 to-orange-500 text-white px-4 py-1 text-sm font-semibold">
+          <Card className="border-none shadow-2xl bg-blue-50 relative overflow-hidden">
+            <div className="absolute top-0 right-0 bg-[#22C55E] text-white px-4 py-1 text-sm font-semibold">
               Mais Popular
             </div>
             <CardHeader className="text-center pb-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <div className="w-16 h-16 bg-[#0D3B66] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <Crown className="w-8 h-8 text-white" />
               </div>
               <CardTitle className="text-2xl flex items-center justify-center gap-2">
@@ -248,7 +248,7 @@ export default function Upgrade() {
             </CardHeader>
             <CardContent>
               {/* Coupon Section */}
-              <div className="mb-6 p-4 bg-white rounded-lg border-2 border-amber-200">
+              <div className="mb-6 p-4 bg-white rounded-lg border-2 border-blue-200">
                 <div className="flex items-center gap-2 mb-3">
                   <Tag className="w-5 h-5 text-amber-600" />
                   <span className="font-semibold text-gray-900">Tem um cupom de desconto?</span>
@@ -291,7 +291,7 @@ export default function Upgrade() {
                         onClick={handleValidateCoupon}
                         disabled={validatingCoupon || !couponCode.trim()}
                         variant="outline"
-                        className="border-amber-300"
+                        className="border-[#1976D2]"
                       >
                         {validatingCoupon ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -316,7 +316,7 @@ export default function Upgrade() {
                     transition={{ delay: index * 0.05 }}
                     className="flex items-start gap-3"
                   >
-                    <Check className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <Check className="w-5 h-5 text-[#22C55E] flex-shrink-0 mt-0.5" />
                     <span className="text-gray-700 font-medium">{feature}</span>
                   </motion.li>
                 ))}
@@ -343,7 +343,7 @@ export default function Upgrade() {
               </Alert>
 
               <Button
-                className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold py-6 text-lg shadow-lg"
+                className="w-full bg-[#22C55E] hover:bg-green-600 text-white font-semibold py-6 text-lg shadow-lg"
                 onClick={handleUpgrade}
                 disabled={processing}
               >
@@ -371,8 +371,8 @@ export default function Upgrade() {
         <div className="grid md:grid-cols-3 gap-6 mb-12">
           <Card className="border-none shadow-lg">
             <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <BookOpen className="w-8 h-8 text-blue-600" />
+              <div className="w-16 h-16 bg-[#0D3B66] rounded-full flex items-center justify-center mx-auto mb-4">
+                <BookOpen className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">
                 Aprendizado Estruturado
@@ -385,8 +385,8 @@ export default function Upgrade() {
 
           <Card className="border-none shadow-lg">
             <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trophy className="w-8 h-8 text-purple-600" />
+              <div className="w-16 h-16 bg-[#1976D2] rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trophy className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">
                 Gamificação Completa
@@ -399,8 +399,8 @@ export default function Upgrade() {
 
           <Card className="border-none shadow-lg">
             <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Target className="w-8 h-8 text-green-600" />
+              <div className="w-16 h-16 bg-[#22C55E] rounded-full flex items-center justify-center mx-auto mb-4">
+                <Target className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">
                 Feedback Detalhado
