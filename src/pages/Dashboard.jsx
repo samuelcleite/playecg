@@ -70,7 +70,7 @@ export default function Dashboard() {
         return;
       }
 
-      const attemptsData = await base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", 1000);
+      const attemptsData = await base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", 500);
 
       setAttempts(attemptsData);
 
