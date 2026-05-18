@@ -121,7 +121,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 w-full max-w-full">
       {/* Top Bar */}
-      <header className="bg-white/90 backdrop-blur-sm border-b border-purple-100 sticky top-0 z-40">
+      <header className="bg-white border-b border-blue-100 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-[#0D3B66] to-[#1976D2] rounded-lg flex items-center justify-center">
