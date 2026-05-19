@@ -2,162 +2,115 @@
 @tailwind components;
 @tailwind utilities;
 
-
-/* :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
-} */
-
-
-
 @layer base {
   :root {
-    /* PlayECG Brand Colors */
-    /* Primary: Azul Escuro #0D3B66 → hsl(210, 78%, 23%) */
-    /* Secondary: Verde ECG #22C55E → hsl(142, 71%, 45%) */
-    /* Accent: Azul Médio #1976D2 → hsl(211, 69%, 46%) */
+    /* ── PlayECG Design System ────────────────────────────── */
 
-    --background: 210 20% 98%;
-    --foreground: 210 78% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 210 78% 10%;
+    /* Backgrounds */
+    --background: 0 0% 100%;           /* #FFFFFF — Branco Clínico */
+    --foreground: 240 35% 14%;         /* #1A1A2E — Carvão Texto */
+
+    /* Cards */
+    --card: 0 0% 95%;                  /* #F2F2F2 — Cinza Interface */
+    --card-foreground: 240 35% 14%;
+
+    /* Popover */
     --popover: 0 0% 100%;
-    --popover-foreground: 210 78% 10%;
-    --primary: 210 78% 23%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 211 30% 93%;
-    --secondary-foreground: 210 78% 23%;
-    --muted: 210 20% 95%;
-    --muted-foreground: 210 20% 45%;
-    --accent: 142 71% 45%;
+    --popover-foreground: 240 35% 14%;
+
+    /* Primary → Botão primário: Verde ECG */
+    --primary: 136 100% 61%;           /* #39FF6A */
+    --primary-foreground: 210 55% 12%; /* #0D1E30 texto escuro */
+
+    /* Secondary → Botão secundário: Azul Botão */
+    --secondary: 214 47% 45%;          /* #3D6EA8 */
+    --secondary-foreground: 0 0% 100%;
+
+    /* Muted */
+    --muted: 0 0% 88%;                 /* #E0E0E0 — Cinza Médio */
+    --muted-foreground: 240 5% 40%;
+
+    /* Accent → Roxo Conquista */
+    --accent: 261 100% 65%;            /* #7C4DFF */
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 70% 57%;
+
+    /* Destructive → Vermelho Alerta */
+    --destructive: 0 68% 48%;          /* #CC2929 */
     --destructive-foreground: 0 0% 98%;
-    --border: 210 20% 88%;
-    --input: 210 20% 88%;
-    --ring: 210 78% 23%;
-    --chart-1: 211 69% 46%;
-    --chart-2: 142 71% 45%;
-    --chart-3: 210 78% 23%;
-    --chart-4: 43 96% 56%;
-    --chart-5: 0 70% 57%;
-    --radius: 0.5rem;
-    --sidebar-background: 210 78% 23%;
-    --sidebar-foreground: 210 20% 95%;
-    --sidebar-primary: 142 71% 45%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 60% 30%;
+
+    /* Borders & Inputs */
+    --border: 0 0% 88%;                /* #E0E0E0 */
+    --input: 0 0% 88%;
+    --ring: 136 100% 61%;              /* Verde ECG */
+
+    /* Border radius — arredondado (Duolingo-like) */
+    --radius: 1rem;
+
+    /* Charts */
+    --chart-1: 136 100% 61%;           /* Verde ECG */
+    --chart-2: 261 100% 65%;           /* Roxo Conquista */
+    --chart-3: 214 47% 45%;            /* Azul Botão */
+    --chart-4: 38 91% 55%;             /* Dourado Troféu */
+    --chart-5: 0 68% 48%;              /* Vermelho Alerta */
+
+    /* Sidebar */
+    --sidebar-background: 210 55% 12%; /* #0D1E30 — Azul Midnight */
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 136 100% 61%;   /* Verde ECG */
+    --sidebar-primary-foreground: 210 55% 12%;
+    --sidebar-accent: 210 45% 22%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 210 60% 30%;
-    --sidebar-ring: 142 71% 45%;
+    --sidebar-border: 210 45% 20%;
+    --sidebar-ring: 136 100% 61%;
   }
+
   .dark {
-    --background: 210 78% 8%;
-    --foreground: 210 20% 95%;
-    --card: 210 78% 12%;
-    --card-foreground: 210 20% 95%;
-    --popover: 210 78% 12%;
-    --popover-foreground: 210 20% 95%;
-    --primary: 211 69% 56%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 60% 20%;
-    --secondary-foreground: 210 20% 95%;
-    --muted: 210 60% 18%;
-    --muted-foreground: 210 20% 65%;
-    --accent: 142 71% 45%;
+    --background: 210 55% 8%;
+    --foreground: 0 0% 95%;
+    --card: 210 55% 12%;
+    --card-foreground: 0 0% 95%;
+    --popover: 210 55% 12%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 136 100% 61%;
+    --primary-foreground: 210 55% 12%;
+    --secondary: 214 47% 45%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 40% 18%;
+    --muted-foreground: 210 20% 60%;
+    --accent: 261 100% 65%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 40%;
+    --destructive: 0 68% 48%;
     --destructive-foreground: 0 0% 98%;
-    --border: 210 60% 22%;
-    --input: 210 60% 22%;
-    --ring: 211 69% 56%;
-    --chart-1: 211 69% 56%;
-    --chart-2: 142 71% 45%;
-    --chart-3: 43 96% 56%;
-    --chart-4: 0 70% 57%;
-    --chart-5: 210 78% 70%;
-    --sidebar-background: 210 78% 10%;
-    --sidebar-foreground: 210 20% 90%;
-    --sidebar-primary: 142 71% 45%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 60% 18%;
-    --sidebar-accent-foreground: 210 20% 90%;
-    --sidebar-border: 210 60% 18%;
-    --sidebar-ring: 142 71% 45%;
+    --border: 210 40% 22%;
+    --input: 210 40% 22%;
+    --ring: 136 100% 61%;
+    --chart-1: 136 100% 61%;
+    --chart-2: 261 100% 65%;
+    --chart-3: 214 47% 45%;
+    --chart-4: 38 91% 55%;
+    --chart-5: 0 68% 48%;
+    --sidebar-background: 210 55% 8%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 136 100% 61%;
+    --sidebar-primary-foreground: 210 55% 12%;
+    --sidebar-accent: 210 45% 16%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 210 45% 16%;
+    --sidebar-ring: 136 100% 61%;
   }
 }
-
-
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-nunito;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-nunito);
+    font-weight: 800;
   }
 }
