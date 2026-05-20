@@ -68,8 +68,8 @@ export default function Layout({ children, currentPageName }) {
 
   const navigationItems = [
     { title: "Dashboard", url: createPageUrl("Dashboard"), icon: Home },
-    { title: "Quiz", url: createPageUrl("Quiz"), icon: Shuffle },
     ...(isPremium ? [{ title: "Módulos", url: createPageUrl("Modules"), icon: ListOrdered }] : []),
+    { title: "Quiz", url: createPageUrl("Quiz"), icon: Shuffle },
     { title: "Troféus", url: createPageUrl("Achievements"), icon: Award },
     { title: "Aprenda ECG", url: createPageUrl("AprendaECG"), icon: BookOpen },
     { title: "Perfil", url: createPageUrl("Profile"), icon: User },
