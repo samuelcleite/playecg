@@ -46,7 +46,7 @@ export default function AprendaECG() {
       base44.entities.Content.list(),
       base44.entities.Module.list("order"),
       base44.entities.Phase.list("order"),
-      base44.entities.QuizAttempt.filter({ user_email: userData.email, quiz_type: "module" })
+      base44.entities.QuizAttempt.filter({ user_email: userData.email, quiz_type: "module" }, "-created_date", 500)
     ]);
 
     // Separar introdução
