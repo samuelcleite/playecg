@@ -765,12 +765,12 @@ export default function ModuleDetail() {
                     variant="outline"
                     className={`w-full justify-start text-left p-6 h-auto min-h-[60px] transition-all duration-300 ${
                       showAsCorrect || showAsCorrectAfterFail
-                        ? 'bg-green-50 border-green-500 border-2'
+                        ? 'bg-green-50 border-green-300 border-2'
                         : showAsIncorrect
-                          ? 'bg-red-50 border-red-500 border-2'
+                          ? 'bg-rose-50 border-rose-300 border-2'
                           : isSelected
                           ? 'bg-blue-50 border-[#1976D2] border-2'
-                          : 'hover:bg-gray-50'
+                          : 'hover:bg-blue-50 border-blue-100'
                     }`}
                     onClick={() => handleAnswerToggle(option)}
                     disabled={showResult}
@@ -795,7 +795,7 @@ export default function ModuleDetail() {
                           <CheckCircle2 className="w-5 h-5 text-white" />
                         )}
                       </div>
-                      <span className="flex-1 font-medium whitespace-normal break-words">{option}</span>
+                      <span className="flex-1 font-medium text-gray-800 whitespace-normal break-words">{option}</span>
                     </div>
                   </Button>
                 );
