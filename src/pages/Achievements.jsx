@@ -174,9 +174,21 @@ export default function Achievements() {
 
 function AchievementBadge({ achievement, index, tooltip, setTooltip }) {
   const isOpen = tooltip?.id === achievement.id;
+  const btnRef = React.useRef(null);
+  const [tooltipStyle, setTooltipStyle] = React.useState({});
 
   const handleClick = (e) => {
     e.stopPropagation();
+    if (!isOpen && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setTooltipStyle({
+        position: 'fixed',
+        left: rect.left + rect.width / 2,
+        top: rect.top - 12,
+        transform: 'translate(-50%, -100%)',
+        zIndex: 9999,
+      });
+    }
     setTooltip(isOpen ? null : {
       id: achievement.id,
       name: achievement.name,
@@ -190,55 +202,53 @@ function AchievementBadge({ achievement, index, tooltip, setTooltip }) {
       initial={{ opacity: 0, scale: 0.7 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: index * 0.04, type: "spring", stiffness: 300, damping: 20 }}
-      className="relative flex flex-col items-center gap-1 overflow-visible"
+      className="flex flex-col items-center gap-1"
     >
-      {/* Badge circle — tooltip is relative to this button */}
-      <div className="relative">
-        <button
-          onClick={handleClick}
-          className={`
-            w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center text-3xl md:text-4xl
-            transition-all duration-200 border-4 shadow-md
-            ${achievement.earned
-              ? 'border-[#1976D2] bg-blue-50 shadow-blue-200 scale-100 hover:scale-105'
-              : 'border-gray-200 bg-gray-100 grayscale opacity-50 hover:opacity-70'
-            }
-          `}
-        >
-          {achievement.icon}
-          {achievement.earned && (
-            <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
-              <span className="text-white text-[9px] font-bold">✓</span>
-            </span>
-          )}
-        </button>
-
-        {/* Tooltip popup — anchored to the button */}
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-44 bg-white rounded-2xl shadow-xl border border-blue-100 p-3 text-center z-50"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="text-3xl mb-1">{achievement.icon}</div>
-            <p className="font-bold text-gray-900 text-sm mb-1">{achievement.name}</p>
-            <p className="text-xs text-gray-500 leading-snug">{achievement.description}</p>
-            {achievement.earned ? (
-              <span className="inline-block mt-2 text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">Conquistado ✓</span>
-            ) : (
-              <span className="inline-block mt-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Bloqueado 🔒</span>
-            )}
-            {/* Arrow */}
-            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-r border-b border-blue-100 rotate-45" />
-          </motion.div>
+      {/* Badge circle */}
+      <button
+        ref={btnRef}
+        onClick={handleClick}
+        className={`
+          relative w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center text-3xl md:text-4xl
+          transition-all duration-200 border-4 shadow-md
+          ${achievement.earned
+            ? 'border-[#1976D2] bg-blue-50 shadow-blue-200 scale-100 hover:scale-105'
+            : 'border-gray-200 bg-gray-100 grayscale opacity-50 hover:opacity-70'
+          }
+        `}
+      >
+        {achievement.icon}
+        {achievement.earned && (
+          <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+            <span className="text-white text-[9px] font-bold">✓</span>
+          </span>
         )}
-      </div>
+      </button>
 
       {/* Name below badge */}
       <span className={`text-[10px] text-center leading-tight font-medium max-w-[72px] ${achievement.earned ? 'text-gray-700' : 'text-gray-400'}`}>
         {achievement.name}
       </span>
+
+      {/* Tooltip popup — portal via fixed positioning */}
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={tooltipStyle}
+          className="w-44 bg-white rounded-2xl shadow-xl border border-blue-100 p-3 text-center pointer-events-none"
+        >
+          <div className="text-3xl mb-1">{achievement.icon}</div>
+          <p className="font-bold text-gray-900 text-sm mb-1">{achievement.name}</p>
+          <p className="text-xs text-gray-500 leading-snug">{achievement.description}</p>
+          {achievement.earned ? (
+            <span className="inline-block mt-2 text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">Conquistado ✓</span>
+          ) : (
+            <span className="inline-block mt-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Bloqueado 🔒</span>
+          )}
+          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-r border-b border-blue-100 rotate-45" />
+        </motion.div>
+      )}
     </motion.div>
   );
 }
