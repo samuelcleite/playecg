@@ -818,7 +818,7 @@ export default function ModuleDetail() {
               <Button
                 onClick={handleSubmitAnswer}
                 disabled={selectedAnswers.length === 0}
-                className="w-full bg-[#0D3B66] hover:bg-[#1976D2] mb-6"
+                className="w-full bg-[#0D3B66] hover:bg-[#1976D2] text-white py-6 text-lg font-semibold mb-6"
               >
                 {currentCase.multiple_correct 
                   ? `Confirmar Respostas (${selectedAnswers.length} selecionada${selectedAnswers.length !== 1 ? 's' : ''})` 
