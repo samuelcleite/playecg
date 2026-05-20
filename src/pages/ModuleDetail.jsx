@@ -574,13 +574,23 @@ export default function ModuleDetail() {
                     </Button>
                   </>
                 ) : (
-                  <Button
-                    onClick={() => navigate(createPageUrl("Modules"))}
-                    className="bg-[#0D3B66] hover:bg-[#1976D2] text-white px-8 py-6 text-lg font-semibold"
-                    size="lg"
-                  >
-                    Voltar aos Módulos
-                  </Button>
+                  <>
+                    <Button
+                      onClick={() => navigate(createPageUrl("Modules"))}
+                      className="bg-[#1976D2] hover:bg-[#0D3B66] text-white px-8 py-6 text-lg font-semibold"
+                      size="lg"
+                    >
+                      🚀 Continuar o aprendizado!
+                    </Button>
+                    <Button
+                      onClick={() => navigate(createPageUrl("Modules"))}
+                      variant="outline"
+                      className="border-blue-300 hover:bg-blue-50 px-8 py-6 text-lg font-semibold"
+                      size="lg"
+                    >
+                      Voltar aos Módulos
+                    </Button>
+                  </>
                 )}
               </div>
             </motion.div>
