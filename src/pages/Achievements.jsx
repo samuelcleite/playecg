@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import ReactDOM from "react-dom";
 import { base44 } from "@/api/base44Client";
 import { loadUserAchievements } from "@/components/AchievementChecker";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
@@ -174,21 +175,16 @@ export default function Achievements() {
 
 function AchievementBadge({ achievement, index, tooltip, setTooltip }) {
   const isOpen = tooltip?.id === achievement.id;
-  const btnRef = React.useRef(null);
-  const [tooltipStyle, setTooltipStyle] = React.useState({});
+  const btnRef = useRef(null);
+  const [tooltipPos, setTooltipPos] = useState({ left: 0, top: 0 });
 
   const handleClick = (e) => {
     e.stopPropagation();
     if (!isOpen && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect();
-      // getBoundingClientRect já retorna coordenadas relativas ao viewport (fixed)
-      setTooltipStyle({
-        position: 'fixed',
+      setTooltipPos({
         left: rect.left + rect.width / 2,
-        top: rect.top,
-        transform: 'translate(-50%, calc(-100% - 12px))',
-        zIndex: 9999,
-        width: '176px',
+        top: rect.top + window.scrollY - 12,
       });
     }
     setTooltip(isOpen ? null : {
@@ -199,6 +195,31 @@ function AchievementBadge({ achievement, index, tooltip, setTooltip }) {
     });
   };
 
+  const tooltipEl = isOpen ? ReactDOM.createPortal(
+    <div
+      style={{
+        position: 'absolute',
+        left: tooltipPos.left,
+        top: tooltipPos.top,
+        transform: 'translate(-50%, -100%)',
+        zIndex: 9999,
+        width: '176px',
+      }}
+      className="bg-white rounded-2xl shadow-xl border border-blue-100 p-3 text-center pointer-events-none"
+    >
+      <div className="text-3xl mb-1">{achievement.icon}</div>
+      <p className="font-bold text-gray-900 text-sm mb-1">{achievement.name}</p>
+      <p className="text-xs text-gray-500 leading-snug">{achievement.description}</p>
+      {achievement.earned ? (
+        <span className="inline-block mt-2 text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">Conquistado ✓</span>
+      ) : (
+        <span className="inline-block mt-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Bloqueado 🔒</span>
+      )}
+      <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-r border-b border-blue-100 rotate-45" />
+    </div>,
+    document.body
+  ) : null;
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.7 }}
@@ -206,7 +227,6 @@ function AchievementBadge({ achievement, index, tooltip, setTooltip }) {
       transition={{ delay: index * 0.04, type: "spring", stiffness: 300, damping: 20 }}
       className="flex flex-col items-center gap-1"
     >
-      {/* Badge circle */}
       <button
         ref={btnRef}
         onClick={handleClick}
@@ -227,30 +247,11 @@ function AchievementBadge({ achievement, index, tooltip, setTooltip }) {
         )}
       </button>
 
-      {/* Name below badge */}
       <span className={`text-[10px] text-center leading-tight font-medium max-w-[72px] ${achievement.earned ? 'text-gray-700' : 'text-gray-400'}`}>
         {achievement.name}
       </span>
 
-      {/* Tooltip popup — portal via fixed positioning */}
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={tooltipStyle}
-          className="w-44 bg-white rounded-2xl shadow-xl border border-blue-100 p-3 text-center pointer-events-none"
-        >
-          <div className="text-3xl mb-1">{achievement.icon}</div>
-          <p className="font-bold text-gray-900 text-sm mb-1">{achievement.name}</p>
-          <p className="text-xs text-gray-500 leading-snug">{achievement.description}</p>
-          {achievement.earned ? (
-            <span className="inline-block mt-2 text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">Conquistado ✓</span>
-          ) : (
-            <span className="inline-block mt-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Bloqueado 🔒</span>
-          )}
-          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-r border-b border-blue-100 rotate-45" />
-        </motion.div>
-      )}
+      {tooltipEl}
     </motion.div>
   );
 }
