@@ -218,13 +218,13 @@ function PhaseNode({ phase, isDone, isNext, isBlocked, phaseIdx }) {
       {/* Pulse ring for "next" */}
       <div className="relative">
         {isNext && (
-          <span className="absolute inset-0 rounded-full bg-purple-400 animate-ping opacity-30" />
+          <span className="absolute inset-0 rounded-full bg-[#1976D2] animate-ping opacity-30" />
         )}
         <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-md border-4 transition-all ${
           isDone
             ? "bg-red-500 border-red-300"
             : isNext
-              ? "bg-purple-600 border-purple-300 shadow-purple-200 shadow-lg"
+              ? "bg-[#0D3B66] border-[#1976D2] shadow-lg"
               : isBlocked
                 ? "bg-gray-200 border-gray-100"
                 : "bg-indigo-400 border-indigo-200"
@@ -242,7 +242,7 @@ function PhaseNode({ phase, isDone, isNext, isBlocked, phaseIdx }) {
 
       {/* Phase label */}
       <span className={`text-xs font-semibold text-center max-w-[72px] leading-tight ${
-        isBlocked ? "text-gray-400" : isDone ? "text-red-600" : isNext ? "text-purple-700" : "text-gray-600"
+        isBlocked ? "text-gray-400" : isDone ? "text-red-600" : isNext ? "text-[#0D3B66]" : "text-gray-600"
       }`}>
         {isBlocked ? `Fase ${phase.order}` : phase.name || `Fase ${phase.order}`}
       </span>
@@ -255,7 +255,7 @@ function PhaseNode({ phase, isDone, isNext, isBlocked, phaseIdx }) {
               key={i}
               className={`w-1.5 h-1.5 rounded-full ${
                 i < Math.round((phase.pct / 100) * Math.min(phase.total, 8))
-                  ? "bg-purple-500"
+                  ? "bg-[#0D3B66]"
                   : "bg-gray-200"
               }`}
             />
