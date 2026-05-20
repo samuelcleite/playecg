@@ -127,18 +127,18 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
 
               {/* Phase nodes - path layout */}
               <div className="relative w-full" style={{ height: trailHeight }}>
-                {/* Mascote como plano de fundo */}
+                {/* Mascote lateral ao trilho */}
                 <img
                   src="https://media.base44.com/images/public/68e28688c6f4ec5cd17e317d/2f88aa807_image.png"
                   alt=""
                   aria-hidden="true"
                   className="absolute pointer-events-none select-none"
                   style={{
-                    width: 160,
-                    opacity: 0.10,
-                    bottom: 0,
-                    right: '50%',
-                    transform: 'translateX(50%)',
+                    width: 110,
+                    opacity: 0.15,
+                    top: '50%',
+                    right: 0,
+                    transform: 'translateY(-50%)',
                     zIndex: 0,
                   }}
                 />
