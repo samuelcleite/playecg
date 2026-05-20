@@ -94,11 +94,11 @@ export default function LearningTrail({ modules, phases, attempts, isPremium }) 
 
 
 
-      <div className="space-y-8">
+      <div className="space-y-2">
         {trail.map((item, modIdx) => {
           const unlocked = isModuleUnlocked(item.module);
           const isLocked = !isPremium || !unlocked;
-          const trailHeight = item.phases.length * Y_STEP + NODE_SIZE + 40;
+          const trailHeight = item.phases.length * Y_STEP + NODE_SIZE + 10;
 
           return (
             <motion.div
