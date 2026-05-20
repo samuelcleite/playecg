@@ -190,7 +190,7 @@ function AchievementBadge({ achievement, index, tooltip, setTooltip }) {
       initial={{ opacity: 0, scale: 0.7 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: index * 0.04, type: "spring", stiffness: 300, damping: 20 }}
-      className="relative flex flex-col items-center gap-1"
+      className="relative flex flex-col items-center gap-1 overflow-visible"
     >
       {/* Badge circle */}
       <button
@@ -220,20 +220,9 @@ function AchievementBadge({ achievement, index, tooltip, setTooltip }) {
       {/* Tooltip popup */}
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0, y: 6 }}
+          initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          style={{ position: 'fixed', zIndex: 9999, transform: 'translateX(-50%)' }}
-          className="w-44 bg-white rounded-2xl shadow-xl border border-blue-100 p-3 text-center pointer-events-none"
-          ref={el => {
-            if (el) {
-              const btn = el.parentElement?.querySelector('button');
-              if (btn) {
-                const rect = btn.getBoundingClientRect();
-                el.style.left = (rect.left + rect.width / 2) + 'px';
-                el.style.top = (rect.top - el.offsetHeight - 12) + 'px';
-              }
-            }
-          }}
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-44 bg-white rounded-2xl shadow-xl border border-blue-100 p-3 text-center z-50"
           onClick={e => e.stopPropagation()}
         >
           <div className="text-3xl mb-1">{achievement.icon}</div>
