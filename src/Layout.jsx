@@ -280,7 +280,8 @@ export default function Layout({ children, currentPageName }) {
                       : 'text-gray-400 hover:text-ecg-midnight hover:bg-ecg-gray'
                   }`}
                 >
-                  <item.icon className="w-6 h-6" />
+                  <item.icon className="w-5 h-5" />
+                  <span className="text-[10px] font-semibold leading-tight">{item.title}</span>
                 </Link>
               );
             })}
