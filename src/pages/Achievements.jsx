@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { calculateStreakDays } from "@/components/StreakCalculator";
 import { loadUserAchievements } from "@/components/AchievementChecker";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import { Progress } from "@/components/ui/progress";
@@ -23,10 +22,23 @@ export default function Achievements() {
     const userData = await base44.auth.me();
     setUser(userData);
 
-    const streakDays = await calculateStreakDays(userData.email);
-    setStreak(streakDays);
+    const attempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", 500);
 
-    const attempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email });
+    // Calcular streak localmente, sem chamada extra
+    const uniqueDates = [...new Set(attempts.map(a => new Date(a.created_date).toISOString().split('T')[0]))].sort().reverse();
+    const today = new Date(); today.setHours(0,0,0,0);
+    const todayStr = today.toISOString().split('T')[0];
+    const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    let streakDays = 0;
+    if (uniqueDates.length > 0 && (uniqueDates[0] === todayStr || uniqueDates[0] === yesterdayStr)) {
+      let cur = new Date(today);
+      for (const d of uniqueDates) {
+        const diff = Math.floor((cur - new Date(d + 'T00:00:00')) / 86400000);
+        if (diff === 0 || diff === 1) { streakDays++; cur = new Date(d + 'T00:00:00'); } else break;
+      }
+    }
+    setStreak(streakDays);
     const correctCount = attempts.filter(a => a.correct).length;
 
     const phases = await base44.entities.Phase.list();
