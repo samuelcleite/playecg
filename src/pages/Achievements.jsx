@@ -181,12 +181,14 @@ function AchievementBadge({ achievement, index, tooltip, setTooltip }) {
     e.stopPropagation();
     if (!isOpen && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect();
+      // getBoundingClientRect já retorna coordenadas relativas ao viewport (fixed)
       setTooltipStyle({
         position: 'fixed',
         left: rect.left + rect.width / 2,
-        top: rect.top - 12,
-        transform: 'translate(-50%, -100%)',
+        top: rect.top,
+        transform: 'translate(-50%, calc(-100% - 12px))',
         zIndex: 9999,
+        width: '176px',
       });
     }
     setTooltip(isOpen ? null : {
