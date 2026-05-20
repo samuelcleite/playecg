@@ -181,7 +181,7 @@ export default function CompleteProfile() {
               <Activity className="w-10 h-10 text-blue-600" />
             </div>
             <CardTitle className="text-3xl font-bold mb-2">
-              Bem-vindo ao Descomplica ECG!
+              Bem-vindo ao PlayECG!
             </CardTitle>
             <p className="text-blue-100">
               Complete seu perfil para personalizar sua experiência de aprendizado
