@@ -59,7 +59,7 @@ export default function StatsPanel({ stats, streakDays, earnedAchievements, isPr
               </div>
               <div className="text-center p-3 bg-orange-50 rounded-xl">
                 <p className="text-2xl font-black text-orange-600">{streakDays}</p>
-                <p className="text-xs text-gray-600 mt-0.5">Dias streak</p>
+                <p className="text-xs text-gray-600 mt-0.5">Dias em sequência</p>
               </div>
             </div>
           </CardContent>
