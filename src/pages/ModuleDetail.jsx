@@ -559,7 +559,7 @@ export default function ModuleDetail() {
                   <>
                     <Button
                       onClick={() => window.location.href = `${createPageUrl("ModuleDetail")}?module_id=${module.id}&phase_id=${nextPhase.id}`}
-                      className="bg-[#22C55E] hover:bg-green-600 text-white px-8 py-6 text-lg font-semibold"
+                      className="bg-[#22C55E] hover:bg-green-600 text-white px-8 py-6 text-lg font-semibold whitespace-normal h-auto"
                       size="lg"
                     >
                       Próxima Fase: {nextPhase.name}
