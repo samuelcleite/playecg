@@ -140,16 +140,17 @@ export default function AdminActivity() {
       const userActivityMap = {};
       recentAttempts.forEach(a => {
         if (!userActivityMap[a.user_email]) {
-          userActivityMap[a.user_email] = { email: a.user_email, quiz: 0, modulo: 0 };
+          userActivityMap[a.user_email] = { email: a.user_email, quiz: 0, modulo: 0, activeDays: new Set() };
         }
         if (a.quiz_type === "random" || a.quiz_type === "daily") {
           userActivityMap[a.user_email].quiz++;
         } else if (a.quiz_type === "module") {
           userActivityMap[a.user_email].modulo++;
         }
+        userActivityMap[a.user_email].activeDays.add(new Date(a.created_date).toISOString().split("T")[0]);
       });
       const mostActiveUsers = Object.values(userActivityMap)
-        .map(u => ({ ...u, total: u.quiz + u.modulo }))
+        .map(u => ({ ...u, total: u.quiz + u.modulo, activeDays: u.activeDays.size }))
         .sort((a, b) => b.total - a.total)
         .slice(0, 10);
 
@@ -436,6 +437,7 @@ export default function AdminActivity() {
                               <th className="text-left px-4 py-2 text-gray-600 font-medium">Usuário</th>
                               <th className="text-center px-4 py-2 text-blue-600 font-medium">Quiz</th>
                               <th className="text-center px-4 py-2 text-green-600 font-medium">Módulo</th>
+                              <th className="text-center px-4 py-2 text-amber-600 font-medium">Dias Ativos</th>
                               <th className="text-center px-4 py-2 text-gray-600 font-medium">Total</th>
                             </tr>
                           </thead>
@@ -449,6 +451,9 @@ export default function AdminActivity() {
                                 </td>
                                 <td className="px-4 py-2 text-center">
                                   <Badge className="bg-green-100 text-green-700 font-semibold">{u.modulo}</Badge>
+                                </td>
+                                <td className="px-4 py-2 text-center">
+                                  <Badge className="bg-amber-100 text-amber-700 font-semibold">{u.activeDays}</Badge>
                                 </td>
                                 <td className="px-4 py-2 text-center font-bold text-gray-900">{u.total}</td>
                               </tr>
