@@ -738,14 +738,34 @@ Top 10 Usuários | Esteja entre os 10 que mais resolveram questões | intensidad
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="icon">Ícone (Emoji)</Label>
-                <Input
-                  id="icon"
-                  value={formData.icon}
-                  onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                  placeholder="🏆"
-                  className="text-2xl text-center"
-                />
+                <Label>Ícone (Emoji)</Label>
+                <div className="border rounded-lg p-3 bg-gray-50">
+                  <div className="grid grid-cols-8 gap-1 mb-2">
+                    {["🏆","🥇","🥈","🥉","🎯","🔥","⭐","🌟",
+                      "💎","🎖️","🏅","🎗️","🎪","🎮","🎲","🎴",
+                      "📚","📖","🧠","💡","⚡","🚀","🌈","✨",
+                      "💪","🤝","👑","🦁","🦅","🐉","🌺","🍀"].map(emoji => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, icon: emoji })}
+                        className={`text-xl p-1.5 rounded hover:bg-white hover:shadow transition-all ${formData.icon === emoji ? 'bg-white shadow ring-2 ring-purple-400' : ''}`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 border-t pt-2">
+                    <span className="text-xs text-gray-500">Ou digite:</span>
+                    <Input
+                      value={formData.icon}
+                      onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+                      placeholder="🏆"
+                      className="text-xl text-center h-8 w-20"
+                    />
+                    <span className="text-2xl">{formData.icon}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
