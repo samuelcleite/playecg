@@ -3,7 +3,6 @@ import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import TopBar from "@/components/TopBar";
-import FaleConoscoButton from "@/components/FaleConoscoButton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1128,7 +1127,6 @@ export default function ModuleDetail() {
         </DialogContent>
       </Dialog>
 
-      <FaleConoscoButton />
     </div>
   );
 }
