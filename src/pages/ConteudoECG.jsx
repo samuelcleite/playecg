@@ -224,12 +224,16 @@ export default function ConteudoECG() {
               const moduleId = urlParams.get('module_id');
               const phaseId = urlParams.get('phase_id');
               const caseIndex = urlParams.get('case_index');
+              const caseId = urlParams.get('case_id');
               if (from === 'quiz') {
-                navigate(createPageUrl("Quiz"));
+                const url = caseId
+                  ? `${createPageUrl("Quiz")}?case_id=${caseId}`
+                  : createPageUrl("Quiz");
+                window.location.href = url;
               } else if (from === 'module' && moduleId && phaseId) {
                 let backUrl = `${createPageUrl("ModuleDetail")}?module_id=${moduleId}&phase_id=${phaseId}`;
                 if (caseIndex !== null) backUrl += `&case_index=${caseIndex}`;
-                navigate(backUrl);
+                window.location.href = backUrl;
               } else {
                 navigate(createPageUrl("AprendaECG"));
               }
