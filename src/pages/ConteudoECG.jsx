@@ -232,7 +232,7 @@ export default function ConteudoECG() {
                 window.location.href = url;
               } else if (from === 'module' && moduleId && phaseId) {
                 let backUrl = `${createPageUrl("ModuleDetail")}?module_id=${moduleId}&phase_id=${phaseId}`;
-                if (caseIndex !== null) backUrl += `&case_index=${caseIndex}`;
+                if (caseId) backUrl += `&case_id=${caseId}`;
                 window.location.href = backUrl;
               } else {
                 navigate(createPageUrl("AprendaECG"));
