@@ -388,8 +388,8 @@ export default function AdminActivity() {
                   </CardContent>
                 </Card>
 
+                {/* Distribuição por tipo + Tentativas por módulo */}
                 <div className="grid md:grid-cols-2 gap-6">
-                  {/* Distribuição por tipo */}
                   <Card className="border-none shadow-md">
                     <CardHeader>
                       <CardTitle className="text-base flex items-center gap-2">
@@ -420,51 +420,6 @@ export default function AdminActivity() {
                     </CardContent>
                   </Card>
 
-                  {/* Usuários mais ativos */}
-                  {generalData.mostActiveUsers.length > 0 && (
-                    <Card className="border-none shadow-md">
-                      <CardHeader>
-                        <CardTitle className="text-base flex items-center gap-2">
-                        <Users className="w-5 h-5 text-purple-600" />
-                        Usuários Mais Ativos — Últimos 7 Dias (Top 10)
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b bg-gray-50">
-                              <th className="text-left px-4 py-2 text-gray-600 font-medium">#</th>
-                              <th className="text-left px-4 py-2 text-gray-600 font-medium">Usuário</th>
-                              <th className="text-center px-4 py-2 text-blue-600 font-medium">Quiz</th>
-                              <th className="text-center px-4 py-2 text-green-600 font-medium">Módulo</th>
-                              <th className="text-center px-4 py-2 text-amber-600 font-medium">Dias Ativos</th>
-                              <th className="text-center px-4 py-2 text-gray-600 font-medium">Total</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {generalData.mostActiveUsers.map((u, i) => (
-                              <tr key={u.email} className={`border-b ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
-                                <td className="px-4 py-2 font-bold text-gray-400">{i + 1}</td>
-                                <td className="px-4 py-2 text-gray-900 truncate max-w-[180px]">{u.email}</td>
-                                <td className="px-4 py-2 text-center">
-                                  <Badge className="bg-blue-100 text-blue-700 font-semibold">{u.quiz}</Badge>
-                                </td>
-                                <td className="px-4 py-2 text-center">
-                                  <Badge className="bg-green-100 text-green-700 font-semibold">{u.modulo}</Badge>
-                                </td>
-                                <td className="px-4 py-2 text-center">
-                                  <Badge className="bg-amber-100 text-amber-700 font-semibold">{u.activeDays}</Badge>
-                                </td>
-                                <td className="px-4 py-2 text-center font-bold text-gray-900">{u.total}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Tentativas por módulo */}
                   {generalData.moduleData.length > 0 && (
                     <Card className="border-none shadow-md">
                       <CardHeader>
@@ -488,6 +443,50 @@ export default function AdminActivity() {
                     </Card>
                   )}
                 </div>
+
+                {/* Usuários mais ativos — linha inteira */}
+                {generalData.mostActiveUsers.length > 0 && (
+                  <Card className="border-none shadow-md">
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Users className="w-5 h-5 text-purple-600" />
+                        Usuários Mais Ativos — Últimos 7 Dias (Top 10)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-gray-50">
+                            <th className="text-left px-4 py-2 text-gray-600 font-medium">#</th>
+                            <th className="text-left px-4 py-2 text-gray-600 font-medium">Usuário</th>
+                            <th className="text-center px-4 py-2 text-blue-600 font-medium">Quiz</th>
+                            <th className="text-center px-4 py-2 text-green-600 font-medium">Módulo</th>
+                            <th className="text-center px-4 py-2 text-amber-600 font-medium">Dias Ativos</th>
+                            <th className="text-center px-4 py-2 text-gray-600 font-medium">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {generalData.mostActiveUsers.map((u, i) => (
+                            <tr key={u.email} className={`border-b ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
+                              <td className="px-4 py-2 font-bold text-gray-400">{i + 1}</td>
+                              <td className="px-4 py-2 text-gray-900 truncate max-w-[220px]">{u.email}</td>
+                              <td className="px-4 py-2 text-center">
+                                <Badge className="bg-blue-100 text-blue-700 font-semibold">{u.quiz}</Badge>
+                              </td>
+                              <td className="px-4 py-2 text-center">
+                                <Badge className="bg-green-100 text-green-700 font-semibold">{u.modulo}</Badge>
+                              </td>
+                              <td className="px-4 py-2 text-center">
+                                <Badge className="bg-amber-100 text-amber-700 font-semibold">{u.activeDays}</Badge>
+                              </td>
+                              <td className="px-4 py-2 text-center font-bold text-gray-900">{u.total}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </CardContent>
+                  </Card>
+                )}
               </>
             ) : null}
           </div>
