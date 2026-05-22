@@ -15,12 +15,17 @@ export async function calculateStreakDays(userEmail) {
       return 0;
     }
 
-    // Extrair datas únicas (apenas a parte da data, sem hora)
+    // Formata data no fuso local (evita bug UTC vs. fuso local)
+    const toLocalDateStr = (date) => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+
+    // Extrair datas únicas (apenas a parte da data, sem hora, no fuso local)
     const uniqueDates = [...new Set(
-      attempts.map(attempt => {
-        const date = new Date(attempt.created_date);
-        return date.toISOString().split('T')[0]; // YYYY-MM-DD
-      })
+      attempts.map(attempt => toLocalDateStr(new Date(attempt.created_date)))
     )].sort().reverse(); // Ordenar do mais recente para o mais antigo
 
     if (uniqueDates.length === 0) {
@@ -29,12 +34,11 @@ export async function calculateStreakDays(userEmail) {
 
     // Verificar se praticou hoje ou ontem
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = toLocalDateStr(today);
     
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayStr = toLocalDateStr(yesterday);
 
     const lastPracticeDate = uniqueDates[0];
 
@@ -46,6 +50,7 @@ export async function calculateStreakDays(userEmail) {
     // Contar dias consecutivos
     let streak = 0;
     let currentDate = new Date(today);
+    currentDate.setHours(0, 0, 0, 0);
     
     for (const dateStr of uniqueDates) {
       const practiceDate = new Date(dateStr + 'T00:00:00');
