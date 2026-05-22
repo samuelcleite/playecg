@@ -218,7 +218,22 @@ export default function ConteudoECG() {
         <div className="flex items-center justify-between">
           <Button
             variant="outline"
-            onClick={() => navigate(createPageUrl("AprendaECG"))}
+            onClick={() => {
+              const urlParams = new URLSearchParams(window.location.search);
+              const from = urlParams.get('from');
+              const moduleId = urlParams.get('module_id');
+              const phaseId = urlParams.get('phase_id');
+              const caseIndex = urlParams.get('case_index');
+              if (from === 'quiz') {
+                navigate(createPageUrl("Quiz"));
+              } else if (from === 'module' && moduleId && phaseId) {
+                let backUrl = `${createPageUrl("ModuleDetail")}?module_id=${moduleId}&phase_id=${phaseId}`;
+                if (caseIndex !== null) backUrl += `&case_index=${caseIndex}`;
+                navigate(backUrl);
+              } else {
+                navigate(createPageUrl("AprendaECG"));
+              }
+            }}
             className="gap-2"
           >
             <ArrowLeft className="w-4 h-4" />

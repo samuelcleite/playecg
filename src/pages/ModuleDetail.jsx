@@ -734,7 +734,7 @@ export default function ModuleDetail() {
             {/* Banner de conteúdo no primeiro caso da fase */}
             {phaseContent && currentCaseIndex === 0 && (
               <div className="mx-3 md:mx-0 mt-4 md:mt-0 mb-4">
-                <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`}>
+                <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}&case_index=${currentCaseIndex}&from=module`}>
                   <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl p-4 hover:bg-blue-100 transition-colors cursor-pointer">
                     <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
                       <BookOpen className="w-5 h-5 text-white" />
@@ -757,7 +757,7 @@ export default function ModuleDetail() {
                 </h3>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {phaseContent && (
-                    <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`}>
+                    <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}&case_index=${currentCaseIndex}&from=module`}>
                       <Button variant="outline" size="sm" className="gap-2 border-blue-200 hover:bg-blue-50">
                         <BookOpen className="w-4 h-4" />
                         <span className="hidden sm:inline">Tem dúvidas?</span>

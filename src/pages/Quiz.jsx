@@ -721,7 +721,7 @@ export default function Quiz() {
                 </h3>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {caseContent && (
-                    <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${currentCase.module_id}&phase_id=${currentCase.phase_id}`}>
+                    <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${currentCase.module_id}&phase_id=${currentCase.phase_id}&from=quiz`}>
                       <Button variant="outline" size="sm" className="gap-2 border-purple-200 hover:bg-purple-50">
                         <BookOpen className="w-4 h-4" />
                         <span className="hidden sm:inline">Tem dúvidas?</span>
@@ -1081,7 +1081,7 @@ export default function Quiz() {
               >
                 Continuar Quiz
               </Button>
-              <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${suggestedModuleId}&phase_id=${suggestedPhaseId}`}>
+              <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${suggestedModuleId}&phase_id=${suggestedPhaseId}&from=quiz`}>
                 <Button onClick={() => setShowContentSuggestionDialog(false)} className="bg-blue-600 hover:bg-blue-700 text-white">
                   <BookOpen className="w-4 h-4 mr-2" />
                   Revisar Conteúdo
