@@ -132,11 +132,29 @@ export default function AdminActivity() {
       const totalCorrect = attempts.filter(a => a.correct).length;
       const uniqueActiveUsers = new Set(attempts.map(a => a.user_email)).size;
 
+      // Usuários mais ativos
+      const userActivityMap = {};
+      attempts.forEach(a => {
+        if (!userActivityMap[a.user_email]) {
+          userActivityMap[a.user_email] = { email: a.user_email, quiz: 0, modulo: 0 };
+        }
+        if (a.quiz_type === "random" || a.quiz_type === "daily") {
+          userActivityMap[a.user_email].quiz++;
+        } else if (a.quiz_type === "module") {
+          userActivityMap[a.user_email].modulo++;
+        }
+      });
+      const mostActiveUsers = Object.values(userActivityMap)
+        .map(u => ({ ...u, total: u.quiz + u.modulo }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 10);
+
       setGeneralData({
         last30,
         quizTypeData,
         moduleData,
         activeUsers,
+        mostActiveUsers,
         totals: {
           attempts: totalAttempts,
           correct: totalCorrect,
@@ -396,6 +414,46 @@ export default function AdminActivity() {
                       </ResponsiveContainer>
                     </CardContent>
                   </Card>
+
+                  {/* Usuários mais ativos */}
+                  {generalData.mostActiveUsers.length > 0 && (
+                    <Card className="border-none shadow-md">
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Users className="w-5 h-5 text-purple-600" />
+                          Usuários Mais Ativos (Top 10)
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-gray-50">
+                              <th className="text-left px-4 py-2 text-gray-600 font-medium">#</th>
+                              <th className="text-left px-4 py-2 text-gray-600 font-medium">Usuário</th>
+                              <th className="text-center px-4 py-2 text-blue-600 font-medium">Quiz</th>
+                              <th className="text-center px-4 py-2 text-green-600 font-medium">Módulo</th>
+                              <th className="text-center px-4 py-2 text-gray-600 font-medium">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {generalData.mostActiveUsers.map((u, i) => (
+                              <tr key={u.email} className={`border-b ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
+                                <td className="px-4 py-2 font-bold text-gray-400">{i + 1}</td>
+                                <td className="px-4 py-2 text-gray-900 truncate max-w-[180px]">{u.email}</td>
+                                <td className="px-4 py-2 text-center">
+                                  <Badge className="bg-blue-100 text-blue-700 font-semibold">{u.quiz}</Badge>
+                                </td>
+                                <td className="px-4 py-2 text-center">
+                                  <Badge className="bg-green-100 text-green-700 font-semibold">{u.modulo}</Badge>
+                                </td>
+                                <td className="px-4 py-2 text-center font-bold text-gray-900">{u.total}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* Tentativas por módulo */}
                   {generalData.moduleData.length > 0 && (
