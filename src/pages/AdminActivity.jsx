@@ -132,9 +132,13 @@ export default function AdminActivity() {
       const totalCorrect = attempts.filter(a => a.correct).length;
       const uniqueActiveUsers = new Set(attempts.map(a => a.user_email)).size;
 
-      // Usuários mais ativos
+      // Usuários mais ativos (últimos 7 dias)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const recentAttempts = attempts.filter(a => new Date(a.created_date) >= sevenDaysAgo);
+
       const userActivityMap = {};
-      attempts.forEach(a => {
+      recentAttempts.forEach(a => {
         if (!userActivityMap[a.user_email]) {
           userActivityMap[a.user_email] = { email: a.user_email, quiz: 0, modulo: 0 };
         }
@@ -420,8 +424,8 @@ export default function AdminActivity() {
                     <Card className="border-none shadow-md">
                       <CardHeader>
                         <CardTitle className="text-base flex items-center gap-2">
-                          <Users className="w-5 h-5 text-purple-600" />
-                          Usuários Mais Ativos (Top 10)
+                        <Users className="w-5 h-5 text-purple-600" />
+                        Usuários Mais Ativos — Últimos 7 Dias (Top 10)
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-0">
