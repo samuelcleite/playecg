@@ -159,6 +159,15 @@ export default function ModuleDetail() {
     );
     setCases(combinedCases);
 
+    // Restaurar caso se veio do ConteudoECG
+    const caseIndexParam = urlParams.get('case_index');
+    if (caseIndexParam !== null) {
+      const idx = parseInt(caseIndexParam, 10);
+      if (!isNaN(idx) && idx >= 0 && idx < combinedCases.length) {
+        setCurrentCaseIndex(idx);
+      }
+    }
+
     // Buscar conteúdo da fase
     const contents = await base44.entities.Content.list();
     const phaseContentData = contents.find(c => c.module_id === moduleId && c.phase_id === phaseId);

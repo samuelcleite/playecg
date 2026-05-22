@@ -160,6 +160,25 @@ export default function Quiz() {
     const attemptedIds = attempts.map(attempt => attempt.case_id);
     setAttemptedCaseIds(attemptedIds);
 
+    // Se veio da página de conteúdo com um case_id específico, carregar esse caso
+    const urlParams = new URLSearchParams(window.location.search);
+    const returnCaseId = urlParams.get('case_id');
+    if (returnCaseId) {
+      const allCases = await base44.entities.ECGCase.list();
+      const targetCase = allCases.find(c => c.id === returnCaseId);
+      if (targetCase) {
+        setCurrentCase(targetCase);
+        setStartTime(Date.now());
+        if (targetCase.module_id && targetCase.phase_id) {
+          const contents = await base44.entities.Content.list();
+          const content = contents.find(c => c.module_id === targetCase.module_id && c.phase_id === targetCase.phase_id);
+          setCaseContent(content);
+        }
+        setLoading(false);
+        return;
+      }
+    }
+
     await loadNextCase(attemptedIds);
   };
 
@@ -721,7 +740,7 @@ export default function Quiz() {
                 </h3>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {caseContent && (
-                    <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${currentCase.module_id}&phase_id=${currentCase.phase_id}&from=quiz`}>
+                    <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${currentCase.module_id}&phase_id=${currentCase.phase_id}&from=quiz&case_id=${currentCase.id}`}>
                       <Button variant="outline" size="sm" className="gap-2 border-purple-200 hover:bg-purple-50">
                         <BookOpen className="w-4 h-4" />
                         <span className="hidden sm:inline">Tem dúvidas?</span>
@@ -1081,7 +1100,7 @@ export default function Quiz() {
               >
                 Continuar Quiz
               </Button>
-              <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${suggestedModuleId}&phase_id=${suggestedPhaseId}&from=quiz`}>
+              <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${suggestedModuleId}&phase_id=${suggestedPhaseId}&from=quiz&case_id=${currentCase.id}`}>
                 <Button onClick={() => setShowContentSuggestionDialog(false)} className="bg-blue-600 hover:bg-blue-700 text-white">
                   <BookOpen className="w-4 h-4 mr-2" />
                   Revisar Conteúdo
