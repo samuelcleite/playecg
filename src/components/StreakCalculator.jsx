@@ -34,6 +34,7 @@ export async function calculateStreakDays(userEmail) {
 
     // Verificar se praticou hoje ou ontem
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const todayStr = toLocalDateStr(today);
     
     const yesterday = new Date(today);
@@ -47,18 +48,19 @@ export async function calculateStreakDays(userEmail) {
       return 0;
     }
 
-    // Contar dias consecutivos
-    let streak = 0;
-    let currentDate = new Date(today);
-    currentDate.setHours(0, 0, 0, 0);
-    
-    for (const dateStr of uniqueDates) {
-      const practiceDate = new Date(dateStr + 'T00:00:00');
-      const diffDays = Math.floor((currentDate - practiceDate) / (1000 * 60 * 60 * 24));
+    // Contar dias consecutivos retrocedendo a partir do dia mais recente praticado
+    let streak = 1;
+    // Começa pelo dia mais recente (hoje ou ontem)
+    let expectedDate = new Date(lastPracticeDate + 'T00:00:00');
 
-      if (diffDays === 0 || diffDays === 1) {
+    for (let i = 1; i < uniqueDates.length; i++) {
+      const prevExpected = new Date(expectedDate);
+      prevExpected.setDate(prevExpected.getDate() - 1);
+      const prevExpectedStr = toLocalDateStr(prevExpected);
+
+      if (uniqueDates[i] === prevExpectedStr) {
         streak++;
-        currentDate = practiceDate;
+        expectedDate = prevExpected;
       } else {
         break;
       }
