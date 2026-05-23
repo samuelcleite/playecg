@@ -47,6 +47,7 @@ export default function ModuleDetail() {
   const [attemptCount, setAttemptCount] = useState(0);
   const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
   const [completedCasesCount, setCompletedCasesCount] = useState(0);
+  const [totalPhaseCases, setTotalPhaseCases] = useState(0);
   const [sessionCompletedCases, setSessionCompletedCases] = useState([]);
 
   // Zoom states
@@ -148,6 +149,13 @@ export default function ModuleDetail() {
     });
 
     setCompletedCasesCount(completedCaseIds.length);
+
+    // Buscar total de casos da fase atual para o indicador de progresso
+    const currentPhaseCasesForCount = await base44.entities.ECGCase.filter({ 
+      module_id: moduleId,
+      phase_id: phaseId 
+    });
+    setTotalPhaseCases(currentPhaseCasesForCount.length);
 
     // Selecionar e combinar casos (80% fase atual + 20% fases anteriores)
     const combinedCases = await selectAndCombineCases(
@@ -673,6 +681,30 @@ export default function ModuleDetail() {
             className="h-full bg-[#1976D2]"
           />
         </div>
+
+        {/* Indicador de progresso da fase - visível em mobile e desktop */}
+        {totalPhaseCases > 0 && (
+          <div className="mx-3 md:mx-0 mt-3 md:mt-0 bg-white border border-blue-100 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-gray-700">Progresso na fase <span className="text-blue-700">{phase?.name}</span></span>
+              <span className="text-sm font-bold text-blue-700">
+                {Math.min(completedCasesCount, totalPhaseCases)}/{totalPhaseCases}
+              </span>
+            </div>
+            <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(100, Math.round((completedCasesCount / totalPhaseCases) * 100))}%` }}
+                transition={{ duration: 0.5 }}
+                className="h-full bg-blue-500 rounded-full"
+              />
+            </div>
+            <div className="flex justify-between mt-1.5">
+              <span className="text-xs text-gray-400">{Math.min(completedCasesCount, totalPhaseCases)} feitas</span>
+              <span className="text-xs text-gray-400">{Math.max(0, totalPhaseCases - completedCasesCount)} restantes</span>
+            </div>
+          </div>
+        )}
 
         {/* Case Card */}
         <Card className="border-0 md:border border-blue-100 shadow-none md:shadow-xl rounded-none md:rounded-lg">
