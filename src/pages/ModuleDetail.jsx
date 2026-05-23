@@ -148,14 +148,16 @@ export default function ModuleDetail() {
       }
     });
 
-    setCompletedCasesCount(completedCaseIds.length);
-
     // Buscar total de casos da fase atual para o indicador de progresso
     const currentPhaseCasesForCount = await base44.entities.ECGCase.filter({ 
       module_id: moduleId,
       phase_id: phaseId 
     });
-    setTotalPhaseCases(currentPhaseCasesForCount.length);
+    const totalCases = currentPhaseCasesForCount.length;
+    setTotalPhaseCases(totalCases);
+
+    // Limitar completedCasesCount ao total real de casos da fase
+    setCompletedCasesCount(Math.min(completedCaseIds.length, totalCases));
 
     // Selecionar e combinar casos (80% fase atual + 20% fases anteriores)
     const combinedCases = await selectAndCombineCases(
@@ -342,7 +344,7 @@ export default function ModuleDetail() {
         const updatedSessionCompleted = [...sessionCompletedCases, currentCase.id];
         setSessionCompletedCases(updatedSessionCompleted);
 
-        const newCompletedCount = completedCasesCount + 1;
+        const newCompletedCount = Math.min(completedCasesCount + 1, totalPhaseCases);
         setCompletedCasesCount(newCompletedCount);
       }
     }
