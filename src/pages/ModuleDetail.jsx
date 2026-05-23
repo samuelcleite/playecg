@@ -342,6 +342,11 @@ export default function ModuleDetail() {
 
         const newCompletedCount = Math.min(completedCasesCount + 1, totalPhaseCases);
         setCompletedCasesCount(newCompletedCount);
+
+        // Se atingiu o total de casos da fase, encerrar fase
+        if (newCompletedCount >= totalPhaseCases && totalPhaseCases > 0) {
+          setTimeout(() => setShowPhaseCompletion(true), 800);
+        }
       }
     }
   };
@@ -659,9 +664,6 @@ export default function ModuleDetail() {
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{module.name}</h1>
             <p className="text-gray-600 mb-4">{module.description}</p>
             <div className="flex items-center gap-4 flex-wrap">
-              <Badge className="bg-blue-600">
-                Caso {currentCaseIndex + 1} de {cases.length}
-              </Badge>
               {attemptCount > 0 && (
                 <Badge className="bg-orange-500">
                   Tentativa {attemptCount}/3
