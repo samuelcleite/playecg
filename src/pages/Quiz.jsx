@@ -735,9 +735,12 @@ export default function Quiz() {
             {/* Options */}
             <div className="space-y-3 mb-6 pt-4 md:pt-0 px-3 md:px-0">
               <div className="flex items-start justify-between gap-4 mb-4">
-                <h3 className="font-semibold text-gray-800 text-xl flex-1">
-                  {currentCase.title}
-                </h3>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-800 text-xl">
+                    {currentCase.title}
+                  </h3>
+                  <p className="text-[10px] text-gray-300 mt-0.5 font-mono select-all">#{currentCase.id?.slice(-8)}</p>
+                </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {caseContent && (
                     <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${currentCase.module_id}&phase_id=${currentCase.phase_id}&from=quiz&case_id=${currentCase.id}`}>

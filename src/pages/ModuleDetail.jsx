@@ -761,9 +761,12 @@ export default function ModuleDetail() {
             {/* Options */}
             <div className="space-y-3 mb-6 pt-4 md:pt-0 px-3 md:px-0 mt-4 md:mt-0">
               <div className="flex items-start justify-between gap-4 mb-4">
-                <h3 className="font-semibold text-gray-900 text-xl flex-1">
-                  {currentCase.title}
-                </h3>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900 text-xl">
+                    {currentCase.title}
+                  </h3>
+                  <p className="text-[10px] text-gray-300 mt-0.5 font-mono select-all">#{currentCase.id?.slice(-8)}</p>
+                </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {phaseContent && (
                     <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}&case_id=${currentCase.id}&from=module`}>
