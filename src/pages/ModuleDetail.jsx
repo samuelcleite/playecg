@@ -148,15 +148,11 @@ export default function ModuleDetail() {
       }
     });
 
-    // Buscar total de casos da fase atual para o indicador de progresso
-    const currentPhaseCasesForCount = await base44.entities.ECGCase.filter({ 
-      module_id: moduleId,
-      phase_id: phaseId 
-    });
-    const totalCases = currentPhaseCasesForCount.length;
+    // Total de casos necessários para passar de fase vem do campo total_cases da fase
+    const totalCases = foundPhase.total_cases || 0;
     setTotalPhaseCases(totalCases);
 
-    // Limitar completedCasesCount ao total real de casos da fase
+    // completedCaseIds já é deduplicado por case_id único — limitar ao total da fase
     setCompletedCasesCount(Math.min(completedCaseIds.length, totalCases));
 
     // Selecionar e combinar casos (80% fase atual + 20% fases anteriores)
