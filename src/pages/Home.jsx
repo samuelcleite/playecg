@@ -77,9 +77,7 @@ export default function Home() {
       <header className="bg-[#0D3B66] border-b border-blue-800 sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-[#1976D2] rounded-xl flex items-center justify-center shadow-md">
-              <Activity className="w-5 h-5 text-white" />
-            </div>
+            <img src="https://media.base44.com/images/public/68e28688c6f4ec5cd17e317d/68dd8d49f_generated_image.png" alt="PlayECG" className="w-9 h-9 rounded-xl shadow-md" />
             <span className="font-bold text-white text-xl">PlayECG</span>
           </div>
           <div className="flex items-center gap-3">
@@ -201,7 +199,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="py-8 px-6 text-center text-blue-300 text-sm border-t border-blue-800 bg-[#0D3B66]">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <Activity className="w-4 h-4 text-[#22C55E]" />
+          <img src="https://media.base44.com/images/public/68e28688c6f4ec5cd17e317d/68dd8d49f_generated_image.png" alt="PlayECG" className="w-5 h-5 rounded" />
           <span className="font-semibold text-white">PlayECG</span>
         </div>
         <p>Aprenda ECG jogando. Sua evolução começa aqui.</p>
