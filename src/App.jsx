@@ -1,4 +1,5 @@
 import './App.css'
+import InstallPWA from './pages/InstallPWA';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -70,6 +71,7 @@ const AuthenticatedApp = () => {
           }
         />
       ))}
+      <Route path="/instale" element={<InstallPWA />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
