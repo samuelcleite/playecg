@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { calculateStreakDays } from "@/components/StreakCalculator";
 import { loadUserAchievements } from "@/components/AchievementChecker";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
+import EnableNotifications from "@/components/EnableNotifications";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -33,7 +34,8 @@ import {
   CheckCircle2,
   Loader2,
   XCircle,
-  Trash2
+  Trash2,
+  Bell
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -494,6 +496,22 @@ export default function Profile() {
                 Nenhuma conquista cadastrada ainda
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Notificações */}
+        <Card className="border-none shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="w-6 h-6 text-blue-600" />
+              Notificações Push
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-600 mb-4">
+              Receba lembretes e novidades diretamente no seu celular ou computador.
+            </p>
+            <EnableNotifications />
           </CardContent>
         </Card>
 
