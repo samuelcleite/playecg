@@ -64,7 +64,7 @@ export default function InstallPWA() {
       <header className="bg-[#0D3B66] border-b border-blue-800 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-2">
           <img
-            src="https://media.base44.com/images/public/68e28688c6f4ec5cd17e317d/b3de8adaa_image.png"
+            src="https://media.base44.com/images/public/68e28688c6f4ec5cd17e317d/f6e090428_ecgzinho.png"
             alt="PlayECG"
             className="w-9 h-9 rounded-xl shadow-md"
           />
@@ -85,7 +85,7 @@ export default function InstallPWA() {
           <div className="text-center mb-8">
             <div className="w-20 h-20 mx-auto mb-4 rounded-2xl overflow-hidden shadow-xl">
               <img
-                src="https://media.base44.com/images/public/68e28688c6f4ec5cd17e317d/b3de8adaa_image.png"
+                src="https://media.base44.com/images/public/68e28688c6f4ec5cd17e317d/f6e090428_ecgzinho.png"
                 alt="PlayECG"
                 className="w-full h-full object-cover"
               />
