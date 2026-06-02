@@ -20,6 +20,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import NotificationBanner from "@/components/NotificationBanner";
 
 function calculateStreakFromAttempts(attempts) {
   if (!attempts || attempts.length === 0) return 0;
@@ -152,6 +153,9 @@ export default function Dashboard() {
       </header>
 
       <div className="max-w-5xl mx-auto px-4 py-6">
+        {/* Notification Banner */}
+        <NotificationBanner />
+
         {/* Greeting */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
