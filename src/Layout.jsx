@@ -111,7 +111,7 @@ export default function Layout({ children, currentPageName }) {
           <Sidebar className="border-r border-ecg-midnight bg-ecg-midnight">
             <SidebarHeader className="border-b border-white/10 p-6">
               <div className="flex items-center gap-3">
-                <img src="https://media.base44.com/images/public/68e28688c6f4ec5cd17e317d/f6e090428_ecgzinho.png" alt="PlayECG" className="w-10 h-10 rounded-xl shadow-md" />
+                <img src="https://media.base44.com/images/public/68e28688c6f4ec5cd17e317d/88192cd50_903B5817-5009-4B34-8478-509B00A9C6B8.png" alt="PlayECG" className="w-10 h-10 rounded-xl shadow-md" />
                 <div>
                   <h2 className="font-nunito font-black text-white text-lg tracking-tight">PlayECG</h2>
                   <p className="text-xs text-ecg-green/80">Aprenda ECG jogando</p>
