@@ -38,6 +38,7 @@ import {
 import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import TopBar from "@/components/TopBar";
+import { triggerAchievementCheck } from "@/components/AchievementChecker";
 
 const FREE_DAILY_LIMIT = 5;
 const FREE_HOURLY_LIMIT = 1; // 1 questão por hora após esgotar as 5 diárias
@@ -290,6 +291,9 @@ export default function Quiz() {
           setSuggestedPhaseId(currentCase.phase_id);
         }
       }
+
+      // Verificar novos troféus (fire-and-forget, não bloqueia o fluxo)
+      triggerAchievementCheck();
 
       const updatedAttemptedIds = [...attemptedCaseIds, currentCase.id];
       setAttemptedCaseIds(updatedAttemptedIds);

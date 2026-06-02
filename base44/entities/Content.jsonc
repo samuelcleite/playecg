@@ -1,0 +1,29 @@
+{
+  "name": "Content",
+  "type": "object",
+  "properties": {
+    "module_id": {
+      "type": "string",
+      "description": "ID do m\u00f3dulo (opcional - se vazio junto com phase_id, \u00e9 Introdu\u00e7\u00e3o ao ECG)"
+    },
+    "phase_id": {
+      "type": "string",
+      "description": "ID da fase (opcional - se vazio, \u00e9 conte\u00fado do m\u00f3dulo)"
+    },
+    "content": {
+      "type": "string",
+      "description": "Conte\u00fado educacional em texto"
+    }
+  },
+  "required": [
+    "content"
+  ],
+  "rls": {
+    "read": {},
+    "write": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

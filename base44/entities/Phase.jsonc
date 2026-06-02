@@ -1,0 +1,33 @@
+{
+  "name": "Phase",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome da fase"
+    },
+    "module_id": {
+      "type": "string",
+      "description": "ID do m\u00f3dulo ao qual pertence"
+    },
+    "order": {
+      "type": "number",
+      "description": "Ordem da fase dentro do m\u00f3dulo"
+    },
+    "total_cases": {
+      "type": "number",
+      "default": 0,
+      "description": "Total de casos na fase"
+    },
+    "required_points": {
+      "type": "number",
+      "default": 0,
+      "description": "Pontos necess\u00e1rios para desbloquear"
+    }
+  },
+  "required": [
+    "name",
+    "module_id",
+    "order"
+  ]
+}

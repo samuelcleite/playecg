@@ -1,0 +1,53 @@
+{
+  "name": "DailyQuizStats",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email do usu\u00e1rio"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data para qual as estat\u00edsticas s\u00e3o v\u00e1lidas (YYYY-MM-DD)"
+    },
+    "failed_cases_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "IDs dos casos em que o usu\u00e1rio esgotou 3 tentativas sem acertar neste dia"
+    }
+  },
+  "required": [
+    "user_email",
+    "date"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "write": {
+      "$or": [
+        {
+          "user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

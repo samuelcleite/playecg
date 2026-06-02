@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { triggerAchievementCheck } from "@/components/AchievementChecker";
 import { 
   ArrowLeft, 
   CheckCircle2, 
@@ -334,6 +335,9 @@ export default function ModuleDetail() {
         quiz_type: "module",
         case_source: currentCase.caseSource
       });
+
+      // Verificar novos troféus (fire-and-forget)
+      triggerAchievementCheck();
 
       // Verificar se já completou esse caso nesta sessão
       if (!sessionCompletedCases.includes(currentCase.id)) {

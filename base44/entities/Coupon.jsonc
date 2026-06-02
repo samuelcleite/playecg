@@ -1,0 +1,68 @@
+{
+  "name": "Coupon",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "C\u00f3digo \u00fanico do cupom (ex: BEMVINDO20)"
+    },
+    "discount_type": {
+      "type": "string",
+      "enum": [
+        "percentage",
+        "fixed"
+      ],
+      "description": "Tipo de desconto - percentual ou valor fixo"
+    },
+    "discount_value": {
+      "type": "number",
+      "description": "Valor do desconto (20 para 20% ou R$20)"
+    },
+    "valid_from": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Data de in\u00edcio da validade"
+    },
+    "valid_until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Data de expira\u00e7\u00e3o do cupom"
+    },
+    "usage_limit": {
+      "type": "number",
+      "description": "Limite total de usos (null = ilimitado)"
+    },
+    "used_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantas vezes foi usado"
+    },
+    "one_per_user": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se cada usu\u00e1rio pode usar apenas uma vez"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se o cupom est\u00e1 ativo"
+    },
+    "description": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o interna do cupom"
+    }
+  },
+  "required": [
+    "code",
+    "discount_type",
+    "discount_value"
+  ],
+  "rls": {
+    "read": {},
+    "write": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

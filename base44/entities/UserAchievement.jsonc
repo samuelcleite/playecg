@@ -1,0 +1,50 @@
+{
+  "name": "UserAchievement",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email do usu\u00e1rio que conquistou o trof\u00e9u"
+    },
+    "achievement_id": {
+      "type": "string",
+      "description": "ID do trof\u00e9u (refer\u00eancia \u00e0 entidade Achievement)"
+    },
+    "earned_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Data e hora em que o trof\u00e9u foi conquistado"
+    }
+  },
+  "required": [
+    "user_email",
+    "achievement_id",
+    "earned_at"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "write": {
+      "$or": [
+        {
+          "user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

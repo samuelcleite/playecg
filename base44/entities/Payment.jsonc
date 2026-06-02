@@ -1,0 +1,84 @@
+{
+  "name": "Payment",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email do usu\u00e1rio"
+    },
+    "mercadopago_preference_id": {
+      "type": "string",
+      "description": "ID da prefer\u00eancia/assinatura no Mercado Pago"
+    },
+    "mercadopago_payment_id": {
+      "type": "string",
+      "description": "ID do pagamento no Mercado Pago"
+    },
+    "reference_id": {
+      "type": "string",
+      "description": "ID de refer\u00eancia interna"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Valor pago mensalmente"
+    },
+    "discount_amount": {
+      "type": "number",
+      "description": "Valor do desconto aplicado"
+    },
+    "coupon_id": {
+      "type": "string",
+      "description": "ID do cupom usado (se houver)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "PAID",
+        "DECLINED",
+        "CANCELED",
+        "EXPIRED"
+      ],
+      "description": "Status do pagamento/assinatura"
+    },
+    "payment_method": {
+      "type": "string",
+      "description": "M\u00e9todo de pagamento utilizado"
+    },
+    "paid_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Data do pagamento/autoriza\u00e7\u00e3o"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "\u00daltima atualiza\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "user_email",
+    "reference_id",
+    "amount",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "write": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

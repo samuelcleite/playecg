@@ -1,0 +1,72 @@
+{
+  "name": "QuizAttempt",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email do usu\u00e1rio"
+    },
+    "case_id": {
+      "type": "string",
+      "description": "ID do caso"
+    },
+    "module_id": {
+      "type": "string",
+      "description": "ID do m\u00f3dulo ao qual o caso pertence"
+    },
+    "phase_id": {
+      "type": "string",
+      "description": "ID da fase \u00e0 qual o caso pertence"
+    },
+    "user_answer": {
+      "type": "string",
+      "description": "Resposta do usu\u00e1rio"
+    },
+    "correct": {
+      "type": "boolean",
+      "description": "Se acertou ou n\u00e3o"
+    },
+    "time_spent": {
+      "type": "number",
+      "description": "Tempo gasto em segundos"
+    },
+    "quiz_type": {
+      "type": "string",
+      "enum": [
+        "random",
+        "module",
+        "daily"
+      ],
+      "description": "Tipo de quiz: random (Quiz Aleat\u00f3rio), module (M\u00f3dulos), daily (Caso do Dia)"
+    },
+    "case_source": {
+      "type": "string",
+      "enum": [
+        "current_phase",
+        "previous_phase"
+      ],
+      "description": "Para quiz tipo module: se o caso \u00e9 da fase atual ou de fases anteriores"
+    }
+  },
+  "required": [
+    "user_email",
+    "case_id",
+    "user_answer",
+    "correct"
+  ],
+  "rls": {
+    "read": {},
+    "write": {
+      "$or": [
+        {
+          "user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

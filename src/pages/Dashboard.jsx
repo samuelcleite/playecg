@@ -90,7 +90,7 @@ export default function Dashboard() {
       setStreakDays(streakVal);
 
       try {
-        const userAchievements = await loadUserAchievements(userData, statsData, streakVal);
+        const userAchievements = await loadUserAchievements(userData);
         setAchievements(userAchievements);
       } catch (_) {}
 

@@ -1,0 +1,65 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "subscription_type": {
+      "type": "string",
+      "enum": [
+        "free",
+        "premium"
+      ],
+      "default": "free",
+      "description": "Tipo de assinatura do usu\u00e1rio"
+    },
+    "points": {
+      "type": "number",
+      "default": 0,
+      "description": "Pontos acumulados"
+    },
+    "level": {
+      "type": "number",
+      "default": 1,
+      "description": "N\u00edvel atual do usu\u00e1rio"
+    },
+    "badges": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Badges conquistados"
+    },
+    "specialty": {
+      "type": "string",
+      "description": "Especialidade m\u00e9dica do usu\u00e1rio"
+    },
+    "country": {
+      "type": "string",
+      "description": "Pa\u00eds onde o usu\u00e1rio atua"
+    },
+    "state": {
+      "type": "string",
+      "description": "Estado onde o usu\u00e1rio atua"
+    },
+    "city": {
+      "type": "string",
+      "description": "Cidade onde o usu\u00e1rio atua"
+    },
+    "profile_completed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se o usu\u00e1rio completou o perfil inicial"
+    },
+    "subscription_start_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Data de in\u00edcio da assinatura premium"
+    }
+  },
+  "required": [
+    "specialty",
+    "country",
+    "state",
+    "city"
+  ]
+}

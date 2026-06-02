@@ -1,0 +1,37 @@
+{
+  "name": "DailyCase",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data em que o caso estar\u00e1 ativo (YYYY-MM-DD)"
+    },
+    "ecg_case_id": {
+      "type": "string",
+      "description": "ID do caso de ECG associado"
+    },
+    "detailed_explanation": {
+      "type": "string",
+      "description": "Explica\u00e7\u00e3o detalhada e rica do caso do dia"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se o caso est\u00e1 ativo"
+    }
+  },
+  "required": [
+    "date",
+    "ecg_case_id",
+    "detailed_explanation"
+  ],
+  "rls": {
+    "read": {},
+    "write": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

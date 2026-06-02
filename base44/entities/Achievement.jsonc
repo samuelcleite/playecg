@@ -1,0 +1,85 @@
+{
+  "name": "Achievement",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome da conquista"
+    },
+    "description": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o detalhada da conquista"
+    },
+    "icon": {
+      "type": "string",
+      "description": "Emoji ou \u00edcone da conquista"
+    },
+    "badge_id": {
+      "type": "string",
+      "description": "ID \u00fanico do badge (ex: first_correct, streak_7)"
+    },
+    "achievement_type": {
+      "type": "string",
+      "enum": [
+        "intensity",
+        "specialization"
+      ],
+      "description": "Tipo de conquista - intensidade ou especializa\u00e7\u00e3o"
+    },
+    "requirement_type": {
+      "type": "string",
+      "enum": [
+        "first_correct",
+        "streak_days",
+        "accuracy",
+        "level",
+        "points",
+        "completed_modules",
+        "total_attempts",
+        "custom"
+      ],
+      "description": "Tipo de requisito para conquistas de intensidade"
+    },
+    "requirement_value": {
+      "type": "number",
+      "description": "Valor num\u00e9rico do requisito para conquistas de intensidade"
+    },
+    "module_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs dos m\u00f3dulos (para conquistas de especializa\u00e7\u00e3o)"
+    },
+    "phase_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs das fases espec\u00edficas (opcional, para conquistas de especializa\u00e7\u00e3o)"
+    },
+    "order": {
+      "type": "number",
+      "default": 0,
+      "description": "Ordem de exibi\u00e7\u00e3o"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se a conquista est\u00e1 ativa"
+    }
+  },
+  "required": [
+    "name",
+    "badge_id",
+    "achievement_type"
+  ],
+  "rls": {
+    "read": {},
+    "write": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

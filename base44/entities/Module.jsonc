@@ -1,0 +1,46 @@
+{
+  "name": "Module",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome do m\u00f3dulo"
+    },
+    "description": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o do m\u00f3dulo"
+    },
+    "order": {
+      "type": "number",
+      "description": "Ordem do m\u00f3dulo na trilha"
+    },
+    "icon": {
+      "type": "string",
+      "description": "Nome do \u00edcone do m\u00f3dulo"
+    },
+    "color": {
+      "type": "string",
+      "description": "Cor do m\u00f3dulo (hex)"
+    },
+    "total_cases": {
+      "type": "number",
+      "description": "Total de casos no m\u00f3dulo"
+    },
+    "required_points": {
+      "type": "number",
+      "description": "Pontos necess\u00e1rios para desbloquear"
+    }
+  },
+  "required": [
+    "name",
+    "order"
+  ],
+  "rls": {
+    "read": {},
+    "write": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

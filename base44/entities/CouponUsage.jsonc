@@ -1,0 +1,57 @@
+{
+  "name": "CouponUsage",
+  "type": "object",
+  "properties": {
+    "coupon_id": {
+      "type": "string",
+      "description": "ID do cupom usado"
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Email do usu\u00e1rio que usou"
+    },
+    "original_price": {
+      "type": "number",
+      "description": "Pre\u00e7o original"
+    },
+    "discount_applied": {
+      "type": "number",
+      "description": "Valor do desconto aplicado"
+    },
+    "final_price": {
+      "type": "number",
+      "description": "Pre\u00e7o final pago"
+    },
+    "used_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Data e hora do uso"
+    }
+  },
+  "required": [
+    "coupon_id",
+    "user_email",
+    "original_price",
+    "discount_applied",
+    "final_price"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "write": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

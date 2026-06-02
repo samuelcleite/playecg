@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import { base44 } from "@/api/base44Client";
 import { loadUserAchievements } from "@/components/AchievementChecker";
+
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import { Progress } from "@/components/ui/progress";
 import { Trophy, Loader2, Flame, Target, CheckCircle2, Star, BookOpen } from "lucide-react";
@@ -42,36 +43,16 @@ export default function Achievements() {
     setStreak(streakDays);
     const correctCount = attempts.filter(a => a.correct).length;
 
-    const phases = await base44.entities.Phase.list();
-    const moduleAttempts = attempts.filter(a => a.quiz_type === "module");
-
-    let completedPhasesCount = 0;
-    for (const phase of phases) {
-      const phaseAttempts = moduleAttempts.filter(a => a.phase_id === phase.id);
-      const attemptsByCase = {};
-      phaseAttempts.forEach(att => {
-        if (!attemptsByCase[att.case_id]) attemptsByCase[att.case_id] = [];
-        attemptsByCase[att.case_id].push(att);
-      });
-      let completedCases = 0;
-      Object.keys(attemptsByCase).forEach(caseId => {
-        const ca = attemptsByCase[caseId];
-        if (ca.some(a => a.correct) || ca.length >= 3) completedCases++;
-      });
-      if (completedCases >= (phase.total_cases || 0)) completedPhasesCount++;
-    }
-
     const statsData = {
       totalAttempts: attempts?.length || 0,
       correctAnswers: correctCount || 0,
       accuracy: attempts?.length > 0 ? Math.round((correctCount / attempts.length) * 100) : 0,
       totalPoints: userData.points || 0,
-      completedModules: completedPhasesCount || 0
     };
 
     setStats(statsData);
 
-    const userAchievements = await loadUserAchievements(userData, statsData, streakDays);
+    const userAchievements = await loadUserAchievements(userData);
     setAchievements(userAchievements);
     setLoading(false);
   };

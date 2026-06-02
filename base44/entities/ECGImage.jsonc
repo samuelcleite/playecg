@@ -1,0 +1,39 @@
+{
+  "name": "ECGImage",
+  "type": "object",
+  "properties": {
+    "image_url": {
+      "type": "string",
+      "description": "URL da imagem do ECG armazenada"
+    },
+    "description": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o detalhada do ECG"
+    },
+    "indexer": {
+      "type": "string",
+      "description": "Indexador para busca e organiza\u00e7\u00e3o"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Tags para categoriza\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "image_url",
+    "description",
+    "indexer"
+  ],
+  "rls": {
+    "read": {},
+    "write": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
