@@ -4,6 +4,7 @@ import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import {
   Activity,
+  Bell,
   Home,
   Shuffle,
   ListOrdered,
@@ -91,6 +92,7 @@ export default function Layout({ children, currentPageName }) {
     { title: "Gerenciar Pagamentos", url: createPageUrl("AdminPayments"), icon: CreditCard },
     { title: "Gerenciar Usuários", url: createPageUrl("AdminUsers"), icon: Users },
     { title: "Gerenciar Atividade", url: createPageUrl("AdminActivity"), icon: Activity },
+    { title: "Notificações Push", url: createPageUrl("AdminNotifications"), icon: Bell },
   ];
 
   const handleLogout = async () => {

@@ -10,6 +10,7 @@ import AdminImages from './pages/AdminImages';
 import AdminModules from './pages/AdminModules';
 import AdminPayments from './pages/AdminPayments';
 import AdminPhases from './pages/AdminPhases';
+import AdminNotifications from './pages/AdminNotifications';
 import AdminUsers from './pages/AdminUsers';
 import AprendaECG from './pages/AprendaECG';
 import CompleteProfile from './pages/CompleteProfile';
@@ -38,6 +39,7 @@ export const PAGES = {
     "AdminModules": AdminModules,
     "AdminPayments": AdminPayments,
     "AdminPhases": AdminPhases,
+    "AdminNotifications": AdminNotifications,
     "AdminUsers": AdminUsers,
     "AprendaECG": AprendaECG,
     "CompleteProfile": CompleteProfile,
