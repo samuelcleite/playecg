@@ -12,23 +12,24 @@ Deno.serve(async (req) => {
 
     const { user_id, title, body } = await req.json();
 
-    const targetUserId = user_id || user.id;
-
     const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
     const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
     const vapidSubject = Deno.env.get('VAPID_SUBJECT');
 
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
-    // Get all subscriptions for the target user
-    const subscriptions = await base44.asServiceRole.entities.PushSubscription.filter({
-      user_id: targetUserId
-    });
+    // Get subscriptions: all or filtered by user_id
+    let subscriptions;
+    if (user_id) {
+      subscriptions = await base44.asServiceRole.entities.PushSubscription.filter({ user_id });
+    } else {
+      subscriptions = await base44.asServiceRole.entities.PushSubscription.list('-created_date', 1000);
+    }
 
     if (subscriptions.length === 0) {
       return Response.json({ 
         success: false, 
-        error: 'Nenhuma inscrição de push encontrada para este usuário' 
+        error: 'Nenhuma inscrição de push encontrada' 
       });
     }
 
