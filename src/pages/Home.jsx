@@ -80,7 +80,7 @@ export default function Home() {
             <img src="https://media.base44.com/images/public/68e28688c6f4ec5cd17e317d/88192cd50_903B5817-5009-4B34-8478-509B00A9C6B8.png" alt="PlayECG" className="w-9 h-9 rounded-xl shadow-md" />
             <span className="font-bold text-white text-xl">PlayECG</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-3">
             <Button
               onClick={handleLogin}
               className="bg-[#22C55E] hover:bg-green-600 text-white font-semibold"
@@ -195,6 +195,18 @@ export default function Home() {
           </Card>
         </div>
       </section>
+
+      {/* Mobile fixed bottom CTA */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0D3B66] border-t border-blue-800 px-6 py-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
+        <Button
+          onClick={handleLogin}
+          size="lg"
+          className="w-full bg-[#22C55E] hover:bg-green-600 text-white text-base font-bold py-5 shadow-xl"
+        >
+          Entrar / Cadastrar
+          <ArrowRight className="w-5 h-5 ml-2" />
+        </Button>
+      </div>
 
       {/* Footer */}
       <footer className="py-8 px-6 text-center text-blue-300 text-sm border-t border-blue-800 bg-[#0D3B66]">
