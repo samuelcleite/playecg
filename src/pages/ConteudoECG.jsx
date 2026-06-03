@@ -158,7 +158,7 @@ export default function ConteudoECG() {
     const phaseIdCheck = urlParamsCheck.get('phase_id');
 
     if (fromCheck === 'phase_transition' && moduleIdCheck && phaseIdCheck) {
-      window.location.href = `${createPageUrl("ModuleDetail")}?module_id=${moduleIdCheck}&phase_id=${phaseIdCheck}`;
+      window.location.href = `${createPageUrl("ModuleDetail")}?module_id=${moduleIdCheck}&phase_id=${phaseIdCheck}&from=content`;
       return null;
     }
 
@@ -304,7 +304,7 @@ export default function ConteudoECG() {
             {isPhaseTransition && moduleId && phaseId && (
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <Button
-                  onClick={() => window.location.href = `${createPageUrl("ModuleDetail")}?module_id=${moduleId}&phase_id=${phaseId}`}
+                  onClick={() => window.location.href = `${createPageUrl("ModuleDetail")}?module_id=${moduleId}&phase_id=${phaseId}&from=content`}
                   className="w-full bg-[#22C55E] hover:bg-green-600 text-white py-6 text-lg font-semibold gap-2"
                   size="lg"
                 >
