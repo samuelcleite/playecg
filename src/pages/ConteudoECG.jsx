@@ -305,10 +305,10 @@ export default function ConteudoECG() {
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <Button
                   onClick={() => window.location.href = `${createPageUrl("ModuleDetail")}?module_id=${moduleId}&phase_id=${phaseId}&from=content`}
-                  className="w-full bg-[#22C55E] hover:bg-green-600 text-white py-6 text-lg font-semibold gap-2"
+                  className="w-full bg-[#22C55E] hover:bg-green-600 text-white py-6 text-lg font-semibold gap-2 whitespace-normal h-auto text-center"
                   size="lg"
                 >
-                  Começar Fase: {phase?.name} →
+                  Começar Fase: {phase?.name}
                 </Button>
               </div>
             )}
