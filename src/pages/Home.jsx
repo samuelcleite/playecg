@@ -50,25 +50,22 @@ export default function Home() {
     },
     {
       icon: Trophy,
-      title: "Gamificação",
-      description: "Conquiste badges, mantenha sequências e acompanhe sua evolução.",
+      title: "Se divirta",
+      description: "Esqueça aquela conversa de potencial de ação e aprenda ECG enquanto joga.",
       bg: "bg-[#22C55E]"
-    },
-    {
-      icon: Star,
-      title: "Caso do Dia",
-      description: "Um novo desafio todos os dias com explicação detalhada.",
-      bg: "bg-[#1976D2]"
     }
   ];
 
   const premiumFeatures = [
     "Trilha de aprendizado completa",
-    "Todos os módulos desbloqueados",
-    "Explicações detalhadas por caso",
-    "Sistema de gamificação avançado",
-    "Badges e troféus exclusivos",
+    "Módulos estruturados com sequência lógica",
+    "Explicações teóricas disponíveis antes de cada fase",
+    "Ganhe troféus a cada conquista",
     "Acesso ilimitado a todos os casos"
+  ];
+
+  const freeFeatures = [
+    "Acesso a todos os casos clínicos, de maneira aleatória"
   ];
 
   return (
@@ -101,32 +98,22 @@ export default function Home() {
               Aprenda ECG de forma inteligente
             </div>
             <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight">
-              Domine a leitura de{" "}
+              Domine a leitura do{" "}
               <span className="text-[#22C55E]">ECG</span>{" "}
               jogando
             </h1>
             <p className="text-xl text-blue-200 mb-12 max-w-2xl mx-auto">
-              A plataforma gamificada para médicos e estudantes aprenderem interpretação de eletrocardiograma com casos clínicos reais.
+              Mais de 1200 exames para você aprender a interpretar um eletrocardiograma na prática, sem excesso de teoria.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex justify-center">
               <Button
                 onClick={handleLogin}
                 size="lg"
                 className="bg-[#22C55E] hover:bg-green-600 text-white text-lg px-10 py-6 shadow-xl font-semibold"
               >
-                Começar Gratuitamente
+                Entrar / Cadastrar
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
-              <Link to={createPageUrl("Upgrade")}>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-2 border-[#1976D2] text-blue-200 hover:bg-[#1976D2] hover:text-white text-lg px-10 py-6 bg-transparent"
-                >
-                  <Crown className="w-5 h-5 mr-2" />
-                  Ver Planos Premium
-                </Button>
-              </Link>
             </div>
           </motion.div>
         </div>
@@ -161,36 +148,58 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Premium CTA */}
+      {/* Planos */}
       <section className="py-16 px-6">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <h2 className="text-3xl font-bold text-white text-center mb-8">Conheça nossas versões</h2>
+
+          {/* Premium */}
           <Card className="border border-[#1976D2] shadow-2xl bg-[#1976D2]/20 overflow-hidden">
-            <CardContent className="p-10">
-              <div className="flex flex-col md:flex-row items-center gap-8">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Crown className="w-7 h-7 text-[#22C55E]" />
-                    <h2 className="text-2xl font-bold text-white">Versão Premium</h2>
-                  </div>
-                  <ul className="space-y-2 mb-6">
-                    {premiumFeatures.map((f, i) => (
-                      <li key={i} className="flex items-center gap-2 text-blue-100">
-                        <CheckCircle className="w-4 h-4 text-[#22C55E] flex-shrink-0" />
-                        <span className="text-sm">{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Link to={createPageUrl("Upgrade")}>
-                    <Button className="bg-[#22C55E] hover:bg-green-600 text-white gap-2 px-8 py-3 text-base shadow-lg font-semibold">
-                      <Crown className="w-5 h-5" />
-                      Assinar Premium
-                    </Button>
-                  </Link>
-                </div>
-                <div className="w-44 h-44 bg-[#1976D2] rounded-full flex items-center justify-center shadow-xl flex-shrink-0">
-                  <Crown className="w-22 h-22 text-[#22C55E]" style={{ width: 88, height: 88 }} />
-                </div>
+            <CardContent className="p-8">
+              <div className="flex items-center gap-2 mb-4">
+                <Crown className="w-7 h-7 text-[#22C55E]" />
+                <h2 className="text-2xl font-bold text-white">Versão Premium</h2>
               </div>
+              <ul className="space-y-2 mb-6">
+                {premiumFeatures.map((f, i) => (
+                  <li key={i} className="flex items-center gap-2 text-blue-100">
+                    <CheckCircle className="w-4 h-4 text-[#22C55E] flex-shrink-0" />
+                    <span className="text-sm">{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link to={createPageUrl("Upgrade")}>
+                <Button className="bg-[#22C55E] hover:bg-green-600 text-white gap-2 px-8 py-3 text-base shadow-lg font-semibold">
+                  <Crown className="w-5 h-5" />
+                  Assinar Premium
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          {/* Gratuita */}
+          <Card className="border border-blue-800 shadow-lg bg-[#0D3B66]/60 overflow-hidden">
+            <CardContent className="p-8">
+              <div className="flex items-center gap-2 mb-4">
+                <Zap className="w-7 h-7 text-blue-300" />
+                <h2 className="text-2xl font-bold text-white">Versão Gratuita</h2>
+              </div>
+              <ul className="space-y-2 mb-6">
+                {freeFeatures.map((f, i) => (
+                  <li key={i} className="flex items-center gap-2 text-blue-100">
+                    <CheckCircle className="w-4 h-4 text-blue-300 flex-shrink-0" />
+                    <span className="text-sm">{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <Button
+                onClick={handleLogin}
+                variant="outline"
+                className="border-blue-400 text-blue-200 hover:bg-blue-800 bg-transparent gap-2 px-8 py-3 text-base"
+              >
+                Começar Gratuitamente
+                <ArrowRight className="w-4 h-4" />
+              </Button>
             </CardContent>
           </Card>
         </div>
