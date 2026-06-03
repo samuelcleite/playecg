@@ -151,6 +151,17 @@ export default function ConteudoECG() {
   }
 
   if (!content) {
+    // Se veio de uma transição de fase e não há conteúdo, redirecionar direto para o quiz
+    const urlParamsCheck = new URLSearchParams(window.location.search);
+    const fromCheck = urlParamsCheck.get('from');
+    const moduleIdCheck = urlParamsCheck.get('module_id');
+    const phaseIdCheck = urlParamsCheck.get('phase_id');
+
+    if (fromCheck === 'phase_transition' && moduleIdCheck && phaseIdCheck) {
+      window.location.href = `${createPageUrl("ModuleDetail")}?module_id=${moduleIdCheck}&phase_id=${phaseIdCheck}`;
+      return null;
+    }
+
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <Card className="max-w-md">
@@ -211,6 +222,13 @@ export default function ConteudoECG() {
     return 'from-blue-50 to-indigo-50';
   };
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const from = urlParams.get('from');
+  const moduleId = urlParams.get('module_id');
+  const phaseId = urlParams.get('phase_id');
+  const caseId = urlParams.get('case_id');
+  const isPhaseTransition = from === 'phase_transition';
+
   return (
     <div className="min-h-screen p-6 md:p-8 pb-28 md:pb-8" style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))' }}>
       <div className="max-w-4xl mx-auto space-y-6">
@@ -219,13 +237,9 @@ export default function ConteudoECG() {
           <Button
             variant="outline"
             onClick={() => {
-              const urlParams = new URLSearchParams(window.location.search);
-              const from = urlParams.get('from');
-              const moduleId = urlParams.get('module_id');
-              const phaseId = urlParams.get('phase_id');
-              const caseIndex = urlParams.get('case_index');
-              const caseId = urlParams.get('case_id');
-              if (from === 'quiz') {
+              if (isPhaseTransition) {
+                navigate(createPageUrl("Modules"));
+              } else if (from === 'quiz') {
                 const url = caseId
                   ? `${createPageUrl("Quiz")}?case_id=${caseId}`
                   : createPageUrl("Quiz");
@@ -241,9 +255,22 @@ export default function ConteudoECG() {
             className="gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
-            Voltar
+            {isPhaseTransition ? 'Ver Módulos' : 'Voltar'}
           </Button>
         </div>
+
+        {/* Phase Transition Banner */}
+        {isPhaseTransition && (
+          <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-5 flex items-center gap-4">
+            <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <BookOpen className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <p className="font-bold text-green-900 text-lg">Nova fase desbloqueada! 🎉</p>
+              <p className="text-green-700 text-sm">Leia o conteúdo abaixo antes de começar as questões.</p>
+            </div>
+          </div>
+        )}
 
         {/* Content Card */}
         <Card className={`border-2 ${getBorderColor()} shadow-xl bg-gradient-to-br ${getBgGradient()}`}>
@@ -272,6 +299,19 @@ export default function ConteudoECG() {
                 dangerouslySetInnerHTML={{ __html: content.content }}
               />
             </div>
+
+            {/* CTA para iniciar a fase após ler o conteúdo */}
+            {isPhaseTransition && moduleId && phaseId && (
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <Button
+                  onClick={() => window.location.href = `${createPageUrl("ModuleDetail")}?module_id=${moduleId}&phase_id=${phaseId}`}
+                  className="w-full bg-[#22C55E] hover:bg-green-600 text-white py-6 text-lg font-semibold gap-2"
+                  size="lg"
+                >
+                  Começar Fase: {phase?.name} →
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

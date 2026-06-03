@@ -583,7 +583,7 @@ export default function ModuleDetail() {
                 {nextPhase ? (
                   <>
                     <Button
-                      onClick={() => window.location.href = `${createPageUrl("ModuleDetail")}?module_id=${module.id}&phase_id=${nextPhase.id}`}
+                      onClick={() => window.location.href = `${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${nextPhase.id}&from=phase_transition`}
                       className="bg-[#22C55E] hover:bg-green-600 text-white px-8 py-6 text-lg font-semibold whitespace-normal h-auto"
                       size="lg"
                     >
