@@ -340,7 +340,9 @@ export default function ModuleDetail() {
       triggerAchievementCheck();
 
       // Verificar se já completou esse caso nesta sessão
-      if (!sessionCompletedCases.includes(currentCase.id)) {
+      // Apenas casos da fase atual contam para o progresso da fase
+      const isCaseFromCurrentPhase = currentCase.caseSource === 'current_phase' || !currentCase.caseSource;
+      if (isCaseFromCurrentPhase && !sessionCompletedCases.includes(currentCase.id)) {
         const updatedSessionCompleted = [...sessionCompletedCases, currentCase.id];
         setSessionCompletedCases(updatedSessionCompleted);
 
