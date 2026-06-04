@@ -4,18 +4,10 @@ import { createPageUrl } from "@/utils";
 import { Lock, CheckCircle, Star, Play, BookOpen, ChevronRight, Crown, Heart } from "lucide-react";
 import { motion } from "framer-motion";
 
-function getPhaseProgress(phase, moduleAttempts) {
-  const phaseAttempts = moduleAttempts.filter(a => a.phase_id === phase.id);
-  const byCase = {};
-  phaseAttempts.forEach(att => {
-    if (!byCase[att.case_id]) byCase[att.case_id] = [];
-    byCase[att.case_id].push(att);
-  });
-  let completed = 0;
-  Object.values(byCase).forEach(caseAtts => {
-    if (caseAtts.some(a => a.correct) || caseAtts.length >= 3) completed++;
-  });
-  const total = phase.total_cases || 0;
+function getPhaseProgress(phase, userProgress) {
+  const record = userProgress.find(p => p.phase_id === phase.id);
+  const completed = record?.completion_count || 0;
+  const total = record?.completion_goal || phase.total_cases || 0;
   return { completed, total, pct: total > 0 ? Math.round((completed / total) * 100) : 0 };
 }
 
@@ -24,22 +16,19 @@ const ZIGZAG_X = [50, 72, 50, 28, 50, 72];
 const NODE_SIZE = 64;
 const Y_STEP = 130;
 
-export default function LearningTrail({ modules, phases, attempts, isPremium }) {
-  const moduleAttempts = attempts.filter(a => a.quiz_type === "module");
-
+export default function LearningTrail({ modules, phases, userProgress, isPremium }) {
   const trail = useMemo(() => {
     return modules.map(mod => {
       const modPhases = phases.filter(p => p.module_id === mod.id).sort((a, b) => a.order - b.order);
-      const modAttempts = moduleAttempts.filter(a => a.module_id === mod.id);
       const phasesWithProgress = modPhases.map(phase => ({
         ...phase,
-        ...getPhaseProgress(phase, modAttempts)
+        ...getPhaseProgress(phase, userProgress)
       }));
       const allDone = phasesWithProgress.length > 0 && phasesWithProgress.every(p => p.pct >= 100);
       const anyStarted = phasesWithProgress.some(p => p.pct > 0);
       return { module: mod, phases: phasesWithProgress, allDone, anyStarted };
     });
-  }, [modules, phases, attempts]);
+  }, [modules, phases, userProgress]);
 
   const isModuleUnlocked = (mod) => {
     if (mod.order === 1) return true;

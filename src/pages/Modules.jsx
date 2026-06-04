@@ -28,7 +28,7 @@ export default function Modules() {
   const [user, setUser] = useState(null);
   const [modules, setModules] = useState([]);
   const [phases, setPhases] = useState([]);
-  const [attempts, setAttempts] = useState([]);
+  const [userProgress, setUserProgress] = useState([]);
   const [progress, setProgress] = useState({});
   const [introContent, setIntroContent] = useState(null);
   const [showIntroDialog, setShowIntroDialog] = useState(false);
@@ -48,61 +48,33 @@ export default function Modules() {
       return;
     }
 
-    const modulesData = await base44.entities.Module.list("order");
+    const [modulesData, phasesData, userProgressData, allAttempts] = await Promise.all([
+      base44.entities.Module.list("order"),
+      base44.entities.Phase.list(),
+      base44.entities.UserProgress.filter({ user_email: userData.email }),
+      base44.entities.QuizAttempt.filter({ user_email: userData.email })
+    ]);
+
     setModules(modulesData);
-
-    // Calcular progresso diretamente de QuizAttempt
-    const phasesData = await base44.entities.Phase.list();
     setPhases(phasesData);
-    const allUserAttempts = await base44.entities.QuizAttempt.filter({ 
-      user_email: userData.email
-    }, "-created_date", 1000);
-    setAttempts(allUserAttempts);
-    
-    const attempts = allUserAttempts.filter(a => a.quiz_type === "module");
+    setUserProgress(userProgressData);
 
-    // Calcular percentual de acerto geral (todas as tentativas, não por caso único)
-    const allAttempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email });
+    // Calcular percentual de acerto geral
     if (allAttempts.length > 0) {
       const correctAttempts = allAttempts.filter(a => a.correct).length;
-      const accuracy = Math.round((correctAttempts / allAttempts.length) * 100);
-      setOverallAccuracy(accuracy);
+      setOverallAccuracy(Math.round((correctAttempts / allAttempts.length) * 100));
     } else {
       setOverallAccuracy(0);
     }
 
+    // Calcular progresso por módulo a partir do UserProgress
     const progressMap = {};
     modulesData.forEach(module => {
       const modulePhases = phasesData.filter(p => p.module_id === module.id);
-
-      let completedPhasesCount = 0;
-
-      modulePhases.forEach(phase => {
-        const phaseAttempts = attempts.filter(a => a.phase_id === phase.id);
-        const attemptsByCase = {};
-
-        phaseAttempts.forEach(att => {
-          if (!attemptsByCase[att.case_id]) {
-            attemptsByCase[att.case_id] = [];
-          }
-          attemptsByCase[att.case_id].push(att);
-        });
-
-        let completedCases = 0;
-        Object.keys(attemptsByCase).forEach(caseId => {
-          const caseAttempts = attemptsByCase[caseId];
-          const hasCorrect = caseAttempts.some(a => a.correct);
-          const hasThreeAttempts = caseAttempts.length >= 3;
-
-          if (hasCorrect || hasThreeAttempts) {
-            completedCases++;
-          }
-        });
-
-        if (completedCases >= (phase.total_cases || 0)) {
-          completedPhasesCount++;
-        }
-      });
+      const completedPhasesCount = modulePhases.filter(phase => {
+        const record = userProgressData.find(up => up.phase_id === phase.id);
+        return record?.status === 'completed';
+      }).length;
 
       progressMap[module.id] = {
         completed: completedPhasesCount === modulePhases.length && modulePhases.length > 0,
@@ -201,7 +173,7 @@ export default function Modules() {
         <LearningTrail
           modules={modules}
           phases={phases}
-          attempts={attempts}
+          userProgress={userProgress}
           isPremium={true}
         />
       </div>

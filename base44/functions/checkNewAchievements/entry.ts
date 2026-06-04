@@ -1,6 +1,6 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-function checkAchievementSync(achievement, user, stats, streakDays, attempts, phases) {
+function checkAchievementSync(achievement, user, stats, streakDays, userProgress, phases) {
   if (achievement.achievement_type === "intensity") {
     switch (achievement.requirement_type) {
       case "first_correct":
@@ -29,22 +29,8 @@ function checkAchievementSync(achievement, user, stats, streakDays, attempts, ph
     if (moduleIds.length === 0 && phaseIds.length === 0) return false;
 
     const isPhaseCompleted = (phaseId) => {
-      const phase = phases.find(p => p.id === phaseId);
-      if (!phase) return false;
-
-      const phaseAttempts = attempts.filter(a => a.phase_id === phaseId);
-      const byCase = {};
-      phaseAttempts.forEach(att => {
-        if (!byCase[att.case_id]) byCase[att.case_id] = [];
-        byCase[att.case_id].push(att);
-      });
-
-      let completed = 0;
-      Object.values(byCase).forEach(caseAtts => {
-        if (caseAtts.some(a => a.correct) || caseAtts.length >= 3) completed++;
-      });
-
-      return completed >= (phase.total_cases || 0) && (phase.total_cases || 0) > 0;
+      const record = userProgress.find(up => up.phase_id === phaseId);
+      return record?.status === 'completed';
     };
 
     if (phaseIds.length > 0) {
@@ -73,9 +59,9 @@ Deno.serve(async (req) => {
     }
 
     // Buscar dados necessários em paralelo
-    const [allAchievements, attempts, phases, existingUserAchievements] = await Promise.all([
+    const [allAchievements, userProgress, phases, existingUserAchievements] = await Promise.all([
       base44.entities.Achievement.filter({ active: true }),
-      base44.entities.QuizAttempt.filter({ user_email: user.email, quiz_type: "module" }),
+      base44.entities.UserProgress.filter({ user_email: user.email }),
       base44.entities.Phase.list(),
       base44.entities.UserAchievement.filter({ user_email: user.email }),
     ]);
@@ -104,22 +90,8 @@ Deno.serve(async (req) => {
     const allAttempts = await base44.entities.QuizAttempt.filter({ user_email: user.email });
     const correctCount = allAttempts.filter(a => a.correct).length;
 
-    // Calcular fases completadas (para completedModules)
-    const moduleAttempts = allAttempts.filter(a => a.quiz_type === "module");
-    let completedPhasesCount = 0;
-    for (const phase of phases) {
-      const phaseAttempts = moduleAttempts.filter(a => a.phase_id === phase.id);
-      const byCase = {};
-      phaseAttempts.forEach(att => {
-        if (!byCase[att.case_id]) byCase[att.case_id] = [];
-        byCase[att.case_id].push(att);
-      });
-      let completedCases = 0;
-      Object.values(byCase).forEach(ca => {
-        if (ca.some(a => a.correct) || ca.length >= 3) completedCases++;
-      });
-      if (completedCases >= (phase.total_cases || 0) && (phase.total_cases || 0) > 0) completedPhasesCount++;
-    }
+    // Calcular fases completadas (para completedModules) usando UserProgress
+    const completedPhasesCount = userProgress.filter(up => up.status === 'completed').length;
 
     const stats = {
       totalAttempts: allAttempts.length,
@@ -136,7 +108,7 @@ Deno.serve(async (req) => {
     for (const achievement of allAchievements) {
       if (alreadyEarnedIds.has(achievement.id)) continue;
 
-      const earned = checkAchievementSync(achievement, user, stats, streakDays, attempts, phases);
+      const earned = checkAchievementSync(achievement, user, stats, streakDays, userProgress, phases);
       if (earned) {
         await base44.entities.UserAchievement.create({
           user_email: user.email,

@@ -119,42 +119,26 @@ export default function ModuleDetail() {
     }
     setPhase(foundPhase);
 
-    // Buscar tentativas do usuário nesta fase para calcular progresso
-    const allUserAttempts = await base44.entities.QuizAttempt.filter({ 
+    // Buscar UserProgress para esta fase (fonte da verdade)
+    const progressRecords = await base44.entities.UserProgress.filter({
       user_email: userData.email,
       module_id: moduleId,
       phase_id: phaseId
-    }, "-created_date", 1000);
-    const attempts = allUserAttempts.filter(a => a.quiz_type === "module");
-
-    // Calcular casos únicos completados (acertou ou esgotou tentativas)
-    const completedCaseIds = [];
-    const attemptsByCase = {};
-
-    attempts.forEach(att => {
-      if (!attemptsByCase[att.case_id]) {
-        attemptsByCase[att.case_id] = [];
-      }
-      attemptsByCase[att.case_id].push(att);
     });
+    const progressRecord = progressRecords[0] || null;
 
-    // Um caso é considerado completado se: acertou ou tem 3+ tentativas
-    Object.keys(attemptsByCase).forEach(caseId => {
-      const caseAttempts = attemptsByCase[caseId];
-      const hasCorrect = caseAttempts.some(a => a.correct);
-      const hasThreeAttempts = caseAttempts.length >= 3;
-      
-      if (hasCorrect || hasThreeAttempts) {
-        completedCaseIds.push(caseId);
-      }
-    });
-
-    // Total de casos necessários para passar de fase vem do campo total_cases da fase
-    const totalCases = foundPhase.total_cases || 0;
+    const completedCaseIds = progressRecord?.completed_case_ids || [];
+    const totalCases = progressRecord?.completion_goal || foundPhase.total_cases || 0;
     setTotalPhaseCases(totalCases);
-
-    // completedCaseIds já é deduplicado por case_id único — limitar ao total da fase
     setCompletedCasesCount(Math.min(completedCaseIds.length, totalCases));
+
+    // Buscar tentativas apenas para saber se usuário já entrou na fase (verificar redirect)
+    const allUserAttempts = await base44.entities.QuizAttempt.filter({
+      user_email: userData.email,
+      module_id: moduleId,
+      phase_id: phaseId,
+      quiz_type: "module"
+    }, "-created_date", 1);
 
     // Selecionar e combinar casos (80% fase atual + 20% fases anteriores)
     const combinedCases = await selectAndCombineCases(
@@ -181,9 +165,8 @@ export default function ModuleDetail() {
     setPhaseContent(phaseContentData);
 
     // Só redirecionar para conteúdo se o usuário nunca fez NENHUMA tentativa nesta fase
-    // (usar attempts.length, não completedCaseIds.length, para não regredir usuários com tentativas parciais)
     const fromParam = urlParams.get('from');
-    if (attempts.length === 0 && phaseContentData && fromParam !== 'phase_transition' && fromParam !== 'content') {
+    if (allUserAttempts.length === 0 && phaseContentData && fromParam !== 'phase_transition' && fromParam !== 'content') {
       window.location.href = `${createPageUrl("ConteudoECG")}?type=phase&module_id=${moduleId}&phase_id=${phaseId}&from=phase_transition`;
       return;
     }
@@ -301,8 +284,7 @@ export default function ModuleDetail() {
       // Verificar novos troféus (fire-and-forget)
       triggerAchievementCheck();
 
-      // Verificar se já completou esse caso nesta sessão
-      // Apenas casos da fase atual contam para o progresso da fase
+      // Apenas casos da fase atual contam para o progresso
       const isCaseFromCurrentPhase = currentCase.caseSource === 'current_phase' || !currentCase.caseSource;
       if (isCaseFromCurrentPhase && !sessionCompletedCases.includes(currentCase.id)) {
         const updatedSessionCompleted = [...sessionCompletedCases, currentCase.id];
@@ -310,6 +292,14 @@ export default function ModuleDetail() {
 
         const newCompletedCount = Math.min(completedCasesCount + 1, totalPhaseCases);
         setCompletedCasesCount(newCompletedCount);
+
+        // Atualizar UserProgress (fonte da verdade)
+        base44.functions.invoke('updateUserProgress', {
+          user_email: user.email,
+          module_id: currentCase.module_id,
+          phase_id: currentCase.phase_id,
+          case_id: currentCase.id
+        });
 
         // Se atingiu o total de casos da fase, encerrar fase
         if (newCompletedCount >= totalPhaseCases && totalPhaseCases > 0) {

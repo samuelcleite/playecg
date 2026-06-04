@@ -42,11 +42,11 @@ export default function AprendaECG() {
     const userData = await base44.auth.me();
     setUser(userData);
 
-    const [contentsData, modulesData, phasesData, attemptsData] = await Promise.all([
+    const [contentsData, modulesData, phasesData, userProgressData] = await Promise.all([
       base44.entities.Content.list(),
       base44.entities.Module.list("order"),
       base44.entities.Phase.list("order"),
-      base44.entities.QuizAttempt.filter({ user_email: userData.email, quiz_type: "module" }, "-created_date", 500)
+      base44.entities.UserProgress.filter({ user_email: userData.email })
     ]);
 
     // Separar introdução
@@ -55,16 +55,11 @@ export default function AprendaECG() {
 
     // Organizar conteúdos por módulo
     const contentsByModule = {};
-    
     contentsData.forEach(content => {
       if (content.module_id) {
         if (!contentsByModule[content.module_id]) {
-          contentsByModule[content.module_id] = {
-            moduleContent: null,
-            phaseContents: []
-          };
+          contentsByModule[content.module_id] = { moduleContent: null, phaseContents: [] };
         }
-
         if (!content.phase_id) {
           contentsByModule[content.module_id].moduleContent = content;
         } else {
@@ -73,20 +68,10 @@ export default function AprendaECG() {
       }
     });
 
-    // Calcular progresso por fase
-    const getPhaseProgress = (phase) => {
-      const phaseAttempts = attemptsData.filter(a => a.phase_id === phase.id);
-      const byCase = {};
-      phaseAttempts.forEach(att => {
-        if (!byCase[att.case_id]) byCase[att.case_id] = [];
-        byCase[att.case_id].push(att);
-      });
-      let completed = 0;
-      Object.values(byCase).forEach(caseAtts => {
-        if (caseAtts.some(a => a.correct) || caseAtts.length >= 3) completed++;
-      });
-      const total = phase.total_cases || 0;
-      return { completed, total, done: total > 0 && completed >= total };
+    // Verificar progresso por fase usando UserProgress
+    const isPhaseCompleted = (phaseId) => {
+      const record = userProgressData.find(up => up.phase_id === phaseId);
+      return record?.status === 'completed';
     };
 
     // Determinar módulos e fases desbloqueadas
@@ -97,33 +82,28 @@ export default function AprendaECG() {
     const unlockedPhases = new Set();
 
     for (const mod of sortedModules) {
-      // Módulo 1 sempre desbloqueado
       if (mod.order === 1) {
         unlockedMods.add(mod.id);
       } else {
-        // Módulo desbloqueado se todos anteriores estão completos
         const prevModules = sortedModules.filter(m => m.order < mod.order);
         const allPrevDone = prevModules.every(prevMod => {
           const prevPhases = sortedPhases.filter(p => p.module_id === prevMod.id);
-          return prevPhases.length > 0 && prevPhases.every(p => getPhaseProgress(p).done);
+          return prevPhases.length > 0 && prevPhases.every(p => isPhaseCompleted(p.id));
         });
         if (allPrevDone) unlockedMods.add(mod.id);
       }
 
       if (!unlockedMods.has(mod.id)) continue;
 
-      // Fases do módulo: desbloquear sequencialmente
       const modPhases = sortedPhases.filter(p => p.module_id === mod.id).sort((a, b) => a.order - b.order);
       for (let i = 0; i < modPhases.length; i++) {
         if (i === 0) {
-          // Primeira fase sempre desbloqueada se módulo desbloqueado
           unlockedPhases.add(modPhases[i].id);
         } else {
-          // Fase i desbloqueada se fase i-1 está completa
-          if (getPhaseProgress(modPhases[i - 1]).done) {
+          if (isPhaseCompleted(modPhases[i - 1].id)) {
             unlockedPhases.add(modPhases[i].id);
           } else {
-            break; // Fases seguintes também bloqueadas
+            break;
           }
         }
       }
