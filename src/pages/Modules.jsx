@@ -50,7 +50,7 @@ export default function Modules() {
 
     const [modulesData, phasesData, userProgressData, allAttempts] = await Promise.all([
       base44.entities.Module.list("order"),
-      base44.entities.Phase.list(),
+      base44.entities.Phase.list("order"),
       base44.entities.UserProgress.filter({ user_email: userData.email }, null, 500),
       base44.entities.QuizAttempt.filter({ user_email: userData.email })
     ]);

@@ -30,16 +30,16 @@ export default function LearningTrail({ modules, phases, userProgress, isPremium
     });
   }, [modules, phases, userProgress]);
 
-  const isModuleUnlocked = (mod) => {
+  const isModuleUnlocked = (trailData, mod) => {
     if (mod.order === 1) return true;
-    const previous = trail.filter(item => item.module.order < mod.order);
+    const previous = trailData.filter(item => item.module.order < mod.order);
     return previous.every(item => item.allDone);
   };
 
   const nextPhase = useMemo(() => {
     if (!isPremium) return null;
     for (const item of trail) {
-      if (!isModuleUnlocked(item.module)) continue;
+      if (!isModuleUnlocked(trail, item.module)) continue;
       for (const phase of item.phases) {
         if (phase.pct < 100) return { module: item.module, phase };
       }
@@ -85,7 +85,7 @@ export default function LearningTrail({ modules, phases, userProgress, isPremium
 
       <div className="space-y-2">
         {trail.map((item, modIdx) => {
-          const unlocked = isModuleUnlocked(item.module);
+          const unlocked = isModuleUnlocked(trail, item.module);
           const isLocked = !isPremium || !unlocked;
           const trailHeight = item.phases.length * Y_STEP + NODE_SIZE + 10;
 
