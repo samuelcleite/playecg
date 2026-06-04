@@ -12,24 +12,22 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { case_id, module_id, phase_id, user_answer, correct, quiz_type, case_source, time_spent } = body;
 
-    if (!case_id || !user_answer) {
-      return Response.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-
+    // Create attempt using service role to bypass RLS restrictions
     const attempt = await base44.asServiceRole.entities.QuizAttempt.create({
       user_email: user.email,
-      case_id,
-      module_id,
-      phase_id,
-      user_answer,
-      correct,
+      case_id: case_id || '',
+      module_id: module_id || '',
+      phase_id: phase_id || '',
+      user_answer: user_answer || '',
+      correct: correct === true,
       quiz_type: quiz_type || 'random',
-      case_source,
+      case_source: case_source || 'current_phase',
       time_spent: time_spent || 0
     });
 
     return Response.json({ success: true, data: attempt });
   } catch (error) {
+    console.error('Error in recordQuizAttempt:', error);
     return Response.json({ error: error.message }, { status: 500 });
   }
 });

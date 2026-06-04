@@ -270,15 +270,19 @@ export default function ModuleDetail() {
 
     // Se acertou ou já tentou 3 vezes, registrar
     if (correct || newAttemptCount >= 3) {
-      await base44.functions.invoke('recordQuizAttempt', {
-        case_id: currentCase.id,
-        module_id: currentCase.module_id,
-        phase_id: currentCase.phase_id,
-        user_answer: selectedAnswers.join(", "),
-        correct: correct,
-        quiz_type: "module",
-        case_source: currentCase.caseSource
-      });
+      try {
+        await base44.functions.invoke('recordQuizAttempt', {
+          case_id: currentCase.id,
+          module_id: currentCase.module_id,
+          phase_id: currentCase.phase_id,
+          user_answer: selectedAnswers.join(", "),
+          correct: correct,
+          quiz_type: "module",
+          case_source: currentCase.caseSource
+        });
+      } catch (err) {
+        console.warn('Failed to record quiz attempt:', err.message);
+      }
 
       // Verificar novos troféus (fire-and-forget)
       triggerAchievementCheck();
