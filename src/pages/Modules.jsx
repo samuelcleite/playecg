@@ -49,15 +49,13 @@ export default function Modules() {
         return;
       }
 
-      const [modulesData, phasesData, progressRes, allAttempts, contentsData] = await Promise.all([
+      const [modulesData, phasesData, userProgressData, allAttempts, contentsData] = await Promise.all([
         base44.entities.Module.list("order"),
         base44.entities.Phase.list("order"),
-        base44.functions.invoke("getUserProgress", {}),
+        base44.entities.UserProgress.filter({ user_email: userData.email }, null, 500),
         base44.entities.QuizAttempt.filter({ user_email: userData.email }),
         base44.entities.Content.list()
       ]);
-
-      const userProgressData = progressRes.data || [];
 
       // Calcular percentual de acerto geral
       if (allAttempts.length > 0) {
