@@ -40,54 +40,60 @@ export default function Modules() {
   const [overallAccuracy, setOverallAccuracy] = useState(0);
 
   const loadData = async () => {
-    const userData = await base44.auth.me();
-    setUser(userData);
+    try {
+      const userData = await base44.auth.me();
+      setUser(userData);
 
-    if (userData.subscription_type !== "premium") {
-      navigate(createPageUrl("Upgrade"));
-      return;
+      if (userData.subscription_type !== "premium") {
+        navigate(createPageUrl("Upgrade"));
+        return;
+      }
+
+      const [modulesData, phasesData, progressRes, allAttempts, contentsData] = await Promise.all([
+        base44.entities.Module.list("order"),
+        base44.entities.Phase.list("order"),
+        base44.functions.invoke("getUserProgress", {}),
+        base44.entities.QuizAttempt.filter({ user_email: userData.email }),
+        base44.entities.Content.list()
+      ]);
+
+      const userProgressData = progressRes.data || [];
+
+      // Calcular percentual de acerto geral
+      if (allAttempts.length > 0) {
+        const correctAttempts = allAttempts.filter(a => a.correct).length;
+        setOverallAccuracy(Math.round((correctAttempts / allAttempts.length) * 100));
+      } else {
+        setOverallAccuracy(0);
+      }
+
+      // Calcular progresso por módulo a partir do UserProgress
+      const progressMap = {};
+      modulesData.forEach(module => {
+        const modulePhases = phasesData.filter(p => p.module_id === module.id);
+        const completedPhasesCount = modulePhases.filter(phase => {
+          const record = userProgressData.find(up => up.phase_id === phase.id);
+          return record?.status === 'completed';
+        }).length;
+
+        progressMap[module.id] = {
+          completed: completedPhasesCount === modulePhases.length && modulePhases.length > 0,
+          completedPhases: completedPhasesCount,
+          totalPhases: modulePhases.length
+        };
+      });
+
+      // Buscar conteúdo de introdução
+      const intro = contentsData.find(c => !c.module_id && !c.phase_id);
+
+      setModules(modulesData);
+      setPhases(phasesData);
+      setUserProgress(userProgressData);
+      setProgress(progressMap);
+      setIntroContent(intro);
+    } catch (error) {
+      console.error("Error loading data:", error);
     }
-
-    const [modulesData, phasesData, userProgressData, allAttempts] = await Promise.all([
-      base44.entities.Module.list("order"),
-      base44.entities.Phase.list("order"),
-      base44.entities.UserProgress.filter({ user_email: userData.email }, null, 500),
-      base44.entities.QuizAttempt.filter({ user_email: userData.email })
-    ]);
-
-    setModules(modulesData);
-    setPhases(phasesData);
-    setUserProgress(userProgressData);
-
-    // Calcular percentual de acerto geral
-    if (allAttempts.length > 0) {
-      const correctAttempts = allAttempts.filter(a => a.correct).length;
-      setOverallAccuracy(Math.round((correctAttempts / allAttempts.length) * 100));
-    } else {
-      setOverallAccuracy(0);
-    }
-
-    // Calcular progresso por módulo a partir do UserProgress
-    const progressMap = {};
-    modulesData.forEach(module => {
-      const modulePhases = phasesData.filter(p => p.module_id === module.id);
-      const completedPhasesCount = modulePhases.filter(phase => {
-        const record = userProgressData.find(up => up.phase_id === phase.id);
-        return record?.status === 'completed';
-      }).length;
-
-      progressMap[module.id] = {
-        completed: completedPhasesCount === modulePhases.length && modulePhases.length > 0,
-        completedPhases: completedPhasesCount,
-        totalPhases: modulePhases.length
-      };
-    });
-    setProgress(progressMap);
-
-    // Buscar conteúdo de introdução
-    const contentsData = await base44.entities.Content.list();
-    const intro = contentsData.find(c => !c.module_id && !c.phase_id);
-    setIntroContent(intro);
   };
 
   const handleOpenIntro = () => {
