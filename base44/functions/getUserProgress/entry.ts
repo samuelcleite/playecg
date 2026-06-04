@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userProgress = await base44.entities.UserProgress.filter(
+    const userProgress = await base44.asServiceRole.entities.UserProgress.filter(
       { user_email: user.email },
       null,
       500
