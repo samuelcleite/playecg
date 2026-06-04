@@ -1,0 +1,82 @@
+{
+  "name": "UserProgress",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email do usu\u00e1rio"
+    },
+    "module_id": {
+      "type": "string",
+      "description": "ID do m\u00f3dulo"
+    },
+    "phase_id": {
+      "type": "string",
+      "description": "ID da fase"
+    },
+    "completed_case_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "IDs dos casos conclu\u00eddos (acertou pelo menos 1 vez OU tentou 3+ vezes)"
+    },
+    "completion_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantidade de casos conclu\u00eddos"
+    },
+    "completion_goal": {
+      "type": "number",
+      "default": 0,
+      "description": "Total de casos da fase (meta para completar)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "incomplete"
+      ],
+      "default": "incomplete",
+      "description": "Status da fase: completed quando completion_count >= completion_goal"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "\u00daltima atualiza\u00e7\u00e3o do progresso"
+    }
+  },
+  "required": [
+    "user_email",
+    "module_id",
+    "phase_id",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "write": {
+      "$or": [
+        {
+          "user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
