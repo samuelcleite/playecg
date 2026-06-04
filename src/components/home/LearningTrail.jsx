@@ -6,9 +6,8 @@ import { motion } from "framer-motion";
 
 function getPhaseProgress(phase, userProgress) {
   const record = userProgress.find(p => p.phase_id === phase.id);
-  const completed = record?.completion_count || 0;
-  const total = record?.completion_goal || phase.total_cases || 0;
-  return { completed, total, pct: total > 0 ? Math.round((completed / total) * 100) : 0 };
+  const isDone = record?.status === 'completed';
+  return { isDone };
 }
 
 // X positions as percentage for zigzag path
@@ -24,9 +23,8 @@ export default function LearningTrail({ modules, phases, userProgress, isPremium
         ...phase,
         ...getPhaseProgress(phase, userProgress)
       }));
-      const allDone = phasesWithProgress.length > 0 && phasesWithProgress.every(p => p.pct >= 100);
-      const anyStarted = phasesWithProgress.some(p => p.pct > 0);
-      return { module: mod, phases: phasesWithProgress, allDone, anyStarted };
+      const allDone = phasesWithProgress.length > 0 && phasesWithProgress.every(p => p.isDone);
+      return { module: mod, phases: phasesWithProgress, allDone };
     });
   }, [modules, phases, userProgress]);
 
@@ -41,7 +39,7 @@ export default function LearningTrail({ modules, phases, userProgress, isPremium
     for (const item of trail) {
       if (!isModuleUnlocked(trail, item.module)) continue;
       for (const phase of item.phases) {
-        if (phase.pct < 100) return { module: item.module, phase };
+        if (!phase.isDone) return { module: item.module, phase };
       }
     }
     return null;
@@ -163,9 +161,9 @@ export default function LearningTrail({ modules, phases, userProgress, isPremium
 
                 {item.phases.map((phase, phaseIdx) => {
                   const isNext = !isLocked && nextPhase?.phase.id === phase.id;
-                  const isDone = phase.pct >= 100;
+                  const isDone = phase.isDone;
                   const prevPhase = phaseIdx > 0 ? item.phases[phaseIdx - 1] : null;
-                  const isAvailable = !isLocked && (phaseIdx === 0 || (prevPhase && prevPhase.pct >= 100));
+                  const isAvailable = !isLocked && (phaseIdx === 0 || (prevPhase && prevPhase.isDone));
                   const isBlocked = isLocked || (!isDone && !isAvailable);
                   const xPct = ZIGZAG_X[phaseIdx % ZIGZAG_X.length];
                   const yPos = phaseIdx * Y_STEP;
@@ -252,21 +250,7 @@ function PhaseNode({ phase, isDone, isNext, isBlocked, phaseIdx }) {
         {isBlocked ? `Fase ${phase.order}` : phase.name || `Fase ${phase.order}`}
       </span>
 
-      {/* Progress dots */}
-      {!isBlocked && !isDone && (
-        <div className="flex gap-0.5">
-          {Array.from({ length: Math.min(phase.total, 8) }).map((_, i) => (
-            <div
-              key={i}
-              className={`w-1.5 h-1.5 rounded-full ${
-                i < Math.round((phase.pct / 100) * Math.min(phase.total, 8))
-                  ? "bg-[#0D3B66]"
-                  : "bg-gray-200"
-              }`}
-            />
-          ))}
-        </div>
-      )}
+
     </motion.div>
   );
 }
