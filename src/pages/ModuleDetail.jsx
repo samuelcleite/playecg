@@ -270,8 +270,7 @@ export default function ModuleDetail() {
 
     // Se acertou ou já tentou 3 vezes, registrar
     if (correct || newAttemptCount >= 3) {
-      await base44.entities.QuizAttempt.create({
-        user_email: user.email,
+      await base44.functions.invoke('recordQuizAttempt', {
         case_id: currentCase.id,
         module_id: currentCase.module_id,
         phase_id: currentCase.phase_id,
