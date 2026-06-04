@@ -180,10 +180,10 @@ export default function ModuleDetail() {
     const phaseContentData = contents.find(c => c.module_id === moduleId && c.phase_id === phaseId);
     setPhaseContent(phaseContentData);
 
-    // Se o usuário ainda não completou nenhum caso nesta fase E há conteúdo disponível,
-    // redirecionar para a seção de conteúdo (a menos que já venha de lá)
+    // Só redirecionar para conteúdo se o usuário nunca fez NENHUMA tentativa nesta fase
+    // (usar attempts.length, não completedCaseIds.length, para não regredir usuários com tentativas parciais)
     const fromParam = urlParams.get('from');
-    if (completedCaseIds.length === 0 && phaseContentData && fromParam !== 'phase_transition' && fromParam !== 'content') {
+    if (attempts.length === 0 && phaseContentData && fromParam !== 'phase_transition' && fromParam !== 'content') {
       window.location.href = `${createPageUrl("ConteudoECG")}?type=phase&module_id=${moduleId}&phase_id=${phaseId}&from=phase_transition`;
       return;
     }
