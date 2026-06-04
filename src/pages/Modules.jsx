@@ -57,7 +57,7 @@ export default function Modules() {
         base44.entities.Content.list()
       ]);
 
-      const userProgressData = Array.isArray(progressRes?.data) ? progressRes.data : [];
+      const userProgressData = Array.isArray(progressRes?.data?.data) ? progressRes.data.data : [];
 
       // Calcular percentual de acerto geral
       if (allAttempts.length > 0) {
