@@ -46,7 +46,7 @@ export default function AprendaECG() {
       base44.entities.Content.list(),
       base44.entities.Module.list("order"),
       base44.entities.Phase.list("order"),
-      base44.entities.UserProgress.filter({ user_email: userData.email })
+      base44.entities.UserProgress.filter({ user_email: userData.email }, null, 500)
     ]);
 
     // Separar introdução
