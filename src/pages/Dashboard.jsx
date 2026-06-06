@@ -73,21 +73,30 @@ export default function Dashboard() {
         return;
       }
 
-      const attemptsData = await base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", 500);
+      // Buscar todas as tentativas paginando (usuários com muitas tentativas ultrapassam 500)
+      let allAttempts = [];
+      let page = 0;
+      const pageSize = 500;
+      while (true) {
+        const batch = await base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", pageSize, page * pageSize);
+        allAttempts = [...allAttempts, ...batch];
+        if (batch.length < pageSize) break;
+        page++;
+      }
 
-      setAttempts(attemptsData);
+      setAttempts(allAttempts);
 
-      const correct = attemptsData.filter(a => a.correct).length;
+      const correct = allAttempts.filter(a => a.correct).length;
       const statsData = {
-        total: attemptsData.length,
+        total: allAttempts.length,
         correct,
-        accuracy: attemptsData.length > 0 ? Math.round((correct / attemptsData.length) * 100) : 0,
+        accuracy: allAttempts.length > 0 ? Math.round((correct / allAttempts.length) * 100) : 0,
         completedModules: 0
       };
       setStats(statsData);
 
       // Calcular streak a partir dos dados já carregados (evita chamada extra)
-      const streakVal = calculateStreakFromAttempts(attemptsData);
+      const streakVal = calculateStreakFromAttempts(allAttempts);
       setStreakDays(streakVal);
 
       try {
