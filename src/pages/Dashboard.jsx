@@ -73,16 +73,8 @@ export default function Dashboard() {
         return;
       }
 
-      // Buscar todas as tentativas paginando (usuários com muitas tentativas ultrapassam 500)
-      let allAttempts = [];
-      let page = 0;
-      const pageSize = 500;
-      while (true) {
-        const batch = await base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", pageSize, page * pageSize);
-        allAttempts = [...allAttempts, ...batch];
-        if (batch.length < pageSize) break;
-        page++;
-      }
+      // Buscar todas as tentativas (limite alto para cobrir usuários com muitas questões)
+      const allAttempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", 5000);
 
       setAttempts(allAttempts);
 
@@ -112,6 +104,8 @@ export default function Dashboard() {
         }
       } catch (_) {}
 
+    } catch (err) {
+      console.error("Erro ao carregar Dashboard:", err);
     } finally {
       setLoading(false);
     }
