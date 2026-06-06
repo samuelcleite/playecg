@@ -22,38 +22,11 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import NotificationBanner from "@/components/NotificationBanner";
 
-function calculateStreakFromAttempts(attempts) {
-  if (!attempts || attempts.length === 0) return 0;
-  const uniqueDates = [...new Set(
-    attempts.map(a => new Date(a.created_date).toISOString().split('T')[0])
-  )].sort().reverse();
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().split('T')[0];
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-  if (uniqueDates[0] !== todayStr && uniqueDates[0] !== yesterdayStr) return 0;
-
-  let streak = 0;
-  let currentDate = new Date(today);
-  for (const dateStr of uniqueDates) {
-    const practiceDate = new Date(dateStr + 'T00:00:00');
-    const diffDays = Math.floor((currentDate - practiceDate) / (1000 * 60 * 60 * 24));
-    if (diffDays === 0 || diffDays === 1) { streak++; currentDate = practiceDate; }
-    else break;
-  }
-  return streak;
-}
-
 export default function Dashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [streakDays, setStreakDays] = useState(0);
-  const [attempts, setAttempts] = useState([]);
   const [achievements, setAchievements] = useState([]);
   const [dailyCaseAvailable, setDailyCaseAvailable] = useState(false);
   const [dailyCaseCompleted, setDailyCaseCompleted] = useState(false);
@@ -73,23 +46,16 @@ export default function Dashboard() {
         return;
       }
 
-      // Buscar todas as tentativas (limite alto para cobrir usuários com muitas questões)
-      const allAttempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", 5000);
-
-      setAttempts(allAttempts);
-
-      const correct = allAttempts.filter(a => a.correct).length;
-      const statsData = {
-        total: allAttempts.length,
-        correct,
-        accuracy: allAttempts.length > 0 ? Math.round((correct / allAttempts.length) * 100) : 0,
+      // Buscar estatísticas via backend (service role - confiável, sem limites de RLS no frontend)
+      const statsRes = await base44.functions.invoke("getUserStats", {});
+      const s = statsRes.data;
+      setStats({
+        total: s.total,
+        correct: s.correct,
+        accuracy: s.accuracy,
         completedModules: 0
-      };
-      setStats(statsData);
-
-      // Calcular streak a partir dos dados já carregados (evita chamada extra)
-      const streakVal = calculateStreakFromAttempts(allAttempts);
-      setStreakDays(streakVal);
+      });
+      setStreakDays(s.streakDays);
 
       try {
         const userAchievements = await loadUserAchievements(userData);
