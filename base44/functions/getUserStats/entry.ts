@@ -26,8 +26,17 @@ Deno.serve(async (req) => {
     }
 
     const total = allAttempts.length;
-    const correct = allAttempts.filter(a => a.correct).length;
-    const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+    // Acurácia: apenas a primeira tentativa por caso (ignorar retentativas)
+    // allAttempts está ordenado por -created_date (mais novo primeiro)
+    // Iteramos do mais novo para o mais antigo, sobrescrevendo sempre — resultado final = o mais antigo
+    const firstAttemptPerCase = new Map();
+    for (const attempt of allAttempts) {
+      firstAttemptPerCase.set(attempt.case_id, attempt);
+    }
+    const firstAttempts = [...firstAttemptPerCase.values()];
+    const correctFirst = firstAttempts.filter(a => a.correct).length;
+    const accuracy = firstAttempts.length > 0 ? Math.round((correctFirst / firstAttempts.length) * 100) : 0;
 
     // Calcular streak (dias em sequência) considerando timezone do Brasil
     const uniqueDates = [...new Set(
