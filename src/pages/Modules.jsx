@@ -49,23 +49,18 @@ export default function Modules() {
         return;
       }
 
-      const [modulesData, phasesData, progressRes, allAttempts, contentsData] = await Promise.all([
+      const [modulesData, phasesData, progressRes, statsRes, contentsData] = await Promise.all([
         base44.entities.Module.list("order"),
         base44.entities.Phase.list("order"),
         base44.functions.invoke("getUserProgress", {}),
-        base44.entities.QuizAttempt.filter({ user_email: userData.email }),
+        base44.functions.invoke("getUserStats", {}),
         base44.entities.Content.list()
       ]);
 
       const userProgressData = Array.isArray(progressRes?.data?.data) ? progressRes.data.data : [];
 
-      // Calcular percentual de acerto geral
-      if (allAttempts.length > 0) {
-        const correctAttempts = allAttempts.filter(a => a.correct).length;
-        setOverallAccuracy(Math.round((correctAttempts / allAttempts.length) * 100));
-      } else {
-        setOverallAccuracy(0);
-      }
+      // Usar a mesma fonte de estatísticas do Dashboard
+      setOverallAccuracy(statsRes?.data?.accuracy ?? 0);
 
       // Calcular progresso por módulo a partir do UserProgress
       const progressMap = {};
