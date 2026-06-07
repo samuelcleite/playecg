@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { User } from "@/entities/User";
 import { ECGCase } from "@/entities/ECGCase";
@@ -82,10 +82,19 @@ export default function Quiz() {
   
   // Content state
   const [caseContent, setCaseContent] = useState(null);
+  const resultRef = React.useRef(null);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (showResult && resultRef.current) {
+      setTimeout(() => {
+        resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [showResult]);
 
   const checkFreeLimit = (todayAttempts) => {
     // Ordenar tentativas por data
@@ -837,7 +846,7 @@ export default function Quiz() {
             )}
 
             {/* Result */}
-            <div className="px-3 md:px-0">
+            <div className="px-3 md:px-0" ref={resultRef}>
             <AnimatePresence>
               {showResult && (
                 <motion.div

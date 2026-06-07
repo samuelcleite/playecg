@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -67,10 +67,19 @@ export default function ModuleDetail() {
   const [phaseContent, setPhaseContent] = useState(null);
   const [showPhaseCompletion, setShowPhaseCompletion] = useState(false);
   const [nextPhase, setNextPhase] = useState(null);
+  const resultRef = useRef(null);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (showResult && resultRef.current) {
+      setTimeout(() => {
+        resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [showResult]);
 
   useEffect(() => {
     if (showPhaseCompletion && module && phase) {
@@ -850,7 +859,7 @@ export default function ModuleDetail() {
             )}
 
             {/* Result */}
-            <div className="px-3 md:px-0">
+            <div className="px-3 md:px-0" ref={resultRef}>
             <AnimatePresence>
               {showResult && (
                 <motion.div
