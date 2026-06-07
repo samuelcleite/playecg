@@ -262,8 +262,7 @@ export default function Quiz() {
 
     // Se acertou ou já tentou 3 vezes, registrar no banco e adicionar à lista de respondidos
     if (correct || newAttemptCount >= 3) {
-      await QuizAttempt.create({
-        user_email: user.email,
+      await base44.functions.invoke('recordQuizAttempt', {
         case_id: currentCase.id,
         module_id: currentCase.module_id,
         phase_id: currentCase.phase_id,
