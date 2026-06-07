@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
 
     return Response.json({
       total,
-      correct,
+      correct: correctFirst,
       accuracy,
       streakDays
     });
