@@ -12,8 +12,8 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { case_id, module_id, phase_id, user_answer, correct, quiz_type, case_source, time_spent } = body;
 
-    // Create attempt using service role to bypass RLS restrictions
-    const attempt = await base44.asServiceRole.entities.QuizAttempt.create({
+    // Create attempt using user-scoped client (RLS requires user_email to match)
+    const attempt = await base44.entities.QuizAttempt.create({
       user_email: user.email,
       case_id: case_id || '',
       module_id: module_id || '',
