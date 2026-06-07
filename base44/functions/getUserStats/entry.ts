@@ -9,14 +9,14 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Buscar todas as tentativas do usuário com service role (ignora RLS e limites do frontend)
+    // Buscar todas as tentativas do usuário ordenadas da mais antiga para a mais nova
     let allAttempts = [];
     let page = 0;
     const pageSize = 500;
     while (true) {
       const batch = await base44.asServiceRole.entities.QuizAttempt.filter(
         { user_email: user.email },
-        "-created_date",
+        "created_date", // mais antiga primeiro → Map.set só guarda a primeira tentativa real
         pageSize,
         page * pageSize
       );
@@ -27,10 +27,13 @@ Deno.serve(async (req) => {
 
     const total = allAttempts.length;
 
-    // Acurácia geral: apenas a primeira tentativa por caso
+    // Acurácia geral: apenas a primeira tentativa por caso (por tipo para não cruzar random/module)
     const firstAttemptPerCase = new Map();
     for (const attempt of allAttempts) {
-      firstAttemptPerCase.set(attempt.case_id, attempt);
+      const key = `${attempt.quiz_type ?? 'unknown'}__${attempt.case_id}`;
+      if (!firstAttemptPerCase.has(key)) {
+        firstAttemptPerCase.set(key, attempt);
+      }
     }
     const firstAttempts = [...firstAttemptPerCase.values()];
     const correctFirst = firstAttempts.filter(a => a.correct).length;
@@ -40,7 +43,9 @@ Deno.serve(async (req) => {
     const moduleAttempts = allAttempts.filter(a => a.quiz_type === 'module');
     const firstModuleAttemptPerCase = new Map();
     for (const attempt of moduleAttempts) {
-      firstModuleAttemptPerCase.set(attempt.case_id, attempt);
+      if (!firstModuleAttemptPerCase.has(attempt.case_id)) {
+        firstModuleAttemptPerCase.set(attempt.case_id, attempt);
+      }
     }
     const firstModuleAttempts = [...firstModuleAttemptPerCase.values()];
     const correctModule = firstModuleAttempts.filter(a => a.correct).length;
