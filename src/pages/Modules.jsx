@@ -49,24 +49,17 @@ export default function Modules() {
         return;
       }
 
-      const [modulesData, phasesData, progressRes, moduleAttempts, contentsData] = await Promise.all([
+      const [modulesData, phasesData, progressRes, statsRes, contentsData] = await Promise.all([
         base44.entities.Module.list("order"),
         base44.entities.Phase.list("order"),
         base44.functions.invoke("getUserProgress", {}),
-        base44.entities.QuizAttempt.filter({ user_email: userData.email, quiz_type: "module" }),
+        base44.functions.invoke("getUserStats", {}),
         base44.entities.Content.list()
       ]);
 
       const userProgressData = Array.isArray(progressRes?.data?.data) ? progressRes.data.data : [];
 
-      // Taxa de acerto apenas de tentativas de Módulos (primeira tentativa por caso)
-      const firstAttemptPerCase = new Map();
-      for (const attempt of [...moduleAttempts].reverse()) {
-        firstAttemptPerCase.set(attempt.case_id, attempt);
-      }
-      const firstAttempts = [...firstAttemptPerCase.values()];
-      const correctFirst = firstAttempts.filter(a => a.correct).length;
-      setOverallAccuracy(firstAttempts.length > 0 ? Math.round((correctFirst / firstAttempts.length) * 100) : 0);
+      setOverallAccuracy(statsRes?.data?.moduleAccuracy ?? 0);
 
       // Calcular progresso por módulo a partir do UserProgress
       const progressMap = {};

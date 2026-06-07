@@ -27,9 +27,7 @@ Deno.serve(async (req) => {
 
     const total = allAttempts.length;
 
-    // Acurácia: apenas a primeira tentativa por caso (ignorar retentativas)
-    // allAttempts está ordenado por -created_date (mais novo primeiro)
-    // Iteramos do mais novo para o mais antigo, sobrescrevendo sempre — resultado final = o mais antigo
+    // Acurácia geral: apenas a primeira tentativa por caso
     const firstAttemptPerCase = new Map();
     for (const attempt of allAttempts) {
       firstAttemptPerCase.set(attempt.case_id, attempt);
@@ -37,6 +35,16 @@ Deno.serve(async (req) => {
     const firstAttempts = [...firstAttemptPerCase.values()];
     const correctFirst = firstAttempts.filter(a => a.correct).length;
     const accuracy = firstAttempts.length > 0 ? Math.round((correctFirst / firstAttempts.length) * 100) : 0;
+
+    // Acurácia somente de Módulos: primeira tentativa por caso, apenas quiz_type=module
+    const moduleAttempts = allAttempts.filter(a => a.quiz_type === 'module');
+    const firstModuleAttemptPerCase = new Map();
+    for (const attempt of moduleAttempts) {
+      firstModuleAttemptPerCase.set(attempt.case_id, attempt);
+    }
+    const firstModuleAttempts = [...firstModuleAttemptPerCase.values()];
+    const correctModule = firstModuleAttempts.filter(a => a.correct).length;
+    const moduleAccuracy = firstModuleAttempts.length > 0 ? Math.round((correctModule / firstModuleAttempts.length) * 100) : 0;
 
     // Calcular streak (dias em sequência) considerando timezone do Brasil
     const uniqueDates = [...new Set(
@@ -74,6 +82,7 @@ Deno.serve(async (req) => {
       total,
       correct: correctFirst,
       accuracy,
+      moduleAccuracy,
       streakDays
     });
   } catch (error) {
