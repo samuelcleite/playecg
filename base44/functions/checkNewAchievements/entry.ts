@@ -110,7 +110,14 @@ Deno.serve(async (req) => {
 
       const earned = checkAchievementSync(achievement, user, stats, streakDays, userProgress, phases);
       if (earned) {
-        await base44.entities.UserAchievement.create({
+        // Re-verificar logo antes de criar para evitar duplicatas por chamadas concorrentes
+        const existing = await base44.asServiceRole.entities.UserAchievement.filter({
+          user_email: user.email,
+          achievement_id: achievement.id,
+        });
+        if (existing.length > 0) continue;
+
+        await base44.asServiceRole.entities.UserAchievement.create({
           user_email: user.email,
           achievement_id: achievement.id,
           earned_at: now,
