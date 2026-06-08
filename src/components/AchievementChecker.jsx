@@ -5,18 +5,11 @@ import { base44 } from "@/api/base44Client";
  * Combina com as definições de Achievement para montar a lista completa.
  */
 export async function loadUserAchievements(user) {
-  const [allAchievements, userAchievements] = await Promise.all([
-    base44.entities.Achievement.filter({ active: true }, "order"),
-    base44.entities.UserAchievement.filter({ user_email: user.email }),
-  ]);
-
-  const earnedIds = new Set(userAchievements.map(ua => ua.achievement_id));
-
-  return allAchievements.map(achievement => ({
-    ...achievement,
-    earned: earnedIds.has(achievement.id),
-    earned_at: userAchievements.find(ua => ua.achievement_id === achievement.id)?.earned_at || null,
-  }));
+  // Busca via backend (service role) para não depender do contexto de RLS do
+  // frontend — ex.: modo "agindo como" do dashboard, onde {{user.email}} pode
+  // não casar e os troféus apareceriam todos bloqueados.
+  const res = await base44.functions.invoke("getUserAchievements", {});
+  return res?.data?.achievements || [];
 }
 
 /**
