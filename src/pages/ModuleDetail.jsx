@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { triggerAchievementCheck } from "@/components/AchievementChecker";
+import AchievementToast from "@/components/AchievementToast";
 import { 
   ArrowLeft, 
   CheckCircle2, 
@@ -68,6 +69,9 @@ export default function ModuleDetail() {
   const [showPhaseCompletion, setShowPhaseCompletion] = useState(false);
   const [nextPhase, setNextPhase] = useState(null);
   const resultRef = useRef(null);
+
+  // Novos troféus conquistados (para notificação)
+  const [newAchievements, setNewAchievements] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -293,8 +297,10 @@ export default function ModuleDetail() {
         console.warn('Failed to record quiz attempt:', err.message);
       }
 
-      // Verificar novos troféus (fire-and-forget)
-      triggerAchievementCheck();
+      // Verificar novos troféus e notificar o usuário se ganhou algum
+      triggerAchievementCheck().then((earned) => {
+        if (earned && earned.length > 0) setNewAchievements(earned);
+      });
 
       // Apenas casos da fase atual contam para o progresso
       const isCaseFromCurrentPhase = currentCase.caseSource === 'current_phase' || !currentCase.caseSource;
@@ -1158,6 +1164,13 @@ export default function ModuleDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {newAchievements.length > 0 && (
+        <AchievementToast
+          achievements={newAchievements}
+          onClose={() => setNewAchievements([])}
+        />
+      )}
 
     </div>
   );

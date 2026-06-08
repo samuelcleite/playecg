@@ -39,6 +39,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import TopBar from "@/components/TopBar";
 import { triggerAchievementCheck } from "@/components/AchievementChecker";
+import AchievementToast from "@/components/AchievementToast";
 
 const FREE_DAILY_LIMIT = 5;
 const FREE_HOURLY_LIMIT = 1; // 1 questão por hora após esgotar as 5 diárias
@@ -83,6 +84,9 @@ export default function Quiz() {
   // Content state
   const [caseContent, setCaseContent] = useState(null);
   const resultRef = React.useRef(null);
+
+  // Novos troféus conquistados (para notificação)
+  const [newAchievements, setNewAchievements] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -300,8 +304,10 @@ export default function Quiz() {
         }
       }
 
-      // Verificar novos troféus (fire-and-forget, não bloqueia o fluxo)
-      triggerAchievementCheck();
+      // Verificar novos troféus e notificar o usuário se ganhou algum
+      triggerAchievementCheck().then((earned) => {
+        if (earned && earned.length > 0) setNewAchievements(earned);
+      });
 
       const updatedAttemptedIds = [...attemptedCaseIds, currentCase.id];
       setAttemptedCaseIds(updatedAttemptedIds);
@@ -1197,6 +1203,13 @@ export default function Quiz() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {newAchievements.length > 0 && (
+        <AchievementToast
+          achievements={newAchievements}
+          onClose={() => setNewAchievements([])}
+        />
+      )}
 
     </div>
   );
