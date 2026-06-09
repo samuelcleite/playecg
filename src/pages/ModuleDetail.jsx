@@ -132,13 +132,17 @@ export default function ModuleDetail() {
     }
     setPhase(foundPhase);
 
-    // Buscar UserProgress para esta fase (fonte da verdade)
-    const progressRecords = await base44.entities.UserProgress.filter({
-      user_email: userData.email,
-      module_id: moduleId,
-      phase_id: phaseId
-    });
-    const progressRecord = progressRecords[0] || null;
+    // Buscar UserProgress via service role (evita problema de RLS no modo "agindo como")
+    let progressRecord = null;
+    try {
+      const progressResp = await base44.functions.invoke('getUserProgress', {
+        user_email: userData.email
+      });
+      const allProgress = progressResp?.data?.data || [];
+      progressRecord = allProgress.find(p => p.module_id === moduleId && p.phase_id === phaseId) || null;
+    } catch (err) {
+      console.warn('Failed to load user progress:', err.message);
+    }
 
     const completedCaseIds = progressRecord?.completed_case_ids || [];
     const totalCases = progressRecord?.completion_goal || foundPhase.total_cases || 0;
