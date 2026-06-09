@@ -141,7 +141,9 @@ export default function ModuleDetail() {
     const progressRecord = progressRecords[0] || null;
 
     const completedCaseIds = progressRecord?.completed_case_ids || [];
-    const totalCases = progressRecord?.completion_goal || foundPhase.total_cases || 0;
+    // Usar a meta da fase como referência confiável (mais robusto que completion_goal,
+    // que pode ainda não estar salvo quando se volta do conteúdo no mobile).
+    const totalCases = foundPhase.total_cases || progressRecord?.completion_goal || 0;
     setTotalPhaseCases(totalCases);
     setCompletedCasesCount(Math.min(completedCaseIds.length, totalCases));
 
@@ -321,8 +323,9 @@ export default function ModuleDetail() {
         const newCompletedCount = Math.min(completedCasesCount + 1, totalPhaseCases);
         setCompletedCasesCount(newCompletedCount);
 
-        // Atualizar UserProgress (fonte da verdade)
-        base44.functions.invoke('updateUserProgress', {
+        // Atualizar UserProgress (fonte da verdade) — aguardar persistência
+        // para que, ao voltar do conteúdo no mobile, o progresso não apareça zerado.
+        await base44.functions.invoke('updateUserProgress', {
           user_email: user.email,
           module_id: currentCase.module_id,
           phase_id: currentCase.phase_id,
