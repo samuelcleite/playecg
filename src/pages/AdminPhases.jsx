@@ -80,9 +80,18 @@ export default function AdminPhases() {
     }
   };
 
-  const loadPhases = async () => {
-    const phasesData = await base44.entities.Phase.filter({ module_id: selectedModule }, "order");
-    setPhases(phasesData);
+  const loadPhases = async (retries = 3) => {
+    try {
+      const phasesData = await base44.entities.Phase.filter({ module_id: selectedModule }, "order");
+      setPhases(phasesData);
+    } catch (error) {
+      // Em caso de "Rate limit exceeded", aguarda e tenta novamente
+      if (retries > 0 && /rate limit/i.test(error?.message || "")) {
+        await new Promise((r) => setTimeout(r, 1200));
+        return loadPhases(retries - 1);
+      }
+      throw error;
+    }
   };
 
   const handleOpenDialog = (phaseToEdit = null) => {
