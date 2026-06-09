@@ -68,19 +68,28 @@ export default function AdminDailyCases() {
     await loadData();
   };
 
-  const loadData = async () => {
+  const loadData = async (retries = 3, delay = 800) => {
     setLoading(true);
-    const [cases, ecgs, mods, phs] = await Promise.all([
-      base44.entities.DailyCase.list('-date'),
-      base44.entities.ECGCase.list(),
-      base44.entities.Module.list(),
-      base44.entities.Phase.list()
-    ]);
-    setDailyCases(cases);
-    setEcgCases(ecgs);
-    setModules(mods);
-    setPhases(phs);
-    setLoading(false);
+    try {
+      const [cases, ecgs, mods, phs] = await Promise.all([
+        base44.entities.DailyCase.list('-date'),
+        base44.entities.ECGCase.list(),
+        base44.entities.Module.list(),
+        base44.entities.Phase.list()
+      ]);
+      setDailyCases(cases);
+      setEcgCases(ecgs);
+      setModules(mods);
+      setPhases(phs);
+      setLoading(false);
+    } catch (error) {
+      if (retries > 0 && error.message?.includes('Rate limit')) {
+        await new Promise(res => setTimeout(res, delay));
+        return loadData(retries - 1, delay * 2);
+      }
+      console.error('Error loading daily cases:', error);
+      setLoading(false);
+    }
   };
 
   const handleOpenDialog = (dailyCase = null) => {
