@@ -763,24 +763,6 @@ export default function ModuleDetail() {
               </div>
             )}
 
-            {/* Banner de conteúdo no primeiro caso da fase */}
-            {phaseContent && currentCaseIndex === 0 && (
-              <div className="mx-3 md:mx-0 mt-4 md:mt-0 mb-4">
-                <Link to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}&case_id=${currentCase.id}&from=module`}>
-                  <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl p-4 hover:bg-blue-100 transition-colors cursor-pointer">
-                    <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <BookOpen className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-blue-900 text-sm">Novo conteúdo disponível!</p>
-                      <p className="text-blue-700 text-xs">Leia o material da fase <strong>{phase?.name}</strong> antes de começar.</p>
-                    </div>
-                    <span className="text-blue-600 text-sm font-semibold">Ver →</span>
-                  </div>
-                </Link>
-              </div>
-            )}
-
             {/* Options */}
             <div className="space-y-3 mb-6 pt-4 md:pt-0 px-3 md:px-0 mt-4 md:mt-0">
               <div className="flex items-start justify-between gap-4 mb-4">
