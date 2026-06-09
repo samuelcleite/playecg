@@ -245,7 +245,7 @@ export default function ConteudoECG() {
                   : createPageUrl("Quiz");
                 window.location.href = url;
               } else if (from === 'module' && moduleId && phaseId) {
-                let backUrl = `${createPageUrl("ModuleDetail")}?module_id=${moduleId}&phase_id=${phaseId}`;
+                let backUrl = `${createPageUrl("ModuleDetail")}?module_id=${moduleId}&phase_id=${phaseId}&from=content`;
                 if (caseId) backUrl += `&case_id=${caseId}`;
                 window.location.href = backUrl;
               } else {

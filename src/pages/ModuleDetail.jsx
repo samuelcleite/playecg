@@ -154,23 +154,33 @@ export default function ModuleDetail() {
     }, "-created_date", 1);
 
     // Selecionar e combinar casos (80% fase atual + 20% fases anteriores)
-    const combinedCases = await selectAndCombineCases(
+    let combinedCases = await selectAndCombineCases(
       moduleId, 
       phaseId, 
       foundPhase, 
       phaseData, 
       completedCaseIds
     );
-    setCases(combinedCases);
 
-    // Restaurar caso se veio do ConteudoECG
+    // Restaurar caso se veio do ConteudoECG (botão "Tem dúvidas?")
     const returnCaseId = urlParams.get('case_id');
     if (returnCaseId) {
-      const idx = combinedCases.findIndex(c => c.id === returnCaseId);
+      let idx = combinedCases.findIndex(c => c.id === returnCaseId);
+      // Se o caso não está no conjunto reembaralhado, buscá-lo e inseri-lo no início
+      if (idx === -1) {
+        const found = await base44.entities.ECGCase.filter({ id: returnCaseId });
+        if (found.length > 0) {
+          const restored = { ...found[0], caseSource: found[0].phase_id === phaseId ? 'current_phase' : 'previous_phase' };
+          combinedCases = [restored, ...combinedCases];
+          idx = 0;
+        }
+      }
       if (idx !== -1) {
         setCurrentCaseIndex(idx);
       }
     }
+
+    setCases(combinedCases);
 
     // Buscar conteúdo da fase
     const contents = await base44.entities.Content.list();
