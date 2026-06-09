@@ -141,9 +141,7 @@ export default function ModuleDetail() {
     const progressRecord = progressRecords[0] || null;
 
     const completedCaseIds = progressRecord?.completed_case_ids || [];
-    // Usar a meta da fase como referência confiável (mais robusto que completion_goal,
-    // que pode ainda não estar salvo quando se volta do conteúdo no mobile).
-    const totalCases = foundPhase.total_cases || progressRecord?.completion_goal || 0;
+    const totalCases = progressRecord?.completion_goal || foundPhase.total_cases || 0;
     setTotalPhaseCases(totalCases);
     setCompletedCasesCount(Math.min(completedCaseIds.length, totalCases));
 
