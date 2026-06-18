@@ -42,12 +42,14 @@ export default function AprendaECG() {
     const userData = await base44.auth.me();
     setUser(userData);
 
-    const [contentsData, modulesData, phasesData, userProgressData] = await Promise.all([
+    const [contentsData, modulesData, phasesData, progressRes] = await Promise.all([
       base44.entities.Content.list(),
       base44.entities.Module.list("order"),
       base44.entities.Phase.list("order"),
-      base44.entities.UserProgress.filter({ user_email: userData.email }, null, 500)
+      base44.functions.invoke("getUserProgress", {})
     ]);
+
+    const userProgressData = Array.isArray(progressRes?.data?.data) ? progressRes.data.data : [];
 
     // Separar introdução
     const intro = contentsData.find(c => !c.module_id && !c.phase_id);
