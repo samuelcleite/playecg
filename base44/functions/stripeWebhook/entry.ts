@@ -19,6 +19,10 @@ Deno.serve(async (req) => {
         }
 
         console.log('📩 Stripe event:', event.type);
+        if (event.type === 'checkout.session.completed') {
+            const s = event.data.object;
+            console.log('🔎 customer_email:', s.customer_email, '| customer_details.email:', s.customer_details?.email, '| metadata.user_email:', s.metadata?.user_email, '| amount_total:', s.amount_total, '| subscription:', s.subscription);
+        }
 
         // Helper para marcar premium e registrar pagamento
         async function activatePremium(email, { amount, subscriptionId, couponId }) {
@@ -73,7 +77,7 @@ Deno.serve(async (req) => {
 
         if (event.type === 'checkout.session.completed') {
             const session = event.data.object;
-            const email = session.customer_email || session.metadata?.user_email;
+            const email = session.customer_email || session.customer_details?.email || session.metadata?.user_email;
             await activatePremium(email, {
                 amount: session.amount_total,
                 subscriptionId: session.subscription,
