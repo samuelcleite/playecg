@@ -69,33 +69,15 @@ Deno.serve(async (req) => {
         const nextRenewal = new Date(lastRenewal);
         nextRenewal.setDate(nextRenewal.getDate() + 30);
 
-        // Detectar se é Mercado Pago
-        const hasMercadoPagoPaymentId = latestPayment.mercadopago_payment_id && 
-                                       latestPayment.mercadopago_payment_id !== '' && 
-                                       latestPayment.mercadopago_payment_id !== null;
-        
-        const hasMercadoPagoPreferenceId = latestPayment.mercadopago_preference_id && 
-                                          latestPayment.mercadopago_preference_id !== '' && 
-                                          latestPayment.mercadopago_preference_id !== null;
-
-        const hasPaymentMethod = latestPayment.payment_method === 'MERCADOPAGO_SUBSCRIPTION';
-
-        const isMercadoPago = hasPaymentMethod || hasMercadoPagoPaymentId || hasMercadoPagoPreferenceId;
-
-        console.log('🔍 Detection:', {
-            hasPaymentMethod,
-            hasMercadoPagoPaymentId,
-            hasMercadoPagoPreferenceId,
-            isMercadoPago
-        });
-
-        const paymentId = latestPayment.mercadopago_payment_id || latestPayment.mercadopago_preference_id || null;
+        // Detectar se é Stripe
+        const isStripe = latestPayment.payment_method === 'STRIPE_SUBSCRIPTION' || !!latestPayment.stripe_subscription_id;
+        const paymentId = latestPayment.stripe_subscription_id || null;
 
         const subscriptionInfo = {
             amount: latestPayment.amount,
             lastRenewal: lastRenewal.toISOString(),
             nextRenewal: nextRenewal.toISOString(),
-            paymentMethod: isMercadoPago ? 'Mercado Pago' : 'Manual',
+            paymentMethod: isStripe ? 'Stripe' : 'Manual',
             paymentId: paymentId
         };
 

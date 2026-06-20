@@ -199,7 +199,7 @@ export default function Profile() {
     setCancelError(null);
 
     try {
-      const response = await base44.functions.invoke('cancelMercadoPagoSubscription', {});
+      const response = await base44.functions.invoke('cancelStripeSubscription', {});
 
       if (response.data.success) {
         setCancelSuccess(true);
@@ -359,7 +359,7 @@ export default function Profile() {
                     </AlertDescription>
                   </Alert>
 
-                  {subscriptionInfo.paymentMethod === 'Mercado Pago' && subscriptionInfo.paymentId && (
+                  {subscriptionInfo.paymentMethod === 'Stripe' && subscriptionInfo.paymentId && (
                     <Button
                       variant="outline"
                       className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"

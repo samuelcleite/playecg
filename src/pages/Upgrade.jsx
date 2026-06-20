@@ -90,58 +90,41 @@ export default function Upgrade() {
   };
 
   const handleUpgrade = async () => {
+    // Stripe Checkout não funciona dentro de iframe (preview)
+    if (window.self !== window.top) {
+      setErrorDialog({
+        open: true,
+        title: 'Abra o app publicado',
+        message: 'O checkout só funciona no app publicado. Abra o app em uma nova aba para finalizar o pagamento.',
+        details: ''
+      });
+      return;
+    }
+
     setProcessing(true);
 
     try {
-      const payload = {
+      const response = await base44.functions.invoke('createStripeCheckout', {
         coupon_code: appliedCoupon?.coupon?.code || ""
-      };
+      });
 
-      console.log('Sending payment request:', payload);
-
-      const response = await base44.functions.invoke('createMercadoPagoCharge', payload);
-
-      console.log('Payment response:', response.data);
-
-      if (response.data.success) {
-        const checkoutUrl = response.data.init_point;
-        
-        console.log('Redirecting to checkout:', checkoutUrl);
-        
-        if (checkoutUrl) {
-          // Redirecionar para o checkout de produção
-          window.location.href = checkoutUrl;
-        } else {
-          setErrorDialog({
-            open: true,
-            title: 'Erro no Checkout',
-            message: 'URL de checkout não foi retornada pelo Mercado Pago. Por favor, tente novamente.',
-            details: JSON.stringify(response.data, null, 2)
-          });
-        }
+      if (response.data.success && response.data.url) {
+        window.location.href = response.data.url;
       } else {
-        const errorMsg = response.data.error || "Erro ao gerar cobrança. Tente novamente.";
-        console.error('Payment error:', response.data);
-        
         setErrorDialog({
           open: true,
           title: 'Erro ao Processar Pagamento',
-          message: errorMsg,
-          details: response.data.debug ? JSON.stringify(response.data.debug, null, 2) : ''
+          message: response.data.error || "Erro ao gerar checkout. Tente novamente.",
+          details: ''
         });
       }
     } catch (error) {
-      console.error("Error creating charge:", error);
-      const errorMessage = error.response?.data?.error || error.message || "Erro desconhecido";
-      const errorDetails = error.response?.data?.debug 
-        ? JSON.stringify(error.response.data.debug, null, 2)
-        : error.stack || '';
-      
+      console.error("Error creating checkout:", error);
       setErrorDialog({
         open: true,
         title: 'Erro ao Processar Pagamento',
-        message: errorMessage,
-        details: errorDetails
+        message: error.response?.data?.error || error.message || "Erro desconhecido",
+        details: ''
       });
     } finally {
       setProcessing(false);
@@ -329,14 +312,14 @@ export default function Upgrade() {
                   <div className="space-y-2">
                     <p className="font-semibold flex items-center gap-2">
                       <CreditCard className="w-4 h-4" />
-                      Pagamento Seguro com Mercado Pago
+                      Pagamento Seguro com Stripe
                     </p>
                     <p className="text-sm">
-                      Você será redirecionado para a página segura do Mercado Pago. 
-                      Aceita cartão de crédito, débito, PIX e boleto.
+                      Você será redirecionado para a página segura do Stripe. 
+                      Aceita os principais cartões de crédito e débito.
                     </p>
                     <p className="text-xs font-semibold text-blue-700">
-                      🔒 Pagamento seguro via Mercado Pago
+                      🔒 Pagamento seguro via Stripe
                     </p>
                   </div>
                 </AlertDescription>
@@ -361,7 +344,7 @@ export default function Upgrade() {
               </Button>
               <p className="text-center text-sm text-gray-600 mt-4 flex items-center justify-center gap-2">
                 <CheckCircle2 className="w-4 h-4" />
-                Checkout 100% seguro processado pelo Mercado Pago
+                Checkout 100% seguro processado pelo Stripe
               </p>
             </CardContent>
           </Card>
@@ -449,8 +432,8 @@ export default function Upgrade() {
                 O pagamento é seguro?
               </h4>
               <p className="text-gray-600">
-                Completamente! Utilizamos o Mercado Pago, uma das maiores plataformas de pagamento da América Latina. 
-                Seus dados de pagamento são processados diretamente pelo Mercado Pago e nunca passam pelos nossos servidores.
+                Completamente! Utilizamos o Stripe, uma das maiores plataformas de pagamento do mundo. 
+                Seus dados de pagamento são processados diretamente pelo Stripe e nunca passam pelos nossos servidores.
               </p>
             </div>
           </CardContent>
@@ -479,7 +462,7 @@ export default function Upgrade() {
 
               <Alert className="bg-blue-50 border-blue-200">
                 <AlertDescription className="text-sm text-blue-900">
-                  <strong>💡 Dica:</strong> Verifique os logs da função no Dashboard → Code → Functions → createMercadoPagoCharge para ver mais detalhes do erro retornado pelo Mercado Pago.
+                  <strong>💡 Dica:</strong> Verifique os logs da função no Dashboard → Code → Functions → createStripeCheckout para ver mais detalhes do erro retornado pelo Stripe.
                 </AlertDescription>
               </Alert>
             </AlertDialogDescription>

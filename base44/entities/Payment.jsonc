@@ -6,13 +6,9 @@
       "type": "string",
       "description": "Email do usu\u00e1rio"
     },
-    "mercadopago_preference_id": {
+    "stripe_subscription_id": {
       "type": "string",
-      "description": "ID da prefer\u00eancia/assinatura no Mercado Pago"
-    },
-    "mercadopago_payment_id": {
-      "type": "string",
-      "description": "ID do pagamento no Mercado Pago"
+      "description": "ID da assinatura no Stripe"
     },
     "reference_id": {
       "type": "string",
