@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
                     success: true,
                     hasSubscription: true,
                     subscriptionInfo: {
-                        amount: 10.00,
+                        amount: 59.00,
                         lastRenewal: startDate.toISOString(),
                         nextRenewal: nextRenewal.toISOString(),
                         paymentMethod: 'Manual',
