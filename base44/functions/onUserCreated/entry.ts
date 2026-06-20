@@ -11,12 +11,12 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'No user data' }, { status: 400 });
     }
 
-    // Upgrade user to premium
+    // New users start as free
     await base44.asServiceRole.entities.User.update(data.id, {
-      subscription_type: 'premium'
+      subscription_type: 'free'
     });
 
-    console.log(`User ${data.email} automatically upgraded to premium`);
+    console.log(`User ${data.email} set to free`);
     return Response.json({ success: true });
   } catch (error) {
     console.error('Error upgrading user:', error);
