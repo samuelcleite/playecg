@@ -160,6 +160,10 @@ export default function Home() {
                 <Crown className="w-7 h-7 text-[#22C55E]" />
                 <h2 className="text-2xl font-bold text-white">Versão Premium</h2>
               </div>
+              <div className="flex items-end gap-2 mb-6">
+                <span className="text-4xl font-bold text-white">R$ 59,00</span>
+                <span className="text-blue-200 text-base mb-1">/mês</span>
+              </div>
               <ul className="space-y-2 mb-6">
                 {premiumFeatures.map((f, i) => (
                   <li key={i} className="flex items-center gap-2 text-blue-100">
@@ -174,6 +178,9 @@ export default function Home() {
                   Assinar Premium
                 </Button>
               </Link>
+              <p className="text-blue-300 text-xs mt-4">
+                Assinatura mensal de R$ 59,00, renovada automaticamente. Pagamento seguro via Stripe (cartão de crédito). Cancele quando quiser.
+              </p>
             </CardContent>
           </Card>
 
