@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
         const { coupon_code } = await req.json();
 
         const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY"));
-        const priceId = "price_1TkPk2LWtNC4GBiNr2xOte8U";
+        const priceId = "price_1TkQ29LWtNC4GBiNH0JMTzeI";
         const origin = req.headers.get('origin') || '';
 
         // Validar cupom (se enviado) e resolver desconto Stripe

@@ -131,8 +131,7 @@ export default function Upgrade() {
     }
   };
 
-  // PREÇO BASE ALTERADO PARA R$ 10,00 (Temporariamente para testar o problema do botão desabilitado)
-  const originalPrice = 10;
+  const originalPrice = 59;
   const finalPrice = appliedCoupon?.pricing?.final_price || originalPrice;
   const discountAmount = appliedCoupon?.pricing?.discount_amount || 0;
 
@@ -221,6 +220,13 @@ export default function Upgrade() {
                 Versão Premium
                 <Sparkles className="w-5 h-5 text-amber-600" />
               </CardTitle>
+              <div className="mt-4">
+                {discountAmount > 0 && (
+                  <span className="text-xl text-gray-400 line-through mr-2">R$ {originalPrice.toFixed(2)}</span>
+                )}
+                <span className="text-4xl font-bold text-gray-900">R$ {finalPrice.toFixed(2)}</span>
+                <span className="text-gray-600">/mês</span>
+              </div>
               {appliedCoupon && discountAmount > 0 && (
                 <div className="mt-4">
                   <Badge className="bg-green-500 text-white">

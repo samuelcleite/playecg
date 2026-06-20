@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
                 user_email: email,
                 stripe_subscription_id: subscriptionId || null,
                 reference_id: subscriptionId || `stripe_${Date.now()}`,
-                amount: amount != null ? amount / 100 : 10,
+                amount: amount != null ? amount / 100 : 59,
                 discount_amount: 0,
                 coupon_id: couponId || null,
                 status: 'PAID',
@@ -54,9 +54,9 @@ Deno.serve(async (req) => {
                     await base44.asServiceRole.entities.CouponUsage.create({
                         coupon_id: couponId,
                         user_email: email,
-                        original_price: 10,
+                        original_price: 59,
                         discount_applied: 0,
-                        final_price: amount != null ? amount / 100 : 10,
+                        final_price: amount != null ? amount / 100 : 59,
                         used_at: new Date().toISOString()
                     });
                     const coupons = await base44.asServiceRole.entities.Coupon.filter({ id: couponId });
