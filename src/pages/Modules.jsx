@@ -7,6 +7,7 @@ import LearningTrail from "@/components/home/LearningTrail";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Trophy,
   Zap,
@@ -32,12 +33,12 @@ export default function Modules() {
   const [progress, setProgress] = useState({});
   const [introContent, setIntroContent] = useState(null);
   const [showIntroDialog, setShowIntroDialog] = useState(false);
+  const [overallAccuracy, setOverallAccuracy] = useState(0);
+  const [isTrailLoading, setIsTrailLoading] = useState(true);
 
   useEffect(() => {
     loadData();
   }, []);
-
-  const [overallAccuracy, setOverallAccuracy] = useState(0);
 
   const loadData = async () => {
     try {
@@ -49,48 +50,56 @@ export default function Modules() {
         return;
       }
 
-      const [modulesData, phasesData, progressRes, statsRes, contentsData] = await Promise.all([
+      // --- ESSENCIAL: só o que a trilha precisa para renderizar ---
+      const [modulesData, phasesData, progressRes] = await Promise.all([
         base44.entities.Module.list("order"),
         base44.entities.Phase.list("order"),
         base44.functions.invoke("getUserProgress", {}),
-        base44.functions.invoke("getUserStats", {}),
-        base44.entities.Content.list()
       ]);
 
-      const userProgressData = Array.isArray(progressRes?.data?.data) ? progressRes.data.data : [];
-
-      setOverallAccuracy(statsRes?.data?.moduleAccuracy ?? 0);
+      const userProgressData = Array.isArray(progressRes?.data?.data)
+        ? progressRes.data.data
+        : [];
 
       // Calcular progresso por módulo a partir do UserProgress
       const progressMap = {};
-      modulesData.forEach(module => {
-        const modulePhases = phasesData.filter(p => p.module_id === module.id);
-        const completedPhasesCount = modulePhases.filter(phase => {
-          const record = userProgressData.find(up => up.phase_id === phase.id);
-          return record?.status === 'completed';
+      modulesData.forEach((module) => {
+        const modulePhases = phasesData.filter((p) => p.module_id === module.id);
+        const completedPhasesCount = modulePhases.filter((phase) => {
+          const record = userProgressData.find((up) => up.phase_id === phase.id);
+          return record?.status === "completed";
         }).length;
 
         progressMap[module.id] = {
-          completed: completedPhasesCount === modulePhases.length && modulePhases.length > 0,
+          completed:
+            completedPhasesCount === modulePhases.length &&
+            modulePhases.length > 0,
           completedPhases: completedPhasesCount,
-          totalPhases: modulePhases.length
+          totalPhases: modulePhases.length,
         };
       });
 
-      // Buscar conteúdo de introdução
-      const intro = contentsData.find(c => !c.module_id && !c.phase_id);
-
-      console.log("Modules:", modulesData);
-      console.log("Phases:", phasesData);
-      console.log("UserProgress:", userProgressData);
-      
       setModules(modulesData);
       setPhases(phasesData);
       setUserProgress(userProgressData);
       setProgress(progressMap);
-      setIntroContent(intro);
+      setIsTrailLoading(false); // a trilha já pode aparecer aqui
+
+      // --- SECUNDÁRIO: não bloqueia a trilha, preenche os banners depois ---
+      base44.functions
+        .invoke("getUserStats", {})
+        .then((statsRes) => setOverallAccuracy(statsRes?.data?.moduleAccuracy ?? 0))
+        .catch((err) => console.error("getUserStats:", err));
+
+      base44.entities.Content.list()
+        .then((contentsData) => {
+          const intro = contentsData.find((c) => !c.module_id && !c.phase_id);
+          setIntroContent(intro);
+        })
+        .catch((err) => console.error("Content.list:", err));
     } catch (error) {
       console.error("Error loading data:", error);
+      setIsTrailLoading(false);
     }
   };
 
@@ -121,7 +130,8 @@ export default function Modules() {
                 <div>
                   <p className="text-sm opacity-90">Módulos Completos</p>
                   <p className="text-3xl font-bold mt-1">
-                   {Object.values(progress).filter(p => p?.completed).length}/{modules?.length || 0}
+                    {Object.values(progress).filter((p) => p?.completed).length}/
+                    {modules?.length || 0}
                   </p>
                 </div>
                 <Trophy className="w-12 h-12 opacity-80" />
@@ -134,9 +144,7 @@ export default function Modules() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm opacity-90">Taxa de Acerto</p>
-                  <p className="text-3xl font-bold mt-1">
-                   {overallAccuracy}%
-                  </p>
+                  <p className="text-3xl font-bold mt-1">{overallAccuracy}%</p>
                 </div>
                 <Zap className="w-12 h-12 opacity-80" />
               </div>
@@ -154,7 +162,9 @@ export default function Modules() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-lg font-bold text-gray-900">Introdução ao ECG</h3>
+                    <h3 className="text-lg font-bold text-gray-900">
+                      Introdução ao ECG
+                    </h3>
                     <Badge className="bg-[#22C55E] text-white">Recomendado</Badge>
                   </div>
                   <p className="text-sm text-gray-600 flex items-center gap-1">
@@ -174,12 +184,20 @@ export default function Modules() {
         )}
 
         {/* Trail */}
-        <LearningTrail
-          modules={modules}
-          phases={phases}
-          userProgress={userProgress}
-          isPremium={true}
-        />
+        {isTrailLoading ? (
+          <div className="space-y-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-24 w-full rounded-2xl" />
+            ))}
+          </div>
+        ) : (
+          <LearningTrail
+            modules={modules}
+            phases={phases}
+            userProgress={userProgress}
+            isPremium={true}
+          />
+        )}
       </div>
 
       {/* Introduction Dialog */}
@@ -191,9 +209,7 @@ export default function Modules() {
                 <Sparkles className="w-6 h-6 text-white" />
               </div>
               <div>
-                <DialogTitle className="text-2xl">
-                  Introdução ao ECG
-                </DialogTitle>
+                <DialogTitle className="text-2xl">Introdução ao ECG</DialogTitle>
                 <DialogDescription>
                   Fundamentos essenciais para começar sua jornada
                 </DialogDescription>
@@ -206,9 +222,9 @@ export default function Modules() {
               <div className="flex items-start gap-3 mb-4">
                 <Lightbulb className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
                 <div className="flex-1">
-                  <div 
+                  <div
                     className="text-gray-700 leading-relaxed prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: introContent?.content || '' }}
+                    dangerouslySetInnerHTML={{ __html: introContent?.content || "" }}
                   />
                 </div>
               </div>
@@ -216,7 +232,7 @@ export default function Modules() {
           </div>
 
           <div className="flex justify-end">
-            <Button 
+            <Button
               onClick={() => setShowIntroDialog(false)}
               className="bg-[#1976D2] hover:bg-[#0D3B66] text-white"
             >
