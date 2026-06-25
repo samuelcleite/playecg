@@ -54,6 +54,40 @@
       "type": "string",
       "format": "date-time",
       "description": "Data de in\u00edcio da assinatura premium"
+    },
+    "total_attempts": {
+      "type": "number",
+      "default": 0,
+      "description": "Total de tentativas de quiz"
+    },
+    "total_first_attempts": {
+      "type": "number",
+      "default": 0,
+      "description": "N\u00famero de casos distintos j\u00e1 tentados (primeira tentativa por quiz_type + case_id)"
+    },
+    "correct_first_attempts": {
+      "type": "number",
+      "default": 0,
+      "description": "Primeiras tentativas corretas"
+    },
+    "module_first_attempts": {
+      "type": "number",
+      "default": 0,
+      "description": "Primeiras tentativas em casos de m\u00f3dulo (quiz_type = module)"
+    },
+    "module_correct_first_attempts": {
+      "type": "number",
+      "default": 0,
+      "description": "Primeiras tentativas corretas em casos de m\u00f3dulo"
+    },
+    "current_streak": {
+      "type": "number",
+      "default": 0,
+      "description": "Sequ\u00eancia atual de dias praticados"
+    },
+    "last_practice_date": {
+      "type": "string",
+      "description": "\u00daltima data de pr\u00e1tica (YYYY-MM-DD)"
     }
   },
   "required": [
