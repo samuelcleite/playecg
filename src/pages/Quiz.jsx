@@ -143,15 +143,19 @@ export default function Quiz() {
     const userData = await User.me();
     setUser(userData);
 
-    // Verificar limite para usuários gratuitos
+    // Buscar tentativas e casos em paralelo (os casos não dependem das tentativas)
+    const [attempts, allCases] = await Promise.all([
+      QuizAttempt.filter({ user_email: userData.email }),
+      ECGCase.list(),
+    ]);
+
+    // Verificar limite para usuários gratuitos (reutiliza 'attempts')
     if (userData.subscription_type !== "premium") {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayDate = today.toISOString().split('T')[0];
 
-      const allAttempts = await QuizAttempt.filter({ user_email: userData.email });
-
-      const todayAttempts = allAttempts.filter(attempt => {
+      const todayAttempts = attempts.filter(attempt => {
         const attemptDate = new Date(attempt.created_date);
         attemptDate.setHours(0, 0, 0, 0);
         return attemptDate.toISOString().split('T')[0] === todayDate;
@@ -170,7 +174,6 @@ export default function Quiz() {
       }
     }
 
-    const attempts = await QuizAttempt.filter({ user_email: userData.email });
     const attemptedIds = attempts.map(attempt => attempt.case_id);
     setAttemptedCaseIds(attemptedIds);
 
@@ -178,25 +181,27 @@ export default function Quiz() {
     const urlParams = new URLSearchParams(window.location.search);
     const returnCaseId = urlParams.get('case_id');
     if (returnCaseId) {
-      const allCases = await base44.entities.ECGCase.list();
       const targetCase = allCases.find(c => c.id === returnCaseId);
       if (targetCase) {
         setCurrentCase(targetCase);
         setStartTime(Date.now());
         if (targetCase.module_id && targetCase.phase_id) {
-          const contents = await base44.entities.Content.list();
-          const content = contents.find(c => c.module_id === targetCase.module_id && c.phase_id === targetCase.phase_id);
-          setCaseContent(content);
+          const contents = await base44.entities.Content.filter({
+            module_id: targetCase.module_id,
+            phase_id: targetCase.phase_id
+          });
+          setCaseContent(contents?.[0] || null);
         }
         setLoading(false);
         return;
       }
     }
 
-    await loadNextCase(attemptedIds);
+    // Reaproveitar os casos já carregados para evitar um segundo ECGCase.list()
+    await loadNextCase(attemptedIds, allCases);
   };
 
-  const loadNextCase = async (attemptedIds = attemptedCaseIds) => {
+  const loadNextCase = async (attemptedIds = attemptedCaseIds, prefetchedCases = null) => {
     setLoading(true);
     setSelectedAnswers([]);
     setShowResult(false);
@@ -205,7 +210,7 @@ export default function Quiz() {
     setShowCorrectAnswer(false);
     setCaseContent(null);
 
-    const allCases = await ECGCase.list();
+    const allCases = prefetchedCases || await ECGCase.list();
     const unansweredCases = allCases.filter(c => !attemptedIds.includes(c.id));
 
     if (unansweredCases.length > 0) {
@@ -215,9 +220,11 @@ export default function Quiz() {
       
       // Buscar conteúdo se o caso tiver módulo e fase
       if (randomCase.module_id && randomCase.phase_id) {
-        const contents = await base44.entities.Content.list();
-        const content = contents.find(c => c.module_id === randomCase.module_id && c.phase_id === randomCase.phase_id);
-        setCaseContent(content);
+        const contents = await base44.entities.Content.filter({
+          module_id: randomCase.module_id,
+          phase_id: randomCase.phase_id
+        });
+        setCaseContent(contents?.[0] || null);
       }
     } else if (allCases.length > 0) {
       setAllCasesCompleted(true);
