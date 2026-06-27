@@ -116,7 +116,26 @@ export default function ModuleDetail() {
     const userData = await base44.auth.me();
     setUser(userData);
 
-    const moduleData = await base44.entities.Module.list();
+    // --- CRÍTICO: tudo que só depende de moduleId/phaseId/email roda em paralelo ---
+    const [moduleData, phaseData, progressResp, allUserAttempts] = await Promise.all([
+      base44.entities.Module.list(),
+      base44.entities.Phase.list(),
+      // getUserProgress via service role (evita problema de RLS no modo "agindo como")
+      base44.functions
+        .invoke('getUserProgress', { user_email: userData.email })
+        .catch(err => {
+          console.warn('Failed to load user progress:', err.message);
+          return null;
+        }),
+      // Tentativas apenas para saber se usuário já entrou na fase (verificar redirect)
+      base44.entities.QuizAttempt.filter({
+        user_email: userData.email,
+        module_id: moduleId,
+        phase_id: phaseId,
+        quiz_type: "module"
+      }, "-created_date", 1),
+    ]);
+
     const foundModule = moduleData.find(m => m.id === moduleId);
     if (!foundModule) {
       navigate(createPageUrl("Modules"));
@@ -124,7 +143,6 @@ export default function ModuleDetail() {
     }
     setModule(foundModule);
 
-    const phaseData = await base44.entities.Phase.list();
     const foundPhase = phaseData.find(p => p.id === phaseId);
     if (!foundPhase) {
       navigate(createPageUrl("Modules"));
@@ -132,39 +150,24 @@ export default function ModuleDetail() {
     }
     setPhase(foundPhase);
 
-    // Buscar UserProgress via service role (evita problema de RLS no modo "agindo como")
-    let progressRecord = null;
-    try {
-      const progressResp = await base44.functions.invoke('getUserProgress', {
-        user_email: userData.email
-      });
-      const allProgress = progressResp?.data?.data || [];
-      progressRecord = allProgress.find(p => p.module_id === moduleId && p.phase_id === phaseId) || null;
-    } catch (err) {
-      console.warn('Failed to load user progress:', err.message);
-    }
+    const allProgress = progressResp?.data?.data || [];
+    const progressRecord = allProgress.find(p => p.module_id === moduleId && p.phase_id === phaseId) || null;
 
     const completedCaseIds = progressRecord?.completed_case_ids || [];
     const totalCases = progressRecord?.completion_goal || foundPhase.total_cases || 0;
     setTotalPhaseCases(totalCases);
     setCompletedCasesCount(Math.min(completedCaseIds.length, totalCases));
 
-    // Buscar tentativas apenas para saber se usuário já entrou na fase (verificar redirect)
-    const allUserAttempts = await base44.entities.QuizAttempt.filter({
-      user_email: userData.email,
-      module_id: moduleId,
-      phase_id: phaseId,
-      quiz_type: "module"
-    }, "-created_date", 1);
+    // Selecionar casos e buscar conteúdo da fase em paralelo (não dependem entre si)
+    const [combinedCasesRaw, phaseContentData] = await Promise.all([
+      // Selecionar e combinar casos (80% fase atual + 20% fases anteriores)
+      selectAndCombineCases(moduleId, phaseId, foundPhase, phaseData, completedCaseIds),
+      base44.entities.Content
+        .filter({ module_id: moduleId, phase_id: phaseId })
+        .then(r => r?.[0] || null),
+    ]);
 
-    // Selecionar e combinar casos (80% fase atual + 20% fases anteriores)
-    let combinedCases = await selectAndCombineCases(
-      moduleId, 
-      phaseId, 
-      foundPhase, 
-      phaseData, 
-      completedCaseIds
-    );
+    let combinedCases = combinedCasesRaw;
 
     // Restaurar caso se veio do ConteudoECG (botão "Tem dúvidas?")
     const returnCaseId = urlParams.get('case_id');
@@ -185,10 +188,6 @@ export default function ModuleDetail() {
     }
 
     setCases(combinedCases);
-
-    // Buscar conteúdo da fase
-    const contents = await base44.entities.Content.list();
-    const phaseContentData = contents.find(c => c.module_id === moduleId && c.phase_id === phaseId);
     setPhaseContent(phaseContentData);
 
     // Só redirecionar para conteúdo se o usuário nunca fez NENHUMA tentativa nesta fase
@@ -209,21 +208,21 @@ export default function ModuleDetail() {
     
     const previousPhases = modulePhasesOrdered.filter(p => p.order < currentPhase.order);
 
-    // Buscar casos da fase atual
-    const currentPhaseCases = await base44.entities.ECGCase.filter({ 
-      module_id: moduleId,
-      phase_id: phaseId 
-    });
-
-    // Buscar casos de fases anteriores
-    let previousPhasesCases = [];
-    for (const prevPhase of previousPhases) {
-      const cases = await base44.entities.ECGCase.filter({
+    // Buscar casos da fase atual e das fases anteriores em paralelo
+    const [currentPhaseCases, ...previousResults] = await Promise.all([
+      base44.entities.ECGCase.filter({
         module_id: moduleId,
-        phase_id: prevPhase.id
-      });
-      previousPhasesCases = [...previousPhasesCases, ...cases];
-    }
+        phase_id: phaseId
+      }),
+      ...previousPhases.map(prevPhase =>
+        base44.entities.ECGCase.filter({
+          module_id: moduleId,
+          phase_id: prevPhase.id
+        })
+      ),
+    ]);
+
+    const previousPhasesCases = previousResults.flat();
 
     // Filtrar apenas casos não completados (sem repetição)
     const uniqueCurrentCases = shuffleArray(
