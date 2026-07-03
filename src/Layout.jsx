@@ -262,11 +262,11 @@ export default function Layout({ children, currentPageName }) {
 
       {/* ── MOBILE: content + bottom nav ── */}
       <div className="md:hidden flex flex-col w-full bg-ecg-gray" style={{ minHeight: '100dvh' }}>
-        <main className="flex-1 overflow-y-auto pb-32" style={{ height: '100%', paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+        <main className="flex-1 overflow-y-auto pb-32" style={{ height: '100%', paddingTop: 'env(safe-area-inset-top, 0px)', overscrollBehavior: 'none' }}>
           {children}
         </main>
 
-        <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, backgroundColor: '#FFFFFF', borderTop: '1px solid #E0E0E0', boxShadow: '0 -2px 12px rgba(0,0,0,0.08)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+        <nav className="select-none" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, backgroundColor: '#FFFFFF', borderTop: '1px solid #E0E0E0', boxShadow: '0 -2px 12px rgba(0,0,0,0.08)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           <div className="flex items-center justify-around px-2 py-3">
             {navigationItems.map((item) => {
               const isActive = location.pathname === item.url;

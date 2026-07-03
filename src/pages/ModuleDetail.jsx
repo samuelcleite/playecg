@@ -13,6 +13,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { triggerAchievementCheck } from "@/components/AchievementChecker";
 import AchievementToast from "@/components/AchievementToast";
 import { 
@@ -636,6 +643,19 @@ export default function ModuleDetail() {
     <div className="min-h-screen p-0 md:p-8 overflow-x-hidden">
       <TopBar />
       <div className="max-w-4xl mx-auto md:space-y-6">
+        {/* Mobile back button */}
+        <div className="md:hidden px-3 pt-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(createPageUrl("Modules"))}
+            className="gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Voltar
+          </Button>
+        </div>
+
         {/* Header - hidden on mobile */}
         <div className="hidden md:flex items-center justify-between">
           <Button
@@ -1104,18 +1124,18 @@ export default function ModuleDetail() {
               <label className="text-sm font-medium text-gray-700 mb-2 block">
                 Tipo de Erro
               </label>
-              <select
-                value={reportErrorType}
-                onChange={(e) => setReportErrorType(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              >
-                <option value="">Selecione o tipo</option>
-                <option value="Imagem incorreta">Imagem incorreta</option>
-                <option value="Resposta incorreta">Resposta incorreta</option>
-                <option value="Explicação errada">Explicação errada</option>
-                <option value="Informação do paciente">Informação do paciente</option>
-                <option value="Outro">Outro</option>
-              </select>
+              <Select value={reportErrorType} onValueChange={setReportErrorType}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Imagem incorreta">Imagem incorreta</SelectItem>
+                  <SelectItem value="Resposta incorreta">Resposta incorreta</SelectItem>
+                  <SelectItem value="Explicação errada">Explicação errada</SelectItem>
+                  <SelectItem value="Informação do paciente">Informação do paciente</SelectItem>
+                  <SelectItem value="Outro">Outro</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div>

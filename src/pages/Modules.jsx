@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link, useNavigate } from "react-router-dom";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { createPageUrl } from "@/utils";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import LearningTrail from "@/components/home/LearningTrail";
@@ -35,10 +36,13 @@ export default function Modules() {
   const [showIntroDialog, setShowIntroDialog] = useState(false);
   const [overallAccuracy, setOverallAccuracy] = useState(0);
   const [isTrailLoading, setIsTrailLoading] = useState(true);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  usePullToRefresh(loadData, containerRef);
 
   const loadData = async () => {
     try {
@@ -110,7 +114,7 @@ export default function Modules() {
   };
 
   return (
-    <div className="min-h-screen p-6 md:p-8">
+    <div ref={containerRef} className="min-h-screen p-6 md:p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center mb-12">

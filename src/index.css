@@ -104,6 +104,10 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html, body {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
   body {
     @apply bg-background text-foreground font-nunito;
     -webkit-font-smoothing: antialiased;
@@ -112,5 +116,10 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-nunito);
     font-weight: 800;
+  }
+  button, a, nav, [role="button"], [role="tab"], label {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
 }

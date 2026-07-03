@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 // calculateStreakDays removed - using local version to avoid extra API call
@@ -31,10 +32,13 @@ export default function Dashboard() {
   const [dailyCaseAvailable, setDailyCaseAvailable] = useState(false);
   const [dailyCaseCompleted, setDailyCaseCompleted] = useState(false);
   const [stats, setStats] = useState({ total: 0, correct: 0, accuracy: 0 });
+  const containerRef = useRef(null);
 
   useEffect(() => {
     init();
   }, []);
+
+  usePullToRefresh(init, containerRef);
 
   const init = async () => {
     try {
@@ -89,9 +93,9 @@ export default function Dashboard() {
   const earnedAchievements = achievements.filter(a => a.earned);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 w-full max-w-full">
+    <div ref={containerRef} className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 w-full max-w-full">
       {/* Top Bar */}
-      <header className="bg-white border-b border-blue-100 sticky top-0 z-40">
+      <header className="bg-white border-b border-blue-100 sticky top-0 z-40" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-[#0D3B66] to-[#1976D2] rounded-lg flex items-center justify-center">

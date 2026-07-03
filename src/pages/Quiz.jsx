@@ -35,6 +35,13 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import TopBar from "@/components/TopBar";
@@ -1154,18 +1161,18 @@ export default function Quiz() {
               <label className="text-sm font-medium text-gray-700 mb-2 block">
                 Tipo de Erro
               </label>
-              <select
-                value={reportErrorType}
-                onChange={(e) => setReportErrorType(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              >
-                <option value="">Selecione o tipo</option>
-                <option value="Imagem incorreta">Imagem incorreta</option>
-                <option value="Resposta incorreta">Resposta incorreta</option>
-                <option value="Explicação errada">Explicação errada</option>
-                <option value="Informação do paciente">Informação do paciente</option>
-                <option value="Outro">Outro</option>
-              </select>
+              <Select value={reportErrorType} onValueChange={setReportErrorType}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Imagem incorreta">Imagem incorreta</SelectItem>
+                  <SelectItem value="Resposta incorreta">Resposta incorreta</SelectItem>
+                  <SelectItem value="Explicação errada">Explicação errada</SelectItem>
+                  <SelectItem value="Informação do paciente">Informação do paciente</SelectItem>
+                  <SelectItem value="Outro">Outro</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
