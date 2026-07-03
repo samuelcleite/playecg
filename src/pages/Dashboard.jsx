@@ -38,8 +38,6 @@ export default function Dashboard() {
     init();
   }, []);
 
-  usePullToRefresh(init, containerRef);
-
   const init = async () => {
     try {
       const userData = await base44.auth.me();
@@ -80,6 +78,8 @@ export default function Dashboard() {
       setLoading(false);
     }
   };
+
+  usePullToRefresh(init, containerRef);
 
   if (loading) {
     return (

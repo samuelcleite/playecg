@@ -42,8 +42,6 @@ export default function Modules() {
     loadData();
   }, []);
 
-  usePullToRefresh(loadData, containerRef);
-
   const loadData = async () => {
     try {
       const userData = await base44.auth.me();
@@ -106,6 +104,8 @@ export default function Modules() {
       setIsTrailLoading(false);
     }
   };
+
+  usePullToRefresh(loadData, containerRef);
 
   const handleOpenIntro = () => {
     if (introContent) {
