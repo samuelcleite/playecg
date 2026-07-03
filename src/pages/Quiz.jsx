@@ -785,6 +785,7 @@ export default function Quiz() {
                   <Button
                     variant="outline"
                     size="sm"
+                    aria-label="Reportar erro"
                     onClick={() => setShowReportDialog(true)}
                     className="gap-2 border-red-200 hover:bg-red-50 text-red-600 md:hidden"
                   >
@@ -1034,6 +1035,7 @@ export default function Quiz() {
                 <Button
                   variant="outline"
                   size="icon"
+                  aria-label="Reduzir"
                   onClick={handleZoomOut}
                   disabled={zoomLevel <= 1}
                   className="border-blue-200 hover:bg-blue-50 h-9 w-9"
@@ -1046,6 +1048,7 @@ export default function Quiz() {
                 <Button
                   variant="outline"
                   size="icon"
+                  aria-label="Ampliar"
                   onClick={handleZoomIn}
                   disabled={zoomLevel >= 4}
                   className="border-blue-200 hover:bg-blue-50 h-9 w-9"
@@ -1055,6 +1058,7 @@ export default function Quiz() {
                 <Button
                   variant="outline"
                   size="icon"
+                  aria-label="Resetar zoom"
                   onClick={handleResetZoom}
                   className="border-blue-200 hover:bg-blue-50 h-9 w-9"
                 >

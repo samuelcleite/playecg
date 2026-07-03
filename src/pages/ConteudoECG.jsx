@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import { Link } from "react-router-dom";
 
 export default function ConteudoECG() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState(null);
@@ -34,10 +35,9 @@ export default function ConteudoECG() {
     const userData = await base44.auth.me();
     setUser(userData);
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const type = urlParams.get('type');
-    const moduleId = urlParams.get('module_id');
-    const phaseId = urlParams.get('phase_id');
+    const type = searchParams.get('type');
+    const moduleId = searchParams.get('module_id');
+    const phaseId = searchParams.get('phase_id');
 
     setContentType(type);
 
@@ -152,13 +152,12 @@ export default function ConteudoECG() {
 
   if (!content) {
     // Se veio de uma transição de fase e não há conteúdo, redirecionar direto para o quiz
-    const urlParamsCheck = new URLSearchParams(window.location.search);
-    const fromCheck = urlParamsCheck.get('from');
-    const moduleIdCheck = urlParamsCheck.get('module_id');
-    const phaseIdCheck = urlParamsCheck.get('phase_id');
+    const fromCheck = searchParams.get('from');
+    const moduleIdCheck = searchParams.get('module_id');
+    const phaseIdCheck = searchParams.get('phase_id');
 
     if (fromCheck === 'phase_transition' && moduleIdCheck && phaseIdCheck) {
-      window.location.href = `${createPageUrl("ModuleDetail")}?module_id=${moduleIdCheck}&phase_id=${phaseIdCheck}&from=content`;
+      navigate(`${createPageUrl("ModuleDetail")}?module_id=${moduleIdCheck}&phase_id=${phaseIdCheck}&from=content`, { replace: true });
       return null;
     }
 
@@ -222,11 +221,10 @@ export default function ConteudoECG() {
     return 'from-blue-50 to-indigo-50';
   };
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const from = urlParams.get('from');
-  const moduleId = urlParams.get('module_id');
-  const phaseId = urlParams.get('phase_id');
-  const caseId = urlParams.get('case_id');
+  const from = searchParams.get('from');
+  const moduleId = searchParams.get('module_id');
+  const phaseId = searchParams.get('phase_id');
+  const caseId = searchParams.get('case_id');
   const isPhaseTransition = from === 'phase_transition';
 
   return (
@@ -243,11 +241,11 @@ export default function ConteudoECG() {
                 const url = caseId
                   ? `${createPageUrl("Quiz")}?case_id=${caseId}`
                   : createPageUrl("Quiz");
-                window.location.href = url;
+                navigate(url);
               } else if (from === 'module' && moduleId && phaseId) {
                 let backUrl = `${createPageUrl("ModuleDetail")}?module_id=${moduleId}&phase_id=${phaseId}&from=content`;
                 if (caseId) backUrl += `&case_id=${caseId}`;
-                window.location.href = backUrl;
+                navigate(backUrl);
               } else {
                 navigate(createPageUrl("AprendaECG"));
               }
@@ -304,7 +302,7 @@ export default function ConteudoECG() {
             {isPhaseTransition && moduleId && phaseId && (
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <Button
-                  onClick={() => window.location.href = `${createPageUrl("ModuleDetail")}?module_id=${moduleId}&phase_id=${phaseId}&from=content`}
+                  onClick={() => navigate(`${createPageUrl("ModuleDetail")}?module_id=${moduleId}&phase_id=${phaseId}&from=content`)}
                   className="w-full bg-[#22C55E] hover:bg-green-600 text-white py-6 text-lg font-semibold gap-2 whitespace-normal h-auto text-center"
                   size="lg"
                 >

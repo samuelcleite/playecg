@@ -200,7 +200,7 @@ export default function ModuleDetail() {
     // Só redirecionar para conteúdo se o usuário nunca fez NENHUMA tentativa nesta fase
     const fromParam = urlParams.get('from');
     if (allUserAttempts.length === 0 && phaseContentData && fromParam !== 'phase_transition' && fromParam !== 'content') {
-      window.location.href = `${createPageUrl("ConteudoECG")}?type=phase&module_id=${moduleId}&phase_id=${phaseId}&from=phase_transition`;
+      navigate(`${createPageUrl("ConteudoECG")}?type=phase&module_id=${moduleId}&phase_id=${phaseId}&from=phase_transition`, { replace: true });
       return;
     }
 
@@ -574,7 +574,7 @@ export default function ModuleDetail() {
                 {nextPhase ? (
                   <>
                     <Button
-                      onClick={() => window.location.href = `${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${nextPhase.id}&from=phase_transition`}
+                      onClick={() => navigate(`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${nextPhase.id}&from=phase_transition`)}
                       className="bg-[#22C55E] hover:bg-green-600 text-white px-8 py-6 text-lg font-semibold whitespace-normal h-auto"
                       size="lg"
                     >
@@ -803,6 +803,7 @@ export default function ModuleDetail() {
                   <Button
                     variant="outline"
                     size="sm"
+                    aria-label="Reportar erro"
                     onClick={() => setShowReportDialog(true)}
                     className="gap-2 border-red-200 hover:bg-red-50 text-red-600 md:hidden"
                   >
@@ -1031,6 +1032,7 @@ export default function ModuleDetail() {
                 <Button
                   variant="outline"
                   size="icon"
+                  aria-label="Reduzir"
                   onClick={handleZoomOut}
                   disabled={zoomLevel <= 1}
                   className="border-blue-200 hover:bg-blue-50 h-9 w-9"
@@ -1043,6 +1045,7 @@ export default function ModuleDetail() {
                 <Button
                   variant="outline"
                   size="icon"
+                  aria-label="Ampliar"
                   onClick={handleZoomIn}
                   disabled={zoomLevel >= 4}
                   className="border-blue-200 hover:bg-blue-50 h-9 w-9"
@@ -1052,6 +1055,7 @@ export default function ModuleDetail() {
                 <Button
                   variant="outline"
                   size="icon"
+                  aria-label="Resetar zoom"
                   onClick={handleResetZoom}
                   className="border-blue-200 hover:bg-blue-50 h-9 w-9"
                 >

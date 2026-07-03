@@ -1,5 +1,8 @@
 import './App.css'
 import { Suspense } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
+import PageTransition from '@/components/PageTransition';
 import { ThemeProvider } from 'next-themes';
 import InstallPWA from './pages/InstallPWA';
 import { Toaster } from "@/components/ui/toaster"
@@ -25,6 +28,7 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, navigateToLogin } = useAuth();
+  const location = useLocation();
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -49,10 +53,11 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Suspense fallback={<div className="fixed inset-0 flex items-center justify-center"><div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div></div>}>
-    <Routes>
+    <AnimatePresence mode="wait">
+    <Routes location={location} key={location.pathname}>
       <Route path="/" element={
         <LayoutWrapper currentPageName={mainPageKey}>
-          <MainPage />
+          <PageTransition><MainPage /></PageTransition>
         </LayoutWrapper>
       } />
       {Object.entries(Pages).map(([path, Page]) => (
@@ -62,12 +67,12 @@ const AuthenticatedApp = () => {
           element={
             path === "Home" ? (
               <LayoutWrapper currentPageName={path}>
-                <Page />
+                <PageTransition><Page /></PageTransition>
               </LayoutWrapper>
             ) : (
               <ProtectedRoute>
                 <LayoutWrapper currentPageName={path}>
-                  <Page />
+                  <PageTransition><Page /></PageTransition>
                 </LayoutWrapper>
               </ProtectedRoute>
             )
@@ -77,6 +82,7 @@ const AuthenticatedApp = () => {
       <Route path="/instale" element={<InstallPWA />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
+    </AnimatePresence>
     </Suspense>
   );
 };

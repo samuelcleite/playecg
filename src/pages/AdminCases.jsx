@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ import * as XLSX from "xlsx";
 
 export default function AdminCases() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [user, setUser] = useState(null);
   const [cases, setCases] = useState([]);
   const [modules, setModules] = useState([]);
@@ -86,8 +87,7 @@ export default function AdminCases() {
   // Detectar caso a ser editado via URL
   useEffect(() => {
     const handleEditCase = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const editCaseId = urlParams.get('edit_case');
+      const editCaseId = searchParams.get('edit_case');
       
       if (editCaseId) {
         // Buscar o caso diretamente
@@ -104,7 +104,7 @@ export default function AdminCases() {
           setTimeout(() => {
             handleOpenDialog(caseToEdit);
             // Limpar o parâmetro da URL
-            window.history.replaceState({}, '', createPageUrl("AdminCases"));
+            setSearchParams({}, { replace: true });
           }, 500); // 500ms timeout to allow state updates and subsequent data loads to complete
         }
       }
