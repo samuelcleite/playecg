@@ -477,6 +477,8 @@ export default function AdminAchievements() {
                             <Button
                               variant="outline"
                               size="icon"
+                              aria-label="Mover troféu para cima"
+                              className="h-11 w-11"
                               onClick={() => handleReorder(achievement, "up")}
                               disabled={index === 0}
                             >
@@ -485,6 +487,8 @@ export default function AdminAchievements() {
                             <Button
                               variant="outline"
                               size="icon"
+                              aria-label="Mover troféu para baixo"
+                              className="h-11 w-11"
                               onClick={() => handleReorder(achievement, "down")}
                               disabled={index === intensityAchievements.length - 1}
                             >
@@ -493,16 +497,18 @@ export default function AdminAchievements() {
                             <Button
                               variant="outline"
                               size="icon"
+                              aria-label="Editar troféu"
                               onClick={() => handleOpenDialog(achievement)}
-                              className="border-blue-200 hover:bg-blue-50"
+                              className="h-11 w-11 border-blue-200 hover:bg-blue-50"
                             >
                               <Pencil className="w-4 h-4 text-blue-600" />
                             </Button>
                             <Button
                               variant="outline"
                               size="icon"
+                              aria-label="Excluir troféu"
                               onClick={() => handleDelete(achievement.id)}
-                              className="border-red-200 hover:bg-red-50"
+                              className="h-11 w-11 border-red-200 hover:bg-red-50"
                             >
                               <Trash2 className="w-4 h-4 text-red-600" />
                             </Button>
@@ -570,6 +576,8 @@ export default function AdminAchievements() {
                             <Button
                               variant="outline"
                               size="icon"
+                              aria-label="Mover troféu para cima"
+                              className="h-11 w-11"
                               onClick={() => handleReorder(achievement, "up")}
                               disabled={index === 0}
                             >
@@ -578,6 +586,8 @@ export default function AdminAchievements() {
                             <Button
                               variant="outline"
                               size="icon"
+                              aria-label="Mover troféu para baixo"
+                              className="h-11 w-11"
                               onClick={() => handleReorder(achievement, "down")}
                               disabled={index === specializationAchievements.length - 1}
                             >
@@ -586,16 +596,18 @@ export default function AdminAchievements() {
                             <Button
                               variant="outline"
                               size="icon"
+                              aria-label="Editar troféu"
                               onClick={() => handleOpenDialog(achievement)}
-                              className="border-blue-200 hover:bg-blue-50"
+                              className="h-11 w-11 border-blue-200 hover:bg-blue-50"
                             >
                               <Pencil className="w-4 h-4 text-blue-600" />
                             </Button>
                             <Button
                               variant="outline"
                               size="icon"
+                              aria-label="Excluir troféu"
                               onClick={() => handleDelete(achievement.id)}
-                              className="border-red-200 hover:bg-red-50"
+                              className="h-11 w-11 border-red-200 hover:bg-red-50"
                             >
                               <Trash2 className="w-4 h-4 text-red-600" />
                             </Button>

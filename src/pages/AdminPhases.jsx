@@ -258,7 +258,8 @@ export default function AdminPhases() {
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-8 w-8"
+                            aria-label="Mover fase para cima"
+                            className="h-11 w-11"
                             onClick={() => movePhase(phase.id, 'up')}
                             disabled={index === 0}
                           >
@@ -268,7 +269,8 @@ export default function AdminPhases() {
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-8 w-8"
+                            aria-label="Mover fase para baixo"
+                            className="h-11 w-11"
                             onClick={() => movePhase(phase.id, 'down')}
                             disabled={index === phases.length - 1}
                           >
@@ -295,6 +297,8 @@ export default function AdminPhases() {
                           <Button
                             variant="outline"
                             size="icon"
+                            aria-label="Editar fase"
+                            className="h-11 w-11"
                             onClick={() => handleOpenDialog(phase)}
                           >
                             <Edit className="w-4 h-4" />
@@ -302,8 +306,9 @@ export default function AdminPhases() {
                           <Button
                             variant="outline"
                             size="icon"
+                            aria-label="Excluir fase"
                             onClick={() => handleDelete(phase.id)}
-                            className="text-red-600 hover:text-red-700"
+                            className="h-11 w-11 text-red-600 hover:text-red-700"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>

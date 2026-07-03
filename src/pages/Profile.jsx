@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { calculateStreakDays } from "@/components/StreakCalculator";
 import { loadUserAchievements } from "@/components/AchievementChecker";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
@@ -66,10 +67,13 @@ export default function Profile() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  const isRefreshing = usePullToRefresh(loadData, containerRef);
 
   const loadData = async () => {
     const userData = await base44.auth.me();
@@ -246,7 +250,12 @@ export default function Profile() {
   const currentLevelProgress = ((user?.points || 0) % 100);
 
   return (
-    <div className="min-h-screen p-6 md:p-8">
+    <div ref={containerRef} className="min-h-screen p-6 md:p-8 relative">
+      {isRefreshing && (
+        <div className="flex justify-center py-3 absolute top-0 left-0 right-0 z-50">
+          <Loader2 className="animate-spin text-gray-400 w-6 h-6" />
+        </div>
+      )}
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Cancel Success Alert */}
         {cancelSuccess && (

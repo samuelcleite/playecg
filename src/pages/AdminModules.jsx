@@ -181,7 +181,8 @@ export default function AdminModules() {
                         <Button
                           variant="outline"
                           size="icon"
-                          className="h-8 w-8"
+                          aria-label="Mover módulo para cima"
+                          className="h-11 w-11"
                           onClick={() => moveModule(module.id, 'up')}
                           disabled={index === 0}
                         >
@@ -191,7 +192,8 @@ export default function AdminModules() {
                         <Button
                           variant="outline"
                           size="icon"
-                          className="h-8 w-8"
+                          aria-label="Mover módulo para baixo"
+                          className="h-11 w-11"
                           onClick={() => moveModule(module.id, 'down')}
                           disabled={index === modules.length - 1}
                         >
@@ -221,6 +223,8 @@ export default function AdminModules() {
                         <Button
                           variant="outline"
                           size="icon"
+                          aria-label="Editar módulo"
+                          className="h-11 w-11"
                           onClick={() => handleOpenDialog(module)}
                         >
                           <Edit className="w-4 h-4" />
@@ -228,8 +232,9 @@ export default function AdminModules() {
                         <Button
                           variant="outline"
                           size="icon"
+                          aria-label="Excluir módulo"
                           onClick={() => handleDelete(module.id)}
-                          className="text-red-600 hover:text-red-700"
+                          className="h-11 w-11 text-red-600 hover:text-red-700"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

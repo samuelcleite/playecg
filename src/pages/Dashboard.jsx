@@ -79,7 +79,7 @@ export default function Dashboard() {
     }
   };
 
-  usePullToRefresh(init, containerRef);
+  const isRefreshing = usePullToRefresh(init, containerRef);
 
   if (loading) {
     return (
@@ -93,7 +93,12 @@ export default function Dashboard() {
   const earnedAchievements = achievements.filter(a => a.earned);
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 w-full max-w-full">
+    <div ref={containerRef} className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 w-full max-w-full relative">
+      {isRefreshing && (
+        <div className="flex justify-center py-3 absolute top-0 left-0 right-0 z-50">
+          <Loader2 className="animate-spin text-gray-400 w-6 h-6" />
+        </div>
+      )}
       {/* Top Bar */}
       <header className="bg-white border-b border-blue-100 sticky top-0 z-40" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">

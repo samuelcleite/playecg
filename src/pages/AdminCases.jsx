@@ -482,6 +482,7 @@ export default function AdminCases() {
                         <Button
                           variant="outline"
                           size="sm"
+                          aria-label="Editar caso"
                           onClick={() => handleOpenDialog(caseItem)}
                           className="flex-1 gap-2"
                         >
@@ -491,6 +492,7 @@ export default function AdminCases() {
                         <Button
                           variant="outline"
                           size="sm"
+                          aria-label="Excluir caso"
                           onClick={() => handleDelete(caseItem.id)}
                           className="flex-1 gap-2 text-red-600 hover:text-red-700"
                         >

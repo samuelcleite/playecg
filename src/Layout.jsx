@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import {
@@ -24,7 +24,8 @@ import {
   Award,
   FileText,
   Calendar,
-  User
+  User,
+  ArrowLeft
 } from "lucide-react";
 import {
   Sidebar,
@@ -45,7 +46,15 @@ import { Separator } from "@/components/ui/separator";
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [user, setUser] = React.useState(null);
+
+  const adminSubPages = [
+    "AdminModules", "AdminPhases", "AdminCases", "AdminContent", "AdminImages",
+    "AdminAchievements", "AdminCoupons", "AdminCouponStats", "AdminPayments",
+    "AdminUsers", "AdminActivity", "AdminNotifications", "AdminDailyCases"
+  ];
+  const isAdminSubPage = adminSubPages.includes(currentPageName);
 
   React.useEffect(() => {
     loadUser();
@@ -262,6 +271,14 @@ export default function Layout({ children, currentPageName }) {
 
       {/* ── MOBILE: content + bottom nav ── */}
       <div className="md:hidden flex flex-col w-full bg-ecg-gray" style={{ minHeight: '100dvh' }}>
+        {isAdminSubPage && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-white border-b border-gray-200" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>
+            <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-gray-600">
+              <ArrowLeft className="w-4 h-4" />
+              Voltar
+            </Button>
+          </div>
+        )}
         <main className="flex-1 overflow-y-auto pb-32" style={{ height: '100%', paddingTop: 'env(safe-area-inset-top, 0px)', overscrollBehavior: 'none' }}>
           {children}
         </main>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import { base44 } from "@/api/base44Client";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { loadUserAchievements } from "@/components/AchievementChecker";
 
 import FaleConoscoButton from "@/components/FaleConoscoButton";
@@ -15,10 +16,13 @@ export default function Achievements() {
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const [tooltip, setTooltip] = useState(null); // { id, name, description, earned }
+  const containerRef = useRef(null);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  const isRefreshing = usePullToRefresh(loadData, containerRef);
 
   const loadData = async () => {
     const userData = await base44.auth.me();
@@ -73,7 +77,12 @@ export default function Achievements() {
   }
 
   return (
-    <div className="min-h-screen p-4 md:p-8" onClick={() => setTooltip(null)}>
+    <div ref={containerRef} className="min-h-screen p-4 md:p-8 relative" onClick={() => setTooltip(null)}>
+      {isRefreshing && (
+        <div className="flex justify-center py-3 absolute top-0 left-0 right-0 z-50">
+          <Loader2 className="animate-spin text-gray-400 w-6 h-6" />
+        </div>
+      )}
       <div className="max-w-2xl mx-auto space-y-8">
 
         {/* Header */}
@@ -211,6 +220,7 @@ function AchievementBadge({ achievement, index, tooltip, setTooltip }) {
       <button
         ref={btnRef}
         onClick={handleClick}
+        aria-label={achievement.name}
         className={`
           relative w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center text-3xl md:text-4xl
           transition-all duration-200 border-4 shadow-md

@@ -454,6 +454,7 @@ export default function AdminActivity() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
+                      <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b bg-gray-50">
@@ -484,6 +485,7 @@ export default function AdminActivity() {
                           ))}
                         </tbody>
                       </table>
+                      </div>
                     </CardContent>
                   </Card>
                 )}
@@ -604,7 +606,7 @@ export default function AdminActivity() {
                                   className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200 text-sm"
                                 >
                                   <span className="font-medium text-gray-900 flex-1">{phaseData.phase.name}</span>
-                                  <div className="flex items-center gap-3">
+                                  <div className="flex items-center gap-2 flex-wrap text-xs">
                                     <span className="text-gray-600">Tentativas: <strong>{phaseData.total}</strong></span>
                                     <span className="text-green-600">✓ <strong>{phaseData.correct}</strong></span>
                                     <span className="text-red-600">✗ <strong>{phaseData.incorrect}</strong></span>

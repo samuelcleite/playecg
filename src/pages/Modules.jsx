@@ -14,7 +14,8 @@ import {
   Zap,
   Sparkles,
   BookOpen,
-  Lightbulb
+  Lightbulb,
+  Loader2
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -105,7 +106,7 @@ export default function Modules() {
     }
   };
 
-  usePullToRefresh(loadData, containerRef);
+  const isRefreshing = usePullToRefresh(loadData, containerRef);
 
   const handleOpenIntro = () => {
     if (introContent) {
@@ -114,7 +115,12 @@ export default function Modules() {
   };
 
   return (
-    <div ref={containerRef} className="min-h-screen p-6 md:p-8">
+    <div ref={containerRef} className="min-h-screen p-6 md:p-8 relative">
+      {isRefreshing && (
+        <div className="flex justify-center py-3 absolute top-0 left-0 right-0 z-50">
+          <Loader2 className="animate-spin text-gray-400 w-6 h-6" />
+        </div>
+      )}
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center mb-12">
