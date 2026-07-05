@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { isIOSNativeApp } from "@/utils/platform";
+import { startIOSPurchase } from "@/utils/purchase";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +51,41 @@ export default function Upgrade() {
     loadUser();
   }, []);
 
+  // Handler global de sucesso do Despia (compra iOS via RevenueCat).
+  // NÃO libera acesso direto: faz polling do usuário atual até o webhook do
+  // RevenueCat marcar subscription_type === "premium" (até ~20s).
+  useEffect(() => {
+    window.iapSuccess = async () => {
+      setProcessing(true);
+      for (let attempt = 0; attempt < 10; attempt++) {
+        try {
+          const current = await base44.auth.me();
+          if (current?.subscription_type === "premium") {
+            setUser(current);
+            // Reflete premium no app recarregando a rota (fallback simples).
+            window.location.href = createPageUrl("Dashboard");
+            return;
+          }
+        } catch (error) {
+          console.error("Erro ao verificar assinatura (iapSuccess):", error);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+      // Esgotou ~20s sem confirmar premium.
+      setProcessing(false);
+      setErrorDialog({
+        open: true,
+        title: 'Confirmando seu pagamento',
+        message: 'Recebemos sua compra e ela está sendo processada. Aguarde alguns instantes e atualize a tela. Se o acesso não liberar, use a opção "Restaurar Compras" no app.',
+        details: ''
+      });
+    };
+
+    return () => {
+      delete window.iapSuccess;
+    };
+  }, []);
+
   const loadUser = async () => {
     const userData = await base44.auth.me();
     setUser(userData);
@@ -90,6 +128,26 @@ export default function Upgrade() {
   };
 
   const handleUpgrade = async () => {
+    // Desvio por plataforma: no app iOS nativo (Despia), compra via RevenueCat.
+    if (isIOSNativeApp()) {
+      try {
+        setProcessing(true);
+        // Tela oferece apenas o plano mensal; confirmação vem por window.iapSuccess.
+        startIOSPurchase("monthly", user?.id);
+      } catch (error) {
+        console.error("Erro ao iniciar compra iOS:", error);
+        setProcessing(false);
+        setErrorDialog({
+          open: true,
+          title: 'Erro ao Iniciar Compra',
+          message: error.message || "Não foi possível iniciar a compra. Tente novamente.",
+          details: ''
+        });
+      }
+      return;
+    }
+
+    // --- Fluxo Stripe (web) — inalterado ---
     // Stripe Checkout não funciona dentro de iframe (preview)
     if (window.self !== window.top) {
       setErrorDialog({
