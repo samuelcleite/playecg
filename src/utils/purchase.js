@@ -2,7 +2,7 @@ import despia from "despia-native";
 
 const PRODUCTS = {
   monthly: "com.despia.playecg.monthly",
-  yearly:  "com.despia.playecg.yearly",
+  annual:  "com.despia.playecg.yearly",
 };
 
 // Dispara a compra via RevenueCat (iOS). userId = User.id do Base44.

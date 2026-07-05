@@ -133,10 +133,8 @@ export default function Upgrade() {
     if (isIOSNativeApp()) {
       try {
         setProcessing(true);
-        // purchase.js usa a chave "yearly"; a tela/Stripe usam "annual".
-        const iosPlan = selectedPlan === "annual" ? "yearly" : "monthly";
         // Confirmação vem por window.iapSuccess.
-        startIOSPurchase(iosPlan, user?.id);
+        startIOSPurchase(selectedPlan, user?.id);
       } catch (error) {
         console.error("Erro ao iniciar compra iOS:", error);
         setProcessing(false);
