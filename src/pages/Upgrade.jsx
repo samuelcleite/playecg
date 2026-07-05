@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { isIOSNativeApp } from "@/utils/platform";
+import { startIOSPurchase } from "@/utils/purchase";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,6 +40,7 @@ import {
 export default function Upgrade() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState("monthly");
   const [couponCode, setCouponCode] = useState("");
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -46,6 +50,41 @@ export default function Upgrade() {
 
   useEffect(() => {
     loadUser();
+  }, []);
+
+  // Handler global de sucesso do Despia (compra iOS via RevenueCat).
+  // NÃO libera acesso direto: faz polling do usuário atual até o webhook do
+  // RevenueCat marcar subscription_type === "premium" (até ~20s).
+  useEffect(() => {
+    window.iapSuccess = async () => {
+      setProcessing(true);
+      for (let attempt = 0; attempt < 10; attempt++) {
+        try {
+          const current = await base44.auth.me();
+          if (current?.subscription_type === "premium") {
+            setUser(current);
+            // Reflete premium no app recarregando a rota (fallback simples).
+            window.location.href = createPageUrl("Dashboard");
+            return;
+          }
+        } catch (error) {
+          console.error("Erro ao verificar assinatura (iapSuccess):", error);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+      // Esgotou ~20s sem confirmar premium.
+      setProcessing(false);
+      setErrorDialog({
+        open: true,
+        title: 'Confirmando seu pagamento',
+        message: 'Recebemos sua compra e ela está sendo processada. Aguarde alguns instantes e atualize a tela. Se o acesso não liberar, use a opção "Restaurar Compras" no app.',
+        details: ''
+      });
+    };
+
+    return () => {
+      delete window.iapSuccess;
+    };
   }, []);
 
   const loadUser = async () => {
@@ -90,6 +129,26 @@ export default function Upgrade() {
   };
 
   const handleUpgrade = async () => {
+    // Desvio por plataforma: no app iOS nativo (Despia), compra via RevenueCat.
+    if (isIOSNativeApp()) {
+      try {
+        setProcessing(true);
+        // Confirmação vem por window.iapSuccess.
+        startIOSPurchase(selectedPlan, user?.id);
+      } catch (error) {
+        console.error("Erro ao iniciar compra iOS:", error);
+        setProcessing(false);
+        setErrorDialog({
+          open: true,
+          title: 'Erro ao Iniciar Compra',
+          message: error.message || "Não foi possível iniciar a compra. Tente novamente.",
+          details: ''
+        });
+      }
+      return;
+    }
+
+    // --- Fluxo Stripe (web) — inalterado ---
     // Stripe Checkout não funciona dentro de iframe (preview)
     if (window.self !== window.top) {
       setErrorDialog({
@@ -105,7 +164,8 @@ export default function Upgrade() {
 
     try {
       const response = await base44.functions.invoke('createStripeCheckout', {
-        coupon_code: appliedCoupon?.coupon?.code || ""
+        coupon_code: appliedCoupon?.coupon?.code || "",
+        plan: selectedPlan
       });
 
       if (response.data.success && response.data.url) {
@@ -236,6 +296,34 @@ export default function Upgrade() {
               )}
             </CardHeader>
             <CardContent>
+              {/* Plan Selector */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlan("monthly")}
+                  className={`rounded-lg border-2 p-4 text-center transition-all ${
+                    selectedPlan === "monthly"
+                      ? "border-[#22C55E] bg-green-50"
+                      : "border-gray-200 bg-white"
+                  }`}
+                >
+                  <p className="font-semibold text-gray-900">Mensal</p>
+                  <p className="text-sm text-gray-600">R$ 59/mês</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlan("annual")}
+                  className={`rounded-lg border-2 p-4 text-center transition-all ${
+                    selectedPlan === "annual"
+                      ? "border-[#22C55E] bg-green-50"
+                      : "border-gray-200 bg-white"
+                  }`}
+                >
+                  <p className="font-semibold text-gray-900">Anual</p>
+                  <p className="text-sm text-gray-600">R$ 499/ano</p>
+                </button>
+              </div>
+
               {/* Coupon Section */}
               <div className="mb-6 p-4 bg-white rounded-lg border-2 border-blue-200">
                 <div className="flex items-center gap-2 mb-3">

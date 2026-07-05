@@ -14,10 +14,14 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Você já possui assinatura premium', success: false }, { status: 400 });
         }
 
-        const { coupon_code } = await req.json();
+        const { coupon_code, plan } = await req.json();
 
         const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY"));
-        const priceId = "price_1TkQEzLZdvjM2hGBtJTOirwu";
+        const PRICES = {
+            monthly: "price_1TkQEzLZdvjM2hGBtJTOirwu",
+            annual:  "price_1Tpp38LZdvjM2hGBeSCKbKWh"
+        };
+        const priceId = PRICES[plan] || PRICES.monthly; // default seguro = mensal
         const origin = req.headers.get('origin') || '';
 
         // Validar cupom (se enviado) e resolver desconto Stripe
