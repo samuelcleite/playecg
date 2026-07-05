@@ -40,6 +40,7 @@ import {
 export default function Upgrade() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState("monthly");
   const [couponCode, setCouponCode] = useState("");
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -132,8 +133,10 @@ export default function Upgrade() {
     if (isIOSNativeApp()) {
       try {
         setProcessing(true);
-        // Tela oferece apenas o plano mensal; confirmação vem por window.iapSuccess.
-        startIOSPurchase("monthly", user?.id);
+        // purchase.js usa a chave "yearly"; a tela/Stripe usam "annual".
+        const iosPlan = selectedPlan === "annual" ? "yearly" : "monthly";
+        // Confirmação vem por window.iapSuccess.
+        startIOSPurchase(iosPlan, user?.id);
       } catch (error) {
         console.error("Erro ao iniciar compra iOS:", error);
         setProcessing(false);
@@ -163,7 +166,8 @@ export default function Upgrade() {
 
     try {
       const response = await base44.functions.invoke('createStripeCheckout', {
-        coupon_code: appliedCoupon?.coupon?.code || ""
+        coupon_code: appliedCoupon?.coupon?.code || "",
+        plan: selectedPlan
       });
 
       if (response.data.success && response.data.url) {
@@ -294,6 +298,34 @@ export default function Upgrade() {
               )}
             </CardHeader>
             <CardContent>
+              {/* Plan Selector */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlan("monthly")}
+                  className={`rounded-lg border-2 p-4 text-center transition-all ${
+                    selectedPlan === "monthly"
+                      ? "border-[#22C55E] bg-green-50"
+                      : "border-gray-200 bg-white"
+                  }`}
+                >
+                  <p className="font-semibold text-gray-900">Mensal</p>
+                  <p className="text-sm text-gray-600">R$ 59/mês</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlan("annual")}
+                  className={`rounded-lg border-2 p-4 text-center transition-all ${
+                    selectedPlan === "annual"
+                      ? "border-[#22C55E] bg-green-50"
+                      : "border-gray-200 bg-white"
+                  }`}
+                >
+                  <p className="font-semibold text-gray-900">Anual</p>
+                  <p className="text-sm text-gray-600">R$ 499/ano</p>
+                </button>
+              </div>
+
               {/* Coupon Section */}
               <div className="mb-6 p-4 bg-white rounded-lg border-2 border-blue-200">
                 <div className="flex items-center gap-2 mb-3">
