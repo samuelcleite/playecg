@@ -9,7 +9,18 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const base44 = createClientFromRequest(req);
+    // A auth já foi validada acima pelo nosso segredo. Agora removemos o header
+    // Authorization (formato "cru", sem Bearer) antes de passar ao SDK do Base44,
+    // porque createClientFromRequest exige "Bearer <token>" e quebraria com ele.
+    const cleanHeaders = new Headers(req.headers);
+    cleanHeaders.delete('authorization');
+    const cleanReq = new Request(req.url, {
+      method: req.method,
+      headers: cleanHeaders,
+      body: req.body,
+    });
+
+    const base44 = createClientFromRequest(cleanReq);
     const payload = await req.json();
     const event = payload.event || {};
     const type = event.type;
