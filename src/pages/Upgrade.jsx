@@ -103,7 +103,8 @@ export default function Upgrade() {
 
     try {
       const response = await base44.functions.invoke('validateCoupon', {
-        coupon_code: couponCode
+        coupon_code: couponCode,
+        plan: selectedPlan
       });
 
       if (response.data.valid) {
@@ -126,6 +127,14 @@ export default function Upgrade() {
     setAppliedCoupon(null);
     setCouponCode("");
     setCouponError(null);
+  };
+
+  const handlePlanChange = (newPlan) => {
+    setSelectedPlan(newPlan);
+    if (appliedCoupon) {
+      setAppliedCoupon(null);
+      setCouponError(null);
+    }
   };
 
   const handleUpgrade = async () => {
@@ -191,7 +200,7 @@ export default function Upgrade() {
     }
   };
 
-  const originalPrice = 59;
+  const originalPrice = selectedPlan === "annual" ? 499 : 59;
   const finalPrice = appliedCoupon?.pricing?.final_price || originalPrice;
   const discountAmount = appliedCoupon?.pricing?.discount_amount || 0;
 
@@ -285,7 +294,7 @@ export default function Upgrade() {
                   <span className="text-xl text-gray-400 line-through mr-2">R$ {originalPrice.toFixed(2)}</span>
                 )}
                 <span className="text-4xl font-bold text-gray-900">R$ {finalPrice.toFixed(2)}</span>
-                <span className="text-gray-600">/mês</span>
+                <span className="text-gray-600">{selectedPlan === "annual" ? "/ano" : "/mês"}</span>
               </div>
               {appliedCoupon && discountAmount > 0 && (
                 <div className="mt-4">
@@ -300,7 +309,7 @@ export default function Upgrade() {
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <button
                   type="button"
-                  onClick={() => setSelectedPlan("monthly")}
+                  onClick={() => handlePlanChange("monthly")}
                   className={`rounded-lg border-2 p-4 text-center transition-all ${
                     selectedPlan === "monthly"
                       ? "border-[#22C55E] bg-green-50"
@@ -312,7 +321,7 @@ export default function Upgrade() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedPlan("annual")}
+                  onClick={() => handlePlanChange("annual")}
                   className={`rounded-lg border-2 p-4 text-center transition-all ${
                     selectedPlan === "annual"
                       ? "border-[#22C55E] bg-green-50"

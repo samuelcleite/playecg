@@ -51,12 +51,14 @@ Deno.serve(async (req) => {
                     user_email: email
                 });
                 if (existing.length === 0) {
+                    const basePrice = amount != null && amount / 100 >= 400 ? 499 : 59;
+                    const finalPrice = amount != null ? amount / 100 : basePrice;
                     await base44.asServiceRole.entities.CouponUsage.create({
                         coupon_id: couponId,
                         user_email: email,
-                        original_price: 59,
-                        discount_applied: 0,
-                        final_price: amount != null ? amount / 100 : 59,
+                        original_price: basePrice,
+                        discount_applied: Math.max(0, basePrice - finalPrice),
+                        final_price: finalPrice,
                         used_at: new Date().toISOString()
                     });
                     const coupons = await base44.asServiceRole.entities.Coupon.filter({ id: couponId });

@@ -1,4 +1,3 @@
-
 import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
 
 Deno.serve(async (req) => {
@@ -15,7 +14,7 @@ Deno.serve(async (req) => {
         }
 
         // Obter dados da requisição
-        const { coupon_code } = await req.json();
+        const { coupon_code, plan } = await req.json();
 
         if (!coupon_code || typeof coupon_code !== 'string') {
             return Response.json({ 
@@ -96,8 +95,7 @@ Deno.serve(async (req) => {
             }
         }
 
-        // PREÇO BASE ALTERADO PARA R$ 10,00
-        const originalPrice = 10.00;
+        const originalPrice = plan === 'annual' ? 499.00 : 59.00;
         let discountAmount = 0;
         
         if (coupon.discount_type === 'percentage') {

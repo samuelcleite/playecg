@@ -67,7 +67,8 @@ Deno.serve(async (req) => {
         // Calcular próxima renovação
         const lastRenewal = new Date(latestPayment.paid_at || latestPayment.created_date);
         const nextRenewal = new Date(lastRenewal);
-        nextRenewal.setDate(nextRenewal.getDate() + 30);
+        const renewalDays = latestPayment.amount >= 400 ? 365 : 30;
+        nextRenewal.setDate(nextRenewal.getDate() + renewalDays);
 
         // Detectar se é Stripe
         const isStripe = latestPayment.payment_method === 'STRIPE_SUBSCRIPTION' || !!latestPayment.stripe_subscription_id;
