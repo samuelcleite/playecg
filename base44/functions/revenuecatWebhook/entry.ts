@@ -2,8 +2,6 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
-
     // Autenticação: valor do header configurado no painel do RevenueCat
     const authHeader = req.headers.get('authorization');
     const expected = Deno.env.get('REVENUECAT_WEBHOOK_AUTH');
@@ -11,6 +9,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const base44 = createClientFromRequest(req);
     const payload = await req.json();
     const event = payload.event || {};
     const type = event.type;
