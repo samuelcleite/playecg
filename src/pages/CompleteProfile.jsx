@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Activity, User as UserIcon, MapPin, Stethoscope } from "lucide-react";
 import { motion } from "framer-motion";
+import { notifyAdminNewUser } from "@/functions/notifyAdminNewUser";
 
 export default function CompleteProfile() {
   const navigate = useNavigate();
@@ -76,6 +77,9 @@ export default function CompleteProfile() {
       profile_completed: true,
       subscription_type: "free" // Novos usuários nascem "free"; premium é liberado via pagamento
     });
+
+    // Notifica o admin sobre o novo usuário (em background, sem bloquear a navegação)
+    notifyAdminNewUser({}).catch((err) => console.error("Falha ao notificar admin:", err));
 
     navigate(createPageUrl("Dashboard"));
   };
