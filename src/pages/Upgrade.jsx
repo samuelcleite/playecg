@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { isIOSNativeApp } from "@/utils/platform";
-import { startIOSPurchase } from "@/utils/purchase";
+import { startIOSPurchase, restoreIOSPurchases } from "@/utils/purchase";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,8 @@ import {
   CreditCard,
   XCircle,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  RotateCcw
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -197,6 +198,38 @@ export default function Upgrade() {
       });
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    // Restaura compras via RevenueCat (iOS). getpurchasehistory:// retorna os
+    // dados; restoreIOSPurchases resolve true se houver premium ativo.
+    setProcessing(true);
+    try {
+      const restored = await restoreIOSPurchases(user?.id);
+      if (restored) {
+        // Reaproveita o mesmo polling do auth.me() usado na compra para
+        // refletir o premium (aguarda o webhook e recarrega a rota).
+        await window.iapSuccess?.();
+        return;
+      }
+      // Nenhuma compra ativa encontrada para este usuário.
+      setProcessing(false);
+      setErrorDialog({
+        open: true,
+        title: 'Nenhuma Compra Encontrada',
+        message: 'Não encontramos nenhuma assinatura ativa para restaurar nesta conta da App Store. Se você acredita que isso é um erro, verifique se está logado com o mesmo ID Apple usado na compra.',
+        details: ''
+      });
+    } catch (error) {
+      console.error("Erro ao restaurar compras iOS:", error);
+      setProcessing(false);
+      setErrorDialog({
+        open: true,
+        title: 'Erro ao Restaurar Compras',
+        message: error.message || "Não foi possível restaurar suas compras. Tente novamente.",
+        details: ''
+      });
     }
   };
 
@@ -449,6 +482,28 @@ export default function Upgrade() {
                 <CheckCircle2 className="w-4 h-4" />
                 Checkout 100% seguro processado pelo Stripe
               </p>
+
+              {/* Restaurar Compras — apenas no app iOS nativo (exigência da Apple) */}
+              {isIOSNativeApp() && (
+                <Button
+                  variant="outline"
+                  className="w-full mt-4 border-[#1976D2] text-[#0D3B66] font-semibold"
+                  onClick={handleRestore}
+                  disabled={processing}
+                >
+                  {processing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Processando...
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="w-5 h-5 mr-2" />
+                      Restaurar Compras
+                    </>
+                  )}
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
