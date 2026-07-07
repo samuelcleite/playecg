@@ -1,4 +1,5 @@
 import despia from "despia-native";
+import { RC_ENTITLEMENT } from "./platform";
 
 const PRODUCTS = {
   monthly: "com.despia.playecg.monthly",
@@ -16,15 +17,20 @@ export function startIOSPurchase(plan, userId) {
   );
 }
 
-// Restaura compras anteriores via RevenueCat (iOS). userId = User.id do Base44.
-// Exigido pela Apple na tela de assinatura. Se bem-sucedido, o restore
-// reidentifica o usuário no RevenueCat e dispara o mesmo fluxo de entitlement
-// da compra (webhook + window.iapSuccess na tela).
-export function restoreIOSPurchases(userId) {
-  if (!userId) throw new Error("userId ausente para restaurar compras");
-  // TODO: confirmar sintaxe exata do restore na doc do Despia.
-  // Assumindo o mesmo formato do purchase (revenuecat://<ação>?external_id=...).
-  despia(
-    `revenuecat://restore?external_id=${encodeURIComponent(userId)}`
-  );
+// Restaura compras anteriores via RevenueCat (iOS). Exigido pela Apple na tela
+// de assinatura. O comando 'getpurchasehistory://' RETORNA os dados (não dispara
+// evento): consultamos o histórico e verificamos se há um item ativo com o
+// entitlement deste app. Retorna true se o premium foi encontrado, false caso
+// contrário (ou em erro).
+// NOTA: confirmar no device o nome exato do campo do entitlement no retorno
+// (entitlementId) e se o valor casa com RC_ENTITLEMENT.
+export async function restoreIOSPurchases(userId) {
+  try {
+    const data = await despia("getpurchasehistory://", ["restoredData"]);
+    const active = (data?.restoredData ?? []).filter((p) => p.isActive);
+    return active.some((p) => p.entitlementId === RC_ENTITLEMENT);
+  } catch (error) {
+    console.error("Erro ao restaurar compras iOS:", error);
+    return false;
+  }
 }

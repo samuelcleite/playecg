@@ -201,13 +201,26 @@ export default function Upgrade() {
     }
   };
 
-  const handleRestore = () => {
-    // Restaura compras via RevenueCat (iOS). A confirmação reaproveita o
-    // mesmo window.iapSuccess / polling da compra: se o restore reativar o
-    // entitlement, o webhook marca premium e o handler libera o acesso.
+  const handleRestore = async () => {
+    // Restaura compras via RevenueCat (iOS). getpurchasehistory:// retorna os
+    // dados; restoreIOSPurchases resolve true se houver premium ativo.
+    setProcessing(true);
     try {
-      setProcessing(true);
-      restoreIOSPurchases(user?.id);
+      const restored = await restoreIOSPurchases(user?.id);
+      if (restored) {
+        // Reaproveita o mesmo polling do auth.me() usado na compra para
+        // refletir o premium (aguarda o webhook e recarrega a rota).
+        await window.iapSuccess?.();
+        return;
+      }
+      // Nenhuma compra ativa encontrada para este usuário.
+      setProcessing(false);
+      setErrorDialog({
+        open: true,
+        title: 'Nenhuma Compra Encontrada',
+        message: 'Não encontramos nenhuma assinatura ativa para restaurar nesta conta da App Store. Se você acredita que isso é um erro, verifique se está logado com o mesmo ID Apple usado na compra.',
+        details: ''
+      });
     } catch (error) {
       console.error("Erro ao restaurar compras iOS:", error);
       setProcessing(false);
