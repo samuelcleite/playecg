@@ -58,7 +58,13 @@ export default function Privacidade() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              if (window.history.state && window.history.state.idx > 0) {
+                navigate(-1);
+              } else {
+                navigate("/");
+              }
+            }}
             aria-label="Voltar"
             className="rounded-full"
           >
