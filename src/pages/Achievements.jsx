@@ -24,7 +24,7 @@ export default function Achievements() {
 
   const isRefreshing = usePullToRefresh(loadData, containerRef);
 
-  const loadData = async () => {
+  async function loadData() {
     const userData = await base44.auth.me();
     setUser(userData);
 
