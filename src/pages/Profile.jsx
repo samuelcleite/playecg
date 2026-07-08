@@ -610,12 +610,21 @@ export default function Profile() {
         </Card>
 
         <div className="text-center pt-2">
-          <Link
-            to="/privacidade"
-            className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-ecg-midnight transition-colors"
-          >
-            Política de Privacidade
-          </Link>
+          <div className="flex items-center justify-center gap-2 text-sm">
+            <Link
+              to="/suporte"
+              className="inline-flex items-center gap-1.5 text-gray-500 hover:text-ecg-midnight transition-colors"
+            >
+              Suporte
+            </Link>
+            <span className="text-gray-300">•</span>
+            <Link
+              to="/privacidade"
+              className="inline-flex items-center gap-1.5 text-gray-500 hover:text-ecg-midnight transition-colors"
+            >
+              Política de Privacidade
+            </Link>
+          </div>
         </div>
       </div>
 
