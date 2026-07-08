@@ -5,6 +5,7 @@ import { useLocation } from 'react-router-dom';
 import PageTransition from '@/components/PageTransition';
 import { ThemeProvider } from 'next-themes';
 import InstallPWA from './pages/InstallPWA';
+import Privacidade from './pages/Privacidade';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -80,6 +81,7 @@ const AuthenticatedApp = () => {
         />
       ))}
       <Route path="/instale" element={<InstallPWA />} />
+      <Route path="/privacidade" element={<Privacidade />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
     </AnimatePresence>

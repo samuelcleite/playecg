@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { calculateStreakDays } from "@/components/StreakCalculator";
@@ -607,6 +608,15 @@ export default function Profile() {
             </div>
           </CardContent>
         </Card>
+
+        <div className="text-center pt-2">
+          <Link
+            to="/privacidade"
+            className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-ecg-midnight transition-colors"
+          >
+            Política de Privacidade
+          </Link>
+        </div>
       </div>
 
       {/* Cancel Subscription Dialog */}
