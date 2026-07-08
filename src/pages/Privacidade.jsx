@@ -39,7 +39,7 @@ const SECTIONS = [
   {
     title: "Contato",
     paragraphs: [
-      "Para dúvidas sobre esta política ou sobre seus dados, entre em contato: adm@playecg.app",
+      "Para dúvidas sobre esta política ou sobre seus dados, entre em contato: ecgdescomplica@gmail.com",
     ],
     contact: true,
   },
@@ -123,10 +123,10 @@ export default function Privacidade() {
                     Para dúvidas sobre esta política ou sobre seus dados, entre
                     em contato:{" "}
                     <a
-                      href="mailto:adm@playecg.app"
+                      href="mailto:ecgdescomplica@gmail.com"
                       className="font-semibold text-ecg-green underline underline-offset-2 hover:opacity-80"
                     >
-                      adm@playecg.app
+                      ecgdescomplica@gmail.com
                     </a>
                   </p>
                 ) : (
