@@ -504,6 +504,30 @@ export default function Upgrade() {
                   )}
                 </Button>
               )}
+
+              {/* Links legais exigidos pela Apple (Guideline 3.1.2(c)) —
+                  visíveis em todas as plataformas, próximos ao botão de assinatura */}
+              <p className="text-center text-xs text-gray-500 mt-6">
+                Ao assinar, você concorda com nossos{" "}
+                <a
+                  href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-gray-700"
+                >
+                  Termos de Uso
+                </a>{" "}
+                e nossa{" "}
+                <a
+                  href="https://playecg.app/privacidade"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-gray-700"
+                >
+                  Política de Privacidade
+                </a>
+                .
+              </p>
             </CardContent>
           </Card>
         </div>
