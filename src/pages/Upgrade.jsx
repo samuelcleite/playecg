@@ -233,6 +233,10 @@ export default function Upgrade() {
     }
   };
 
+  // No app iOS a compra é processada pela App Store (StoreKit/RevenueCat),
+  // não pelo Stripe — os textos de pagamento variam por plataforma.
+  const isIOS = isIOSNativeApp();
+
   const originalPrice = selectedPlan === "annual" ? 499 : 59;
   const finalPrice = appliedCoupon?.pricing?.final_price || originalPrice;
   const discountAmount = appliedCoupon?.pricing?.discount_amount || 0;
@@ -452,14 +456,19 @@ export default function Upgrade() {
                   <div className="space-y-2">
                     <p className="font-semibold flex items-center gap-2">
                       <CreditCard className="w-4 h-4" />
-                      Pagamento Seguro com Stripe
+                      {isIOS
+                        ? "Pagamento Seguro pela App Store"
+                        : "Pagamento Seguro com Stripe"}
                     </p>
                     <p className="text-sm">
-                      Você será redirecionado para a página segura do Stripe. 
-                      Aceita os principais cartões de crédito e débito.
+                      {isIOS
+                        ? "A compra será processada com segurança pela App Store."
+                        : "Você será redirecionado para a página segura do Stripe. Aceita os principais cartões de crédito e débito."}
                     </p>
                     <p className="text-xs font-semibold text-blue-700">
-                      🔒 Pagamento seguro via Stripe
+                      {isIOS
+                        ? "🔒 Pagamento seguro via App Store"
+                        : "🔒 Pagamento seguro via Stripe"}
                     </p>
                   </div>
                 </AlertDescription>
@@ -484,7 +493,9 @@ export default function Upgrade() {
               </Button>
               <p className="text-center text-sm text-gray-600 mt-4 flex items-center justify-center gap-2">
                 <CheckCircle2 className="w-4 h-4" />
-                Checkout 100% seguro processado pelo Stripe
+                {isIOS
+                  ? "Compra processada com segurança pela App Store"
+                  : "Checkout 100% seguro processado pelo Stripe"}
               </p>
 
               {/* Restaurar Compras — apenas no app iOS nativo (exigência da Apple) */}
@@ -618,8 +629,9 @@ export default function Upgrade() {
                 O pagamento é seguro?
               </h4>
               <p className="text-gray-600">
-                Completamente! Utilizamos o Stripe, uma das maiores plataformas de pagamento do mundo. 
-                Seus dados de pagamento são processados diretamente pelo Stripe e nunca passam pelos nossos servidores.
+                {isIOS
+                  ? "Completamente! Utilizamos o sistema de pagamentos da App Store. Seus dados de pagamento são processados diretamente pela Apple e nunca passam pelos nossos servidores."
+                  : "Completamente! Utilizamos o Stripe, uma das maiores plataformas de pagamento do mundo. Seus dados de pagamento são processados diretamente pelo Stripe e nunca passam pelos nossos servidores."}
               </p>
             </div>
           </CardContent>
@@ -636,21 +648,6 @@ export default function Upgrade() {
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-4">
               <p className="text-base text-gray-900">{errorDialog.message}</p>
-              
-              {errorDialog.details && (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <p className="text-sm font-semibold text-gray-700 mb-2">Detalhes técnicos:</p>
-                  <pre className="text-xs text-gray-600 whitespace-pre-wrap overflow-auto max-h-60">
-                    {errorDialog.details}
-                  </pre>
-                </div>
-              )}
-
-              <Alert className="bg-blue-50 border-blue-200">
-                <AlertDescription className="text-sm text-blue-900">
-                  <strong>💡 Dica:</strong> Verifique os logs da função no Dashboard → Code → Functions → createStripeCheckout para ver mais detalhes do erro retornado pelo Stripe.
-                </AlertDescription>
-              </Alert>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
