@@ -366,65 +366,69 @@ export default function Upgrade() {
                 </button>
               </div>
 
-              {/* Coupon Section */}
-              <div className="mb-6 p-4 bg-white rounded-lg border-2 border-blue-200">
-                <div className="flex items-center gap-2 mb-3">
-                  <Tag className="w-5 h-5 text-amber-600" />
-                  <span className="font-semibold text-gray-900">Tem um cupom de desconto?</span>
-                </div>
-
-                {appliedCoupon ? (
-                  <Alert className="bg-green-50 border-green-200">
-                    <Check className="w-4 h-4 text-green-600" />
-                    <AlertDescription className="flex items-center justify-between">
-                      <div>
-                        <span className="font-bold text-green-900">
-                          Cupom {appliedCoupon.coupon.code} aplicado!
-                        </span>
-                        <p className="text-sm text-green-700 mt-1">
-                          {appliedCoupon.coupon.description}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleRemoveCoupon}
-                        className="text-green-700 hover:text-green-900"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <Input
-                        value={couponCode}
-                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                        placeholder="Digite o código"
-                        className="font-mono"
-                        maxLength={20}
-                        disabled={validatingCoupon}
-                      />
-                      <Button
-                        onClick={handleValidateCoupon}
-                        disabled={validatingCoupon || !couponCode.trim()}
-                        variant="outline"
-                        className="border-[#1976D2]"
-                      >
-                        {validatingCoupon ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          "Aplicar"
-                        )}
-                      </Button>
-                    </div>
-                    {couponError && (
-                      <p className="text-sm text-red-600">{couponError}</p>
-                    )}
+              {/* Coupon Section — oculto no app iOS nativo: o desconto é
+                  concedido fora do IAP (exigência da Apple, Guideline 3.1.1).
+                  Na web (Stripe) permanece inalterado. */}
+              {!isIOSNativeApp() && (
+                <div className="mb-6 p-4 bg-white rounded-lg border-2 border-blue-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Tag className="w-5 h-5 text-amber-600" />
+                    <span className="font-semibold text-gray-900">Tem um cupom de desconto?</span>
                   </div>
-                )}
-              </div>
+
+                  {appliedCoupon ? (
+                    <Alert className="bg-green-50 border-green-200">
+                      <Check className="w-4 h-4 text-green-600" />
+                      <AlertDescription className="flex items-center justify-between">
+                        <div>
+                          <span className="font-bold text-green-900">
+                            Cupom {appliedCoupon.coupon.code} aplicado!
+                          </span>
+                          <p className="text-sm text-green-700 mt-1">
+                            {appliedCoupon.coupon.description}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={handleRemoveCoupon}
+                          className="text-green-700 hover:text-green-900"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Input
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                          placeholder="Digite o código"
+                          className="font-mono"
+                          maxLength={20}
+                          disabled={validatingCoupon}
+                        />
+                        <Button
+                          onClick={handleValidateCoupon}
+                          disabled={validatingCoupon || !couponCode.trim()}
+                          variant="outline"
+                          className="border-[#1976D2]"
+                        >
+                          {validatingCoupon ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            "Aplicar"
+                          )}
+                        </Button>
+                      </div>
+                      {couponError && (
+                        <p className="text-sm text-red-600">{couponError}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <ul className="space-y-3 mb-6">
                 {premiumFeatures.map((feature, index) => (
@@ -510,7 +514,7 @@ export default function Upgrade() {
               <p className="text-center text-xs text-gray-500 mt-6">
                 Ao assinar, você concorda com nossos{" "}
                 <a
-                  href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+                  href="https://playecg.app/termos"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline hover:text-gray-700"
