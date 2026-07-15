@@ -233,6 +233,10 @@ export default function Upgrade() {
     }
   };
 
+  // No app iOS a compra é processada pela App Store (StoreKit/RevenueCat),
+  // não pelo Stripe — os textos de pagamento variam por plataforma.
+  const isIOS = isIOSNativeApp();
+
   const originalPrice = selectedPlan === "annual" ? 499 : 59;
   const finalPrice = appliedCoupon?.pricing?.final_price || originalPrice;
   const discountAmount = appliedCoupon?.pricing?.discount_amount || 0;
@@ -366,65 +370,69 @@ export default function Upgrade() {
                 </button>
               </div>
 
-              {/* Coupon Section */}
-              <div className="mb-6 p-4 bg-white rounded-lg border-2 border-blue-200">
-                <div className="flex items-center gap-2 mb-3">
-                  <Tag className="w-5 h-5 text-amber-600" />
-                  <span className="font-semibold text-gray-900">Tem um cupom de desconto?</span>
-                </div>
-
-                {appliedCoupon ? (
-                  <Alert className="bg-green-50 border-green-200">
-                    <Check className="w-4 h-4 text-green-600" />
-                    <AlertDescription className="flex items-center justify-between">
-                      <div>
-                        <span className="font-bold text-green-900">
-                          Cupom {appliedCoupon.coupon.code} aplicado!
-                        </span>
-                        <p className="text-sm text-green-700 mt-1">
-                          {appliedCoupon.coupon.description}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleRemoveCoupon}
-                        className="text-green-700 hover:text-green-900"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <Input
-                        value={couponCode}
-                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                        placeholder="Digite o código"
-                        className="font-mono"
-                        maxLength={20}
-                        disabled={validatingCoupon}
-                      />
-                      <Button
-                        onClick={handleValidateCoupon}
-                        disabled={validatingCoupon || !couponCode.trim()}
-                        variant="outline"
-                        className="border-[#1976D2]"
-                      >
-                        {validatingCoupon ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          "Aplicar"
-                        )}
-                      </Button>
-                    </div>
-                    {couponError && (
-                      <p className="text-sm text-red-600">{couponError}</p>
-                    )}
+              {/* Coupon Section — oculto no app iOS nativo: o desconto é
+                  concedido fora do IAP (exigência da Apple, Guideline 3.1.1).
+                  Na web (Stripe) permanece inalterado. */}
+              {!isIOSNativeApp() && (
+                <div className="mb-6 p-4 bg-white rounded-lg border-2 border-blue-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Tag className="w-5 h-5 text-amber-600" />
+                    <span className="font-semibold text-gray-900">Tem um cupom de desconto?</span>
                   </div>
-                )}
-              </div>
+
+                  {appliedCoupon ? (
+                    <Alert className="bg-green-50 border-green-200">
+                      <Check className="w-4 h-4 text-green-600" />
+                      <AlertDescription className="flex items-center justify-between">
+                        <div>
+                          <span className="font-bold text-green-900">
+                            Cupom {appliedCoupon.coupon.code} aplicado!
+                          </span>
+                          <p className="text-sm text-green-700 mt-1">
+                            {appliedCoupon.coupon.description}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={handleRemoveCoupon}
+                          className="text-green-700 hover:text-green-900"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Input
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                          placeholder="Digite o código"
+                          className="font-mono"
+                          maxLength={20}
+                          disabled={validatingCoupon}
+                        />
+                        <Button
+                          onClick={handleValidateCoupon}
+                          disabled={validatingCoupon || !couponCode.trim()}
+                          variant="outline"
+                          className="border-[#1976D2]"
+                        >
+                          {validatingCoupon ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            "Aplicar"
+                          )}
+                        </Button>
+                      </div>
+                      {couponError && (
+                        <p className="text-sm text-red-600">{couponError}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <ul className="space-y-3 mb-6">
                 {premiumFeatures.map((feature, index) => (
@@ -448,14 +456,19 @@ export default function Upgrade() {
                   <div className="space-y-2">
                     <p className="font-semibold flex items-center gap-2">
                       <CreditCard className="w-4 h-4" />
-                      Pagamento Seguro com Stripe
+                      {isIOS
+                        ? "Pagamento Seguro pela App Store"
+                        : "Pagamento Seguro com Stripe"}
                     </p>
                     <p className="text-sm">
-                      Você será redirecionado para a página segura do Stripe. 
-                      Aceita os principais cartões de crédito e débito.
+                      {isIOS
+                        ? "A compra será processada com segurança pela App Store."
+                        : "Você será redirecionado para a página segura do Stripe. Aceita os principais cartões de crédito e débito."}
                     </p>
                     <p className="text-xs font-semibold text-blue-700">
-                      🔒 Pagamento seguro via Stripe
+                      {isIOS
+                        ? "🔒 Pagamento seguro via App Store"
+                        : "🔒 Pagamento seguro via Stripe"}
                     </p>
                   </div>
                 </AlertDescription>
@@ -480,7 +493,9 @@ export default function Upgrade() {
               </Button>
               <p className="text-center text-sm text-gray-600 mt-4 flex items-center justify-center gap-2">
                 <CheckCircle2 className="w-4 h-4" />
-                Checkout 100% seguro processado pelo Stripe
+                {isIOS
+                  ? "Compra processada com segurança pela App Store"
+                  : "Checkout 100% seguro processado pelo Stripe"}
               </p>
 
               {/* Restaurar Compras — apenas no app iOS nativo (exigência da Apple) */}
@@ -510,7 +525,7 @@ export default function Upgrade() {
               <p className="text-center text-xs text-gray-500 mt-6">
                 Ao assinar, você concorda com nossos{" "}
                 <a
-                  href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+                  href="https://playecg.app/termos"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline hover:text-gray-700"
@@ -614,8 +629,9 @@ export default function Upgrade() {
                 O pagamento é seguro?
               </h4>
               <p className="text-gray-600">
-                Completamente! Utilizamos o Stripe, uma das maiores plataformas de pagamento do mundo. 
-                Seus dados de pagamento são processados diretamente pelo Stripe e nunca passam pelos nossos servidores.
+                {isIOS
+                  ? "Completamente! Utilizamos o sistema de pagamentos da App Store. Seus dados de pagamento são processados diretamente pela Apple e nunca passam pelos nossos servidores."
+                  : "Completamente! Utilizamos o Stripe, uma das maiores plataformas de pagamento do mundo. Seus dados de pagamento são processados diretamente pelo Stripe e nunca passam pelos nossos servidores."}
               </p>
             </div>
           </CardContent>
@@ -632,21 +648,6 @@ export default function Upgrade() {
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-4">
               <p className="text-base text-gray-900">{errorDialog.message}</p>
-              
-              {errorDialog.details && (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <p className="text-sm font-semibold text-gray-700 mb-2">Detalhes técnicos:</p>
-                  <pre className="text-xs text-gray-600 whitespace-pre-wrap overflow-auto max-h-60">
-                    {errorDialog.details}
-                  </pre>
-                </div>
-              )}
-
-              <Alert className="bg-blue-50 border-blue-200">
-                <AlertDescription className="text-sm text-blue-900">
-                  <strong>💡 Dica:</strong> Verifique os logs da função no Dashboard → Code → Functions → createStripeCheckout para ver mais detalhes do erro retornado pelo Stripe.
-                </AlertDescription>
-              </Alert>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

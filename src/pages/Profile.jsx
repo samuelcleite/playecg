@@ -624,6 +624,13 @@ export default function Profile() {
             >
               Política de Privacidade
             </Link>
+            <span className="text-gray-300">•</span>
+            <Link
+              to="/termos"
+              className="inline-flex items-center gap-1.5 text-gray-500 hover:text-ecg-midnight transition-colors"
+            >
+              Termos de Uso
+            </Link>
           </div>
         </div>
       </div>
