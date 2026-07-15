@@ -149,10 +149,10 @@ export default function Termos() {
               {section.contact && (
                 <p className="text-gray-700 leading-relaxed">
                   <a
-                    href="mailto:adm@playecg.app"
+                    href="mailto:ecgdescomplica@gmail.com"
                     className="font-semibold text-ecg-green underline underline-offset-2 hover:opacity-80"
                   >
-                    adm@playecg.app
+                    ecgdescomplica@gmail.com
                   </a>
                 </p>
               )}
