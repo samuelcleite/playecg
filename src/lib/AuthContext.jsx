@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 import { getToken, clearToken } from '@/lib/customAuth';
+import { initAndroidPurchases } from '@/utils/purchasesAndroid';
 
 const AuthContext = createContext();
 
@@ -185,6 +186,13 @@ export const AuthProvider = ({ children }) => {
       setUser(currentUser);
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
+
+      // Android: configura o RevenueCat com o User.id do Base44 (a chave que o
+      // revenuecatWebhook usa). Guarded por plataforma — no-op na web e no
+      // Despia. Sem await de propósito: não pode atrasar nem quebrar o auth.
+      initAndroidPurchases(currentUser?.id).catch((error) =>
+        console.error('Falha ao inicializar RevenueCat (Android):', error)
+      );
     } catch (error) {
       console.error('User auth check failed:', error);
       setIsLoadingAuth(false);

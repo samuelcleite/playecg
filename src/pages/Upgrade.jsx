@@ -3,8 +3,15 @@ import { base44 } from "@/api/base44Client";
 import { getCurrentUser, refreshCurrentUser } from '@/lib/currentUser';
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { isIOSNativeApp } from "@/utils/platform";
+import { isIOSNativeApp, isAndroidNativeApp } from "@/utils/platform";
 import { startIOSPurchase, restoreIOSPurchases } from "@/utils/purchase";
+import {
+  purchaseAndroidPlan,
+  restoreAndroidPurchases,
+  PURCHASE_SUCCESS,
+  PURCHASE_CANCELLED,
+  PURCHASE_PENDING,
+} from "@/utils/purchasesAndroid";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -188,6 +195,40 @@ export default function Upgrade() {
       return;
     }
 
+    // Android nativo (Capacitor): compra via RevenueCat usando Offerings.
+    if (isAndroidNativeApp()) {
+      setProcessing(true);
+      try {
+        const result = await purchaseAndroidPlan(selectedPlan, user?.id);
+        if (result === PURCHASE_SUCCESS) {
+          // Reaproveita o polling já usado no iOS: aguarda o revenuecatWebhook
+          // marcar subscription_type === "premium" e recarrega a rota.
+          await window.iapSuccess();
+          return;
+        }
+        setProcessing(false);
+        if (result === PURCHASE_CANCELLED) return; // usuário desistiu: sem diálogo
+        setErrorDialog({
+          open: true,
+          title: result === PURCHASE_PENDING ? 'Confirmando seu pagamento' : 'Assinatura Indisponível',
+          message: result === PURCHASE_PENDING
+            ? 'Recebemos sua compra e ela está sendo processada. Aguarde alguns instantes e atualize a tela. Se o acesso não liberar, use a opção "Restaurar Compras".'
+            : 'A assinatura não está disponível no momento. Tente novamente em alguns instantes.',
+          details: ''
+        });
+      } catch (error) {
+        console.error("Erro ao iniciar compra Android:", error);
+        setProcessing(false);
+        setErrorDialog({
+          open: true,
+          title: 'Erro ao Iniciar Compra',
+          message: error?.message || "Não foi possível iniciar a compra. Tente novamente.",
+          details: ''
+        });
+      }
+      return;
+    }
+
     // --- Fluxo Stripe (web) — inalterado ---
     // Stripe Checkout não funciona dentro de iframe (preview)
     if (window.self !== window.top) {
@@ -232,6 +273,36 @@ export default function Upgrade() {
   };
 
   const handleRestore = async () => {
+    // Android nativo (Capacitor): restore via RevenueCat.
+    if (isAndroidNativeApp()) {
+      setProcessing(true);
+      try {
+        const restored = await restoreAndroidPurchases(user?.id);
+        if (restored) {
+          // Mesmo polling da compra: aguarda o webhook refletir o premium.
+          await window.iapSuccess();
+          return;
+        }
+        setProcessing(false);
+        setErrorDialog({
+          open: true,
+          title: 'Nenhuma Compra Encontrada',
+          message: 'Não encontramos nenhuma assinatura ativa para restaurar nesta conta do Google Play. Verifique se está logado com a mesma conta usada na compra.',
+          details: ''
+        });
+      } catch (error) {
+        console.error("Erro ao restaurar compras Android:", error);
+        setProcessing(false);
+        setErrorDialog({
+          open: true,
+          title: 'Erro ao Restaurar Compras',
+          message: error?.message || "Não foi possível restaurar suas compras. Tente novamente.",
+          details: ''
+        });
+      }
+      return;
+    }
+
     // Restaura compras via RevenueCat (iOS). getpurchasehistory:// retorna os
     // dados; restoreIOSPurchases resolve true se houver premium ativo.
     setProcessing(true);
@@ -530,8 +601,9 @@ export default function Upgrade() {
                   : "Checkout 100% seguro processado pelo Stripe"}
               </p>
 
-              {/* Restaurar Compras — apenas no app iOS nativo (exigência da Apple) */}
-              {isIOSNativeApp() && (
+              {/* Restaurar Compras — apps nativos. Exigência da Apple no iOS;
+                  no Android a compra também é do RevenueCat e precisa do restore. */}
+              {(isIOSNativeApp() || isAndroidNativeApp()) && (
                 <Button
                   variant="outline"
                   className="w-full mt-4 border-[#1976D2] text-[#0D3B66] font-semibold"
