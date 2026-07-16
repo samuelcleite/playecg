@@ -711,11 +711,26 @@ export default function Profile() {
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <p className="font-semibold text-red-900 mb-2">O que será deletado:</p>
                 <ul className="list-disc list-inside space-y-1 text-sm text-red-800">
-                  <li>Todos os seus dados pessoais</li>
-                  <li>Todo o seu histórico de tentativas</li>
-                  <li>Todas as suas conquistas e troféus</li>
-                  <li>Sua pontuação e progresso</li>
-                  <li>Sua assinatura (se houver)</li>
+                  <li>Seus dados pessoais e de perfil</li>
+                  <li>Seu histórico de tentativas e estatísticas diárias</li>
+                  <li>Suas conquistas e troféus</li>
+                  <li>Seu progresso nos módulos, pontuação e nível</li>
+                  <li>Suas notificações e registros de pagamento</li>
+                </ul>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <p className="font-semibold text-amber-900 mb-2">Sobre sua assinatura:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-amber-800">
+                  <li>
+                    Assinatura pela web (Stripe): será cancelada automaticamente
+                    durante a exclusão.
+                  </li>
+                  <li>
+                    Assinatura pela App Store ou Google Play: cancele-a primeiro
+                    na loja — não conseguimos cancelar por você. Enquanto estiver
+                    ativa, a exclusão da conta ficará bloqueada.
+                  </li>
                 </ul>
               </div>
 
