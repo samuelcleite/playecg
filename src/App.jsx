@@ -8,6 +8,7 @@ import InstallPWA from './pages/InstallPWA';
 import Privacidade from './pages/Privacidade';
 import Termos from './pages/Termos';
 import Suporte from './pages/Suporte';
+import ExcluirConta from './pages/ExcluirConta';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -86,6 +87,7 @@ const AuthenticatedApp = () => {
       <Route path="/privacidade" element={<Privacidade />} />
       <Route path="/termos" element={<Termos />} />
       <Route path="/suporte" element={<Suporte />} />
+      <Route path="/excluir-conta" element={<ExcluirConta />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
     </AnimatePresence>
