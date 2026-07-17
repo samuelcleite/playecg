@@ -31,6 +31,9 @@ Deno.serve(async (req) => {
 
     const ACTIVATE = ['INITIAL_PURCHASE','RENEWAL','UNCANCELLATION','PRODUCT_CHANGE','NON_RENEWING_PURCHASE'];
     const DEACTIVATE = ['EXPIRATION']; // CANCELLATION NÃO revoga (só desliga a renovação)
+    // Eventos que representam dinheiro novo. UNCANCELLATION e PRODUCT_CHANGE
+    // reativam/alteram o plano, mas não geram cobrança — não viram Payment.
+    const BILLABLE = ['INITIAL_PURCHASE','RENEWAL','NON_RENEWING_PURCHASE'];
 
     if (ACTIVATE.includes(type)) {
       const users = await base44.asServiceRole.entities.User.filter({ id: appUserId });
@@ -39,6 +42,25 @@ Deno.serve(async (req) => {
           subscription_type: 'premium',
           subscription_start_date: new Date().toISOString()
         });
+
+        if (BILLABLE.includes(type)) {
+          // O premium já foi concedido acima. Se o registro de Payment falhar,
+          // apenas logamos: retornar erro faria o RevenueCat re-tentar o evento
+          // inteiro sem necessidade.
+          try {
+            await base44.asServiceRole.entities.Payment.create({
+              user_email: users[0].email,
+              reference_id: event.transaction_id || event.original_transaction_id || `appstore_${Date.now()}`,
+              amount: event.price_in_purchased_currency ?? 0,
+              discount_amount: 0,
+              status: 'PAID',
+              payment_method: 'APP_STORE_SUBSCRIPTION',
+              paid_at: new Date().toISOString()
+            });
+          } catch (paymentError) {
+            console.error('Erro ao criar Payment do App Store:', paymentError.message);
+          }
+        }
       }
     } else if (DEACTIVATE.includes(type)) {
       const users = await base44.asServiceRole.entities.User.filter({ id: appUserId });
