@@ -263,6 +263,10 @@ export default function Upgrade() {
   return (
     <div className="min-h-screen p-6 md:p-8">
       <div className="max-w-6xl mx-auto">
+        {/* DEBUG TEMPORÁRIO — remover depois */}
+        <p className="text-xs text-gray-500 break-all">
+          UA: {navigator.userAgent} | isIOSNativeApp: {String(isIOSNativeApp())}
+        </p>
         {/* Header */}
         <div className="text-center mb-12">
           <motion.div
