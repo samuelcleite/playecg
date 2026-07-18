@@ -23,6 +23,42 @@ export function withNativeReturnMarker(url) {
   }
 }
 
+// DEBUG TEMPORÁRIO — remover depois. Coleta o estado das condições de
+// maybeReturnToNativeApp() e o exibe num banner fixo no topo da tela, visível em
+// qualquer página — inclusive na aba nativa do Safari (UA sem "despia"), onde não
+// há devtools. Injetado direto no DOM (irmão do #root) para sobreviver ao render
+// do React e aparecer mesmo se o app não montar.
+function showOauthDiag() {
+  const diag = {
+    href: window.location.href,
+    hasMarker: new URLSearchParams(window.location.search).get(NATIVE_RETURN_PARAM),
+    isDespia: isDespiaApp(),
+    ua: navigator.userAgent,
+    token: (appParams && appParams.token) ? "PRESENTE" : "AUSENTE",
+  };
+  window.__oauthDiag = diag;
+  const render = () => {
+    let el = document.getElementById("oauth-diag-banner");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "oauth-diag-banner";
+      el.style.cssText =
+        "position:fixed;top:0;left:0;right:0;z-index:2147483647;" +
+        "background:#fde047;color:#000;font-size:10px;line-height:1.3;" +
+        "padding:calc(4px + env(safe-area-inset-top, 0px)) 6px 4px;" +
+        "word-break:break-all;white-space:pre-wrap;font-family:monospace;" +
+        "pointer-events:none;";
+      document.body.appendChild(el);
+    }
+    el.textContent = "OAUTH DIAG: " + JSON.stringify(window.__oauthDiag);
+  };
+  if (document.body) {
+    render();
+  } else {
+    document.addEventListener("DOMContentLoaded", render);
+  }
+}
+
 // Chamado no boot (main.jsx), antes do render. Se estamos na aba nativa de OAuth
 // (marcador presente + token recém-capturado + UA sem "despia"), dispara o deeplink
 // `playecg://oauth/<rota>?access_token=...`. O prefixo "oauth/" instrui o Despia a
@@ -30,6 +66,7 @@ export function withNativeReturnMarker(url) {
 // bootstrap existente (src/lib/app-params.js) captura o token e conclui o login.
 export function maybeReturnToNativeApp() {
   if (typeof window === "undefined") return false;
+  showOauthDiag(); // DEBUG TEMPORÁRIO — remover depois
   const params = new URLSearchParams(window.location.search);
   if (params.get(NATIVE_RETURN_PARAM) !== "1") return false;
 
