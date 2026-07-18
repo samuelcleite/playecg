@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
+import { withNativeReturnMarker } from "@/utils/nativeOAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -32,7 +33,7 @@ export default function Home() {
   }, []);
 
   const handleLogin = () => {
-    base44.auth.redirectToLogin(window.location.origin + createPageUrl("Dashboard"));
+    base44.auth.redirectToLogin(withNativeReturnMarker(window.location.origin + createPageUrl("Dashboard")));
   };
 
   const features = [
