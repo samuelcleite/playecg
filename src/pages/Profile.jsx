@@ -380,7 +380,14 @@ export default function Profile() {
                     </Button>
                   )}
 
-                  {(subscriptionInfo.paymentMethod === 'Manual' || !subscriptionInfo.paymentId) && (
+                  {subscriptionInfo.paymentMethod === 'APP_STORE_SUBSCRIPTION' ? (
+                    <Alert className="bg-blue-50 border-blue-200">
+                      <AlertCircle className="w-5 h-5 text-blue-600" />
+                      <AlertDescription className="text-blue-900">
+                        Sua assinatura é gerenciada pela App Store. Para alterar ou cancelar, acesse Ajustes &gt; sua conta Apple &gt; Assinaturas.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (subscriptionInfo.paymentMethod === 'Manual' || !subscriptionInfo.paymentId) && (
                     <Alert className="bg-amber-50 border-amber-200">
                       <AlertCircle className="w-5 h-5 text-amber-600" />
                       <AlertDescription className="text-amber-900">

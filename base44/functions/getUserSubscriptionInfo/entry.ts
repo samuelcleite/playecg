@@ -72,13 +72,17 @@ Deno.serve(async (req) => {
 
         // Detectar se é Stripe
         const isStripe = latestPayment.payment_method === 'STRIPE_SUBSCRIPTION' || !!latestPayment.stripe_subscription_id;
+        // Assinaturas da App Store (RevenueCat) não têm stripe_subscription_id e
+        // precisam ser distinguidas do fallback 'Manual', senão a tela de Perfil
+        // manda o assinante falar com o suporte em vez de cancelar na Apple.
+        const isAppStore = latestPayment.payment_method === 'APP_STORE_SUBSCRIPTION';
         const paymentId = latestPayment.stripe_subscription_id || null;
 
         const subscriptionInfo = {
             amount: latestPayment.amount,
             lastRenewal: lastRenewal.toISOString(),
             nextRenewal: nextRenewal.toISOString(),
-            paymentMethod: isStripe ? 'Stripe' : 'Manual',
+            paymentMethod: isAppStore ? 'APP_STORE_SUBSCRIPTION' : (isStripe ? 'Stripe' : 'Manual'),
             paymentId: paymentId
         };
 
