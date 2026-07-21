@@ -7,7 +7,8 @@
       "description": "min\u00fasculo, sem espa\u00e7os \u2014 identidade \u00fanica"
     },
     "full_name": {
-      "type": "string"
+      "type": "string",
+      "description": "Nome completo do usu\u00e1rio"
     },
     "password_hash": {
       "type": "string",
@@ -30,7 +31,8 @@
         "user",
         "admin"
       ],
-      "default": "user"
+      "default": "user",
+      "description": "Papel do usu\u00e1rio no app"
     },
     "subscription_type": {
       "type": "string",
@@ -38,7 +40,68 @@
         "free",
         "premium"
       ],
-      "default": "free"
+      "default": "free",
+      "description": "Tipo de assinatura do usu\u00e1rio"
+    },
+    "subscription_start_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Data de in\u00edcio da assinatura premium"
+    },
+    "specialty": {
+      "type": "string",
+      "description": "Especialidade m\u00e9dica do usu\u00e1rio"
+    },
+    "country": {
+      "type": "string",
+      "description": "Pa\u00eds onde o usu\u00e1rio atua"
+    },
+    "state": {
+      "type": "string",
+      "description": "Estado onde o usu\u00e1rio atua"
+    },
+    "city": {
+      "type": "string",
+      "description": "Cidade onde o usu\u00e1rio atua"
+    },
+    "profile_completed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se o usu\u00e1rio completou o perfil inicial"
+    },
+    "total_attempts": {
+      "type": "number",
+      "default": 0,
+      "description": "Total de tentativas de quiz"
+    },
+    "total_first_attempts": {
+      "type": "number",
+      "default": 0,
+      "description": "N\u00famero de casos distintos j\u00e1 tentados"
+    },
+    "correct_first_attempts": {
+      "type": "number",
+      "default": 0,
+      "description": "Primeiras tentativas corretas"
+    },
+    "module_first_attempts": {
+      "type": "number",
+      "default": 0,
+      "description": "Primeiras tentativas em casos de m\u00f3dulo"
+    },
+    "module_correct_first_attempts": {
+      "type": "number",
+      "default": 0,
+      "description": "Primeiras tentativas corretas em casos de m\u00f3dulo"
+    },
+    "current_streak": {
+      "type": "number",
+      "default": 0,
+      "description": "Sequ\u00eancia atual de dias praticados"
+    },
+    "last_practice_date": {
+      "type": "string",
+      "description": "\u00daltima data de pr\u00e1tica (YYYY-MM-DD)"
     },
     "last_login_at": {
       "type": "string",
