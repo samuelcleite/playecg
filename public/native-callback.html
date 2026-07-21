@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head><meta charset="UTF-8" /><title>Entrando...</title></head>
+<body>
+<p>Entrando...</p>
+<p><a id="continue" style="display:none">Continuar para o app</a></p>
+<script>
+  var q      = new URLSearchParams(location.search)
+  var code   = q.get('code') || ''
+  var error  = q.get('error') || ''
+  var scheme = q.get('state') || ''
+  var query  = code ? 'code=' + code : 'error=' + encodeURIComponent(error)
+
+  if (scheme && /^[a-z][a-z0-9+.-]*$/i.test(scheme)) {
+    var deeplink = scheme + '://oauth/auth?' + query
+    location.href = deeplink
+    var btn = document.getElementById('continue')
+    btn.href = deeplink
+    btn.style.display = 'inline-block'
+  } else {
+    location.replace('/auth?' + query)
+  }
+</script>
+</body>
+</html>
