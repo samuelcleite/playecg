@@ -1,0 +1,65 @@
+{
+  "name": "Account",
+  "type": "object",
+  "properties": {
+    "email": {
+      "type": "string",
+      "description": "min\u00fasculo, sem espa\u00e7os \u2014 identidade \u00fanica"
+    },
+    "full_name": {
+      "type": "string"
+    },
+    "password_hash": {
+      "type": "string",
+      "description": "PBKDF2 salt:hash, vazio para contas s\u00f3-Google"
+    },
+    "google_id": {
+      "type": "string",
+      "description": "'sub' do Google"
+    },
+    "avatar_url": {
+      "type": "string"
+    },
+    "email_verified": {
+      "type": "boolean",
+      "default": false
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "user",
+        "admin"
+      ],
+      "default": "user"
+    },
+    "subscription_type": {
+      "type": "string",
+      "enum": [
+        "free",
+        "premium"
+      ],
+      "default": "free"
+    },
+    "last_login_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "email"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "read": false,
+    "update": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "delete": false
+  }
+}
