@@ -1,4 +1,5 @@
 import { base44 } from '@/api/base44Client'
+import despia from 'despia-native'
 
 const TOKEN_KEY = 'app_auth_token'
 
@@ -20,7 +21,11 @@ export async function signInWithGoogle() {
   const scheme = isNative() ? 'playecg' : ''
   const { data } = await base44.functions.invoke('googleAuthUrl', { deeplink_scheme: scheme })
   if (!data?.url) throw new Error('sem URL do Google')
-  window.location.href = data.url // iOS entra depois
+  if (isNative()) {
+    despia(`oauth://?url=${encodeURIComponent(data.url)}`)
+  } else {
+    window.location.href = data.url
+  }
 }
 
 export async function loginWithGoogleCode(code) {
