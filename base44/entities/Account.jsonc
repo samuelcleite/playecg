@@ -18,6 +18,10 @@
       "type": "string",
       "description": "'sub' do Google"
     },
+    "apple_id": {
+      "type": "string",
+      "description": "'sub' do Apple (Sign in with Apple)"
+    },
     "avatar_url": {
       "type": "string"
     },
