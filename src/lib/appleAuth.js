@@ -1,3 +1,9 @@
+// src/lib/appleAuth.js
+// Sign In with Apple â€” iOS + web via Apple JS SDK (folha nativa com Face ID no iOS).
+// Android (ponte oauth://) fica pra fase Android â€” nÃ£o tratado aqui de propÃ³sito.
+import { base44 } from '@/api/base44Client'
+import { setToken } from '@/lib/customAuth'
+const APPLE_SERVICES_ID = 'com.despia.playecg.signin'
 export async function signInWithApple() {
   if (!window.AppleID?.auth) throw new Error('Apple sign-in indisponível')
   window.AppleID.auth.init({
