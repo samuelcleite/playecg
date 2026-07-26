@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
     const todayDate = today.toISOString().split('T')[0];
 
     // Buscar DailyCase para hoje
-    const dailyCases = await base44.entities.DailyCase.filter({
+    const dailyCases = await base44.asServiceRole.entities.DailyCase.filter({
       date: todayDate,
       active: true
     });
@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
     const dailyCase = dailyCases[0];
 
     // Buscar o ECGCase associado
-    const ecgCases = await base44.entities.ECGCase.filter({
+    const ecgCases = await base44.asServiceRole.entities.ECGCase.filter({
       id: dailyCase.ecg_case_id
     });
 
@@ -129,8 +129,10 @@ Deno.serve(async (req) => {
 
     const ecgCase = ecgCases[0];
 
-    // Verificar se o usuário já respondeu esse caso hoje
-    const attempts = await base44.entities.QuizAttempt.filter({
+    // Verificar se o usuário já respondeu esse caso hoje.
+    // asServiceRole ignora RLS: o filtro user_email (de identity.email, NUNCA do
+    // body) é obrigatório aqui para não vazar tentativas de outros usuários.
+    const attempts = await base44.asServiceRole.entities.QuizAttempt.filter({
       user_email: identity.email,
       case_id: dailyCase.ecg_case_id
     });
