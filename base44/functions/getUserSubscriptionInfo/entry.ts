@@ -82,7 +82,15 @@ async function resolveIdentity(req, base44) {
     }
   }
 
-  const user = await base44.auth.me();
+  // base44.auth.me() LANÇA (não retorna null) quando o Authorization traz um
+  // Bearer que não é JWT próprio válido nem sessão Base44 — tratamos a exceção
+  // como não autenticado: null, o contrato já esperado por quem chama (=> 401).
+  let user;
+  try {
+    user = await base44.auth.me();
+  } catch (_e) {
+    return null;
+  }
   if (user) {
     return { email: user.email, role: user.role, source: 'base44', record: user };
   }
