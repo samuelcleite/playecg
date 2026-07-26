@@ -110,6 +110,14 @@
     "last_login_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "points": {
+      "type": "number",
+      "description": "Pontos acumulados"
+    },
+    "level": {
+      "type": "number",
+      "description": "Nível atual do usuário"
     }
   },
   "required": [
