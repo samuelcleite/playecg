@@ -24,6 +24,8 @@ async function verifyJwtHS256(token, secret) {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
     const [headerB64, payloadB64, sigB64] = parts;
+    const header = JSON.parse(b64urlToStr(headerB64));
+    if (header.alg !== 'HS256') return null;
     const payload = JSON.parse(b64urlToStr(payloadB64));
 
     const key = await crypto.subtle.importKey(
@@ -42,7 +44,7 @@ async function verifyJwtHS256(token, secret) {
     );
     if (!valid) return null;
 
-    if (typeof payload.exp === 'number' && payload.exp < Math.floor(Date.now() / 1000)) {
+    if (typeof payload.exp !== 'number' || payload.exp < Math.floor(Date.now() / 1000)) {
       return null;
     }
 
