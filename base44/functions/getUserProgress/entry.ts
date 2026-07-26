@@ -57,6 +57,15 @@ async function verifyJwtHS256(token, secret) {
 // Aceita tanto o JWT próprio (googleSignIn/appleSignIn) quanto a sessão Base44.
 // JWT NUNCA concede admin: role é sempre 'user' nesse caminho, por decisão de
 // arquitetura — mesmo que o payload assinado carregue um campo role.
+//
+// Além de { email, role, source }, devolve `record`: o registro do usuário de
+// onde ler campos extras (subscription_type, points, full_name, city...).
+//   source 'base44' → record = retorno de base44.auth.me() (o User inteiro).
+//   source 'jwt'    → record = a Account daquele email (via asServiceRole).
+// LER de qualquer um dos dois é seguro durante a transição, porque ninguém
+// escreve na Account — ela nunca diverge do User. Toda ESCRITA continua indo
+// para o User. role nunca vem do record: é sempre 'user' no caminho JWT.
+// JWT válido sem Account correspondente → null (sem fallback para sessão).
 async function resolveIdentity(req, base44) {
   const authHeader = req.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -65,14 +74,25 @@ async function resolveIdentity(req, base44) {
       const token = authHeader.slice('Bearer '.length).trim();
       const payload = await verifyJwtHS256(token, secret);
       if (payload && payload.email) {
-        return { email: payload.email, role: 'user', source: 'jwt' };
+        const accounts = await base44.asServiceRole.entities.Account.filter({ email: payload.email });
+        const record = accounts && accounts.length > 0 ? accounts[0] : null;
+        if (!record) return null;
+        return { email: payload.email, role: 'user', source: 'jwt', record };
       }
     }
   }
 
-  const user = await base44.auth.me();
+  // base44.auth.me() LANÇA (não retorna null) quando o Authorization traz um
+  // Bearer que não é JWT próprio válido nem sessão Base44 — tratamos a exceção
+  // como não autenticado: null, o contrato já esperado por quem chama (=> 401).
+  let user;
+  try {
+    user = await base44.auth.me();
+  } catch (_e) {
+    return null;
+  }
   if (user) {
-    return { email: user.email, role: user.role, source: 'base44' };
+    return { email: user.email, role: user.role, source: 'base44', record: user };
   }
 
   return null;
