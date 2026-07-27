@@ -295,6 +295,21 @@ Deno.serve(async (req) => {
     const inalteradas = [];
     const ignoradas = [];
     const erros = [];
+    // Conferência independente: agregado recalculado da QuizAttempt vs. o valor
+    // incremental já guardado no User (escrito por recordQuizAttempt, um a um).
+    // Não altera nada — serve para validar o recálculo antes de gravá-lo em 32
+    // registros. Divergência pequena e esparsa = deriva esperada do contador
+    // incremental. Divergência grande e sistemática = o recálculo está errado.
+    const conferencia_agregados = [];
+    const CAMPOS_AGREGADOS = [
+      'total_attempts',
+      'total_first_attempts',
+      'correct_first_attempts',
+      'module_first_attempts',
+      'module_correct_first_attempts',
+      'current_streak',
+      'last_practice_date'
+    ];
 
     for (const u of users) {
       const key = normalizeEmail(u.email);
@@ -306,6 +321,17 @@ Deno.serve(async (req) => {
       const stats = computeStatsFromAttempts(attemptsByEmail.get(key) || []);
       const desejado = { ...profileFromUser(u), ...stats };
       const existente = accountsByEmail.get(key) || null;
+
+      const difs = CAMPOS_AGREGADOS
+        .filter(campo => norm(u[campo]) !== norm(stats[campo]))
+        .map(campo => ({
+          campo,
+          guardado_no_user: u[campo] ?? null,
+          recalculado: stats[campo]
+        }));
+      if (difs.length > 0) {
+        conferencia_agregados.push({ email: key, difs });
+      }
 
       if (!existente) {
         criadas.push({ email: key, valores: desejado });
@@ -364,8 +390,10 @@ Deno.serve(async (req) => {
         a_atualizar: atualizadas.length,
         ja_corretas: inalteradas.length,
         ignoradas: ignoradas.length,
-        erros: erros.length
+        erros: erros.length,
+        usuarios_com_agregado_divergente: conferencia_agregados.length
       },
+      conferencia_agregados,
       criadas,
       atualizadas,
       inalteradas,
