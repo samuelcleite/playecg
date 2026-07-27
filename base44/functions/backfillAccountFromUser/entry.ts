@@ -214,18 +214,30 @@ function computeStatsFromAttempts(attempts) {
 // Campos de perfil vindos do User. Normalizados para que a comparação com o que
 // já está na Account não acuse diferença entre null, undefined e ''.
 function profileFromUser(u) {
-  return {
+  const out = {
     full_name: u.full_name || '',
     // subscription_type pode vir null em registros antigos; o schema só admite
     // 'free' | 'premium'.
     subscription_type: u.subscription_type === 'premium' ? 'premium' : 'free',
-    subscription_start_date: u.subscription_start_date || '',
     specialty: u.specialty || '',
     country: u.country || '',
     state: u.state || '',
     city: u.city || '',
     profile_completed: u.profile_completed === true
   };
+
+  // subscription_start_date é o ÚNICO campo copiado que tem `format: date-time`
+  // no schema da Account. Só entra no payload quando tem valor: mandar '' pode
+  // ser rejeitado pela validação de formato, e não há nada a ganhar em zerar o
+  // campo. Ausente da chave => não é comparado nem gravado, então uma Account
+  // que já tenha data nunca a perde.
+  // No dry-run de 2026-07-27 isso valia para 3 usuários premium sem data de
+  // início (ecgdescomplica, fellype92, eletrocardiodrama.ecg).
+  if (u.subscription_start_date) {
+    out.subscription_start_date = u.subscription_start_date;
+  }
+
+  return out;
 }
 
 function norm(v) {
