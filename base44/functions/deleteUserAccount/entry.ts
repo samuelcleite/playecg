@@ -9,10 +9,18 @@ const STORE_SUBS = ['app_store', 'play_store'];
 const NON_STORE = ['stripe', 'promotional'];
 
 // Consulta o RevenueCat (fonte de verdade das assinaturas de loja).
-// FAIL CLOSED: qualquer incerteza — rede, status inesperado, JSON inválido, ou entitlement
-// ativo cuja loja não é determinável com confiança — retorna { error: true }.
+// FAIL CLOSED: qualquer incerteza — rede, status inesperado, JSON inválido, entitlement
+// ativo cuja loja não é determinável com confiança, ou app_user_id que o RevenueCat não
+// conhece apesar de existir compra de loja nos nossos registros — retorna { error: true }.
 // Só retorna { active: false } quando há certeza de que não existe entitlement de loja ativo.
-async function checkActiveStoreSubscription(appUserId) {
+//
+// `hadStorePurchase`: se os NOSSOS registros dizem que este usuário já comprou pela App
+// Store (ver chamador). Necessário porque o GET /v1/subscribers do RevenueCat é
+// "get-or-create": um app_user_id errado mas bem-formado devolve 200/201 com um subscriber
+// VAZIO — indistinguível, sem esse sinal, de alguém que nunca comprou nada. Sem a checagem,
+// trocar a origem do id (User.id -> Account.id) faria esta função autorizar a exclusão de
+// uma conta com assinatura de loja ATIVA, furando o fail-closed pela porta da frente.
+async function checkActiveStoreSubscription(appUserId, hadStorePurchase) {
     const apiKey = Deno.env.get('REVENUECAT_SECRET_KEY');
     if (!apiKey) {
         console.error('deleteUserAccount: REVENUECAT_SECRET_KEY ausente');
@@ -75,6 +83,25 @@ async function checkActiveStoreSubscription(appUserId) {
         // app_store, play_store, ou qualquer outra loja nativa resolvida, com renovação
         // ainda ativa → bloquear.
         return { active: true };
+    }
+
+    // Nenhum entitlement de loja ativo. Antes de liberar, checar contradição: se já houve
+    // compra na App Store, o RevenueCat obrigatoriamente conhece este app_user_id. Um
+    // subscriber sem histórico NENHUM significa que o get-or-create acabou de criar um
+    // registro vazio — ou seja, o id consultado não é o id da compra. Isso é incerteza
+    // sobre o id, não ausência de assinatura: FAIL CLOSED.
+    if (hadStorePurchase) {
+        const semHistorico =
+            Object.keys(entitlements).length === 0 &&
+            Object.keys(subscriptions).length === 0 &&
+            Object.keys(subscriber.non_subscriptions || {}).length === 0;
+        if (semHistorico) {
+            console.error(
+                'deleteUserAccount: existe Payment de App Store mas o RevenueCat não conhece o app_user_id:',
+                appUserId
+            );
+            return { error: true };
+        }
     }
 
     return { active: false };
@@ -157,7 +184,15 @@ Deno.serve(async (req) => {
         const userEmail = user.email;
 
         // 1) Assinatura de loja ativa → BLOQUEAR antes de apagar qualquer coisa.
-        const storeCheck = await checkActiveStoreSubscription(user.id);
+        // Sinal local de compra na loja: só o revenuecatWebhook cria Payment com este
+        // payment_method. Deliberadamente NÃO usamos subscription_type === 'premium' aqui:
+        // assinante de Stripe e upgrade manual também são premium e nunca existiram no
+        // RevenueCat — bloqueá-los quebraria a exclusão de conta exigida pela Apple.
+        const storePayments = await base44.asServiceRole.entities.Payment.filter({
+            user_email: userEmail,
+            payment_method: 'APP_STORE_SUBSCRIPTION'
+        });
+        const storeCheck = await checkActiveStoreSubscription(user.id, storePayments.length > 0);
         if (storeCheck.error) {
             // FAIL CLOSED: não conseguimos verificar → não excluir.
             return Response.json({
