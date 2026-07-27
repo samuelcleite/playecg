@@ -24,7 +24,6 @@
     }
   },
   "required": [
-    "user_id",
     "endpoint",
     "p256dh",
     "auth"
