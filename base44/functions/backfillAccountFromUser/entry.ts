@@ -140,12 +140,12 @@ function normalizeEmail(email) {
   return (email || '').trim().toLowerCase();
 }
 
-async function listAll(entities, entityName) {
+async function listAll(entities, entityName, sort = null) {
   const batchSize = 500;
   let skip = 0;
   let all = [];
   while (true) {
-    const batch = await entities[entityName].list(null, batchSize, skip);
+    const batch = await entities[entityName].list(sort, batchSize, skip);
     if (!batch || batch.length === 0) break;
     all = all.concat(batch);
     if (batch.length < batchSize) break;
@@ -266,7 +266,14 @@ Deno.serve(async (req) => {
 
     const users = await listAll(svc, 'User');
     const accounts = await listAll(svc, 'Account');
-    const allAttempts = await listAll(svc, 'QuizAttempt');
+    // ORDEM IMPORTA: computeStatsFromAttempts elege a "primeira tentativa por
+    // caso" pela ordem em que as linhas chegam. Sem sort explícito a ordem é a
+    // que o banco quiser devolver, e uma tentativa posterior (provavelmente
+    // correta, porque a pessoa insiste até acertar) pode ser eleita como a
+    // primeira — inflando correct_first_attempts e module_correct_first_attempts,
+    // que são os numeradores das duas taxas de acerto exibidas ao usuário.
+    // getUserStats já paginava com sort 'created_date' pelo mesmo motivo.
+    const allAttempts = await listAll(svc, 'QuizAttempt', 'created_date');
 
     // Tentativas agrupadas por email normalizado.
     const attemptsByEmail = new Map();
