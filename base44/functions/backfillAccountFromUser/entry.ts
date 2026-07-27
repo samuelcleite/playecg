@@ -140,12 +140,12 @@ function normalizeEmail(email) {
   return (email || '').trim().toLowerCase();
 }
 
-async function listAll(entities, entityName) {
+async function listAll(entities, entityName, sort = null) {
   const batchSize = 500;
   let skip = 0;
   let all = [];
   while (true) {
-    const batch = await entities[entityName].list(null, batchSize, skip);
+    const batch = await entities[entityName].list(sort, batchSize, skip);
     if (!batch || batch.length === 0) break;
     all = all.concat(batch);
     if (batch.length < batchSize) break;
@@ -214,18 +214,30 @@ function computeStatsFromAttempts(attempts) {
 // Campos de perfil vindos do User. Normalizados para que a comparação com o que
 // já está na Account não acuse diferença entre null, undefined e ''.
 function profileFromUser(u) {
-  return {
+  const out = {
     full_name: u.full_name || '',
     // subscription_type pode vir null em registros antigos; o schema só admite
     // 'free' | 'premium'.
     subscription_type: u.subscription_type === 'premium' ? 'premium' : 'free',
-    subscription_start_date: u.subscription_start_date || '',
     specialty: u.specialty || '',
     country: u.country || '',
     state: u.state || '',
     city: u.city || '',
     profile_completed: u.profile_completed === true
   };
+
+  // subscription_start_date é o ÚNICO campo copiado que tem `format: date-time`
+  // no schema da Account. Só entra no payload quando tem valor: mandar '' pode
+  // ser rejeitado pela validação de formato, e não há nada a ganhar em zerar o
+  // campo. Ausente da chave => não é comparado nem gravado, então uma Account
+  // que já tenha data nunca a perde.
+  // No dry-run de 2026-07-27 isso valia para 3 usuários premium sem data de
+  // início (ecgdescomplica, fellype92, eletrocardiodrama.ecg).
+  if (u.subscription_start_date) {
+    out.subscription_start_date = u.subscription_start_date;
+  }
+
+  return out;
 }
 
 function norm(v) {
@@ -254,7 +266,14 @@ Deno.serve(async (req) => {
 
     const users = await listAll(svc, 'User');
     const accounts = await listAll(svc, 'Account');
-    const allAttempts = await listAll(svc, 'QuizAttempt');
+    // ORDEM IMPORTA: computeStatsFromAttempts elege a "primeira tentativa por
+    // caso" pela ordem em que as linhas chegam. Sem sort explícito a ordem é a
+    // que o banco quiser devolver, e uma tentativa posterior (provavelmente
+    // correta, porque a pessoa insiste até acertar) pode ser eleita como a
+    // primeira — inflando correct_first_attempts e module_correct_first_attempts,
+    // que são os numeradores das duas taxas de acerto exibidas ao usuário.
+    // getUserStats já paginava com sort 'created_date' pelo mesmo motivo.
+    const allAttempts = await listAll(svc, 'QuizAttempt', 'created_date');
 
     // Tentativas agrupadas por email normalizado.
     const attemptsByEmail = new Map();
@@ -276,6 +295,21 @@ Deno.serve(async (req) => {
     const inalteradas = [];
     const ignoradas = [];
     const erros = [];
+    // Conferência independente: agregado recalculado da QuizAttempt vs. o valor
+    // incremental já guardado no User (escrito por recordQuizAttempt, um a um).
+    // Não altera nada — serve para validar o recálculo antes de gravá-lo em 32
+    // registros. Divergência pequena e esparsa = deriva esperada do contador
+    // incremental. Divergência grande e sistemática = o recálculo está errado.
+    const conferencia_agregados = [];
+    const CAMPOS_AGREGADOS = [
+      'total_attempts',
+      'total_first_attempts',
+      'correct_first_attempts',
+      'module_first_attempts',
+      'module_correct_first_attempts',
+      'current_streak',
+      'last_practice_date'
+    ];
 
     for (const u of users) {
       const key = normalizeEmail(u.email);
@@ -287,6 +321,17 @@ Deno.serve(async (req) => {
       const stats = computeStatsFromAttempts(attemptsByEmail.get(key) || []);
       const desejado = { ...profileFromUser(u), ...stats };
       const existente = accountsByEmail.get(key) || null;
+
+      const difs = CAMPOS_AGREGADOS
+        .filter(campo => norm(u[campo]) !== norm(stats[campo]))
+        .map(campo => ({
+          campo,
+          guardado_no_user: u[campo] ?? null,
+          recalculado: stats[campo]
+        }));
+      if (difs.length > 0) {
+        conferencia_agregados.push({ email: key, difs });
+      }
 
       if (!existente) {
         criadas.push({ email: key, valores: desejado });
@@ -345,8 +390,10 @@ Deno.serve(async (req) => {
         a_atualizar: atualizadas.length,
         ja_corretas: inalteradas.length,
         ignoradas: ignoradas.length,
-        erros: erros.length
+        erros: erros.length,
+        usuarios_com_agregado_divergente: conferencia_agregados.length
       },
+      conferencia_agregados,
       criadas,
       atualizadas,
       inalteradas,
