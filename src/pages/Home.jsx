@@ -115,8 +115,6 @@ export default function Home() {
                 Entrar / Cadastrar
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
-              {/* TEMP DEBUG: link pro teste da auth nova — remover na virada */}
-              <a href="/authtest" style={{ display:'block', marginTop:16, fontSize:14, fontWeight:600, color:'#1976D2', textAlign:'center' }}>Login de teste</a>
             </div>
           </motion.div>
         </div>
