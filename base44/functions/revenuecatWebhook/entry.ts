@@ -24,10 +24,29 @@ Deno.serve(async (req) => {
     const payload = await req.json();
     const event = payload.event || {};
     const type = event.type;
-    const appUserId = event.app_user_id; // = User.id do Base44 (external_id)
+    // app_user_id foi historicamente o User.id do Base44 e passa a ser o Account.id
+    // depois do corte do AuthContext. Durante a transição as duas coisas circulam:
+    // compra antiga carrega um id, compra nova carrega o outro, e o RevenueCat não
+    // oferece alias pelo caminho que o Despia expõe. Resolvemos pelos dois.
+    const appUserId = event.app_user_id;
 
     console.log('📩 RevenueCat event:', type, 'user:', appUserId);
     if (!appUserId) return Response.json({ received: true });
+
+    // Resolve o app_user_id até a linha User (que continua sendo o registro de escrita
+    // até o corte). Tenta como User.id; se não achar, tenta como Account.id e usa o
+    // email da Account para chegar no User.
+    async function resolveUsers() {
+      const porId = await base44.asServiceRole.entities.User.filter({ id: appUserId });
+      if (porId.length > 0) return porId;
+
+      const contas = await base44.asServiceRole.entities.Account.filter({ id: appUserId });
+      if (contas.length === 0) return [];
+
+      const email = (contas[0].email || '').trim().toLowerCase();
+      if (!email) return [];
+      return await base44.asServiceRole.entities.User.filter({ email });
+    }
 
     const ACTIVATE = ['INITIAL_PURCHASE','RENEWAL','UNCANCELLATION','PRODUCT_CHANGE','NON_RENEWING_PURCHASE'];
     const DEACTIVATE = ['EXPIRATION']; // CANCELLATION NÃO revoga (só desliga a renovação)
@@ -36,7 +55,7 @@ Deno.serve(async (req) => {
     const BILLABLE = ['INITIAL_PURCHASE','RENEWAL','NON_RENEWING_PURCHASE'];
 
     if (ACTIVATE.includes(type)) {
-      const users = await base44.asServiceRole.entities.User.filter({ id: appUserId });
+      const users = await resolveUsers();
       if (users.length > 0) {
         await base44.asServiceRole.entities.User.update(users[0].id, {
           subscription_type: 'premium',
@@ -63,7 +82,7 @@ Deno.serve(async (req) => {
         }
       }
     } else if (DEACTIVATE.includes(type)) {
-      const users = await base44.asServiceRole.entities.User.filter({ id: appUserId });
+      const users = await resolveUsers();
       if (users.length > 0) {
         await base44.asServiceRole.entities.User.update(users[0].id, {
           subscription_type: 'free'
