@@ -244,6 +244,10 @@ export default function Profile() {
       const response = await base44.functions.invoke('deleteUserAccount', {});
 
       if (response.data.success) {
+        // A conta foi apagada: o token nosso aponta para uma Account que nao
+        // existe mais. Deixa-lo no cofre faria a proxima abertura tentar
+        // restaurar uma sessao morta.
+        clearToken();
         await base44.auth.logout();
       } else {
         setDeleteError(response.data.error || 'Erro ao deletar conta');
@@ -315,7 +319,7 @@ export default function Profile() {
           <div className="mt-5">
             <Button
               variant="outline"
-              onClick={() => base44.auth.logout("/")}
+              onClick={() => { clearToken(); base44.auth.logout("/"); }}
               className="gap-2 border-gray-300 text-gray-700 hover:bg-gray-100"
             >
               <LogOut className="w-4 h-4" />

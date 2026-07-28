@@ -208,12 +208,18 @@ export const AuthProvider = ({ children }) => {
     // sobrando no cofre faria a próxima abertura do app voltar logado como o
     // usuário anterior, que é o pior tipo de bug de sessão.
     clearToken();
-    if (authMode === 'jwt') {
-      setAuthMode('base44');
-      window.location.href = '/';
+
+    // E encerra a sessão hospedada SE ela existir, mesmo estando no modo jwt.
+    // Durante a transição as duas coexistem: limpar só a nossa devolve o
+    // usuário para a identidade antiga, e "Sair da Conta" acaba não saindo de
+    // conta nenhuma — só troca de qual.
+    if (appParams.token) {
+      base44.auth.logout("/");
       return;
     }
-    base44.auth.logout("/");
+
+    setAuthMode('base44');
+    window.location.href = '/';
   };
 
   const navigateToLogin = () => {

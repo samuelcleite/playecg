@@ -1,4 +1,5 @@
 import { base44 } from '@/api/base44Client'
+import { appParams } from '@/lib/app-params'
 import despia from 'despia-native'
 
 const TOKEN_KEY = 'app_auth_token'
@@ -13,11 +14,21 @@ export function getToken() {
 export function setToken(token) {
   localStorage.setItem(TOKEN_KEY, token)
   if (isNative()) despia(`setvault://?key=${VAULT_KEY}&value=${encodeURIComponent(token)}&locked=true`)
+  // APLICAR NO CLIENTE aqui não é redundante com o bootstrapAuth.
+  // Guardar no cofre não muda o header das requisições: o cliente do Base44
+  // segue com o token que tinha. Sem esta linha, quem acabou de entrar continua
+  // sendo identificado pela sessão ANTERIOR — o resolveIdentity cai no fallback
+  // do Base44 e o app mostra o usuário errado, com o login tendo dado certo.
+  base44.setToken(token)
 }
 
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY)
   if (isNative()) despia(`setvault://?key=${VAULT_KEY}&value=&locked=false`)
+  // Volta o cliente para a sessão hospedada, se houver uma. Deixar o token
+  // nosso pendurado depois de limpar o cofre faria as requisições seguintes
+  // continuarem indo com uma credencial que o app já considera apagada.
+  base44.setToken(appParams.token || null)
 }
 
 export async function signInWithGoogle() {

@@ -70,7 +70,9 @@ export default function Home() {
     setEntrando('apple');
     try {
       await signInWithApple();
-      navigate(createPageUrl("Dashboard"), { replace: true });
+      // Recarga completa pelo mesmo motivo do Auth.jsx: o AuthContext precisa
+      // reresolver a sessão com o token novo.
+      window.location.href = createPageUrl("Dashboard");
     } catch (e) {
       setErroLogin(e?.message || 'Não foi possível entrar com a Apple.');
       setEntrando(null);
