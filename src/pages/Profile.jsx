@@ -38,9 +38,11 @@ import {
   XCircle,
   Trash2,
   Bell,
-  LogOut
+  LogOut,
+  KeyRound
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { createPageUrl } from "@/utils";
 
 export default function Profile() {
   const [user, setUser] = useState(null);
@@ -311,6 +313,26 @@ export default function Profile() {
               Sair da Conta
             </Button>
           </div>
+
+          {/* TEMPORÁRIO (migração JWT): entrada do /authtest no celular.
+              O menu admin do Layout só existe na sidebar do desktop — a barra
+              inferior do mobile renderiza apenas navigationItems —, então no
+              aparelho não há como chegar em nenhuma tela admin. Como o Perfil
+              está na barra inferior, é o único ponto de entrada possível.
+              Sai na limpeza da Fase 4, junto com a rota e o AuthTest.jsx. */}
+          {user?.role === "admin" && (
+            <div className="mt-3">
+              <Link to={createPageUrl("AuthTest")}>
+                <Button
+                  variant="outline"
+                  className="gap-2 border-dashed border-gray-300 text-gray-500 hover:bg-gray-100"
+                >
+                  <KeyRound className="w-4 h-4" />
+                  Teste de login (JWT)
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Subscription Info - Only for Premium Users */}
