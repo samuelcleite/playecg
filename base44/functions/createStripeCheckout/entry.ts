@@ -16,6 +16,11 @@ Deno.serve(async (req) => {
 
         const { coupon_code, plan } = await req.json();
 
+        const contas = await base44.asServiceRole.entities.Account.filter({
+            email: (user.email || '').trim().toLowerCase()
+        });
+        const accountId = contas && contas.length > 0 ? contas[0].id : null;
+
         const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY"));
         const PRICES = {
             monthly: "price_1TkQEzLZdvjM2hGBtJTOirwu",
@@ -79,7 +84,12 @@ Deno.serve(async (req) => {
             metadata: {
                 base44_app_id: Deno.env.get("BASE44_APP_ID"),
                 user_email: user.email,
-                user_id: user.id,
+                // NOTA: nada lê este campo. O stripeWebhook resolve o usuário por
+                // customer_email -> customer_details.email -> metadata.user_email, nunca
+                // por user_id. Fica aqui só para leitura humana no painel do Stripe, e por
+                // isso passa a carregar o Account.id, que é a identidade do usuário depois
+                // do corte. Se o Account não existir ainda, cai para o User.id.
+                user_id: accountId || user.id,
                 coupon_id: appliedCouponId || ''
             },
             subscription_data: {
