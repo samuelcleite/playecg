@@ -8,6 +8,7 @@ import { base44 } from '@/api/base44Client'
 export default function AuthTest() {
   const [status, setStatus] = useState('verificando...')
   const [chamada, setChamada] = useState(null)
+  const [entidade, setEntidade] = useState(null)
 
   useEffect(() => {
     restoreToken().then(t => setStatus(t ? 'SESSÃO ATIVA (restaurada do cofre)' : 'sem sessão'))
@@ -46,6 +47,46 @@ export default function AuthTest() {
       // O que interessa aqui é o status: 401/403 significa que o Bearer não foi
       // aceito (e por quem), enquanto erro de rede significa outra coisa.
       setChamada({
+        estado: 'ERRO',
+        detalhe: `status ${e?.status ?? '?'} — ${e?.message ?? e}`
+      })
+    }
+  }
+
+  // SEGUNDA PROVA: leitura de ENTIDADE com o nosso JWT.
+  //
+  // O teste acima prova o endpoint de FUNCTIONS, que repassa o header para a
+  // function e deixa o resolveIdentity decidir. O endpoint de ENTIDADES é outro:
+  // o próprio Base44 valida o token antes de aplicar o RLS. Se ele rejeitar um
+  // Bearer que não é dele, toda leitura de conteúdo (Module, ECGCase, Phase)
+  // feita direto do frontend quebra sob JWT — e aí a migração precisa mover
+  // essas leituras para backend functions, que é um projeto à parte.
+  //
+  // ECGCase/Module têm RLS read público, então o resultado esperado é sucesso
+  // mesmo sem sessão reconhecida. O que este teste mede é se um token
+  // DESCONHECIDO derruba a requisição antes de chegar no RLS.
+  const testarLeituraDeConteudo = async () => {
+    setEntidade({ estado: 'chamando...' })
+    try {
+      const token = getToken()
+      if (!token) {
+        setEntidade({ estado: 'ERRO', detalhe: 'sem token — faça login primeiro' })
+        return
+      }
+
+      base44.setToken(token)
+      const modules = await base44.entities.Module.list(null, 3)
+      const casos = await base44.entities.ECGCase.list(null, 1)
+
+      setEntidade({
+        estado: 'OK',
+        detalhe:
+          `Module: ${modules?.length ?? 0} registro(s)\n` +
+          `ECGCase: ${casos?.length ?? 0} registro(s)\n\n` +
+          `primeiro módulo: ${modules?.[0]?.title ?? '(sem title)'}`
+      })
+    } catch (e) {
+      setEntidade({
         estado: 'ERRO',
         detalhe: `status ${e?.status ?? '?'} — ${e?.message ?? e}`
       })
@@ -92,6 +133,34 @@ export default function AuthTest() {
         }}>
           {chamada.estado}
           {chamada.detalhe ? `\n\n${chamada.detalhe}` : ''}
+        </pre>
+      )}
+
+      <hr style={{ margin: '24px 0' }} />
+
+      <button
+        onClick={testarLeituraDeConteudo}
+        style={{ fontWeight: 600, padding: '8px 14px' }}
+      >
+        Testar leitura de conteúdo (Module / ECGCase)
+      </button>
+      <p style={{ fontSize: 12, color: '#666', marginTop: 8 }}>
+        Prova o outro endpoint: entidades, que o Base44 valida sozinho.
+      </p>
+
+      {entidade && (
+        <pre style={{
+          marginTop: 16,
+          padding: 12,
+          background: entidade.estado === 'OK' ? '#e8f5e9' : '#ffebee',
+          border: '1px solid #ccc',
+          borderRadius: 8,
+          fontSize: 12,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-all'
+        }}>
+          {entidade.estado}
+          {entidade.detalhe ? `\n\n${entidade.detalhe}` : ''}
         </pre>
       )}
     </div>
