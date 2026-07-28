@@ -53,19 +53,33 @@ export const AuthProvider = ({ children }) => {
         // Se o caminho JWT falhar por qualquer motivo, caímos no caminho antigo
         // em vez de deixar o usuário sem sessão — degradar para o comportamento
         // de hoje é sempre melhor do que uma tela de login inesperada.
-        const jwt = getToken();
-        let resolvido = false;
-        if (jwt) {
-          resolvido = await checkJwtAuth();
-        }
+        // CORTE: a Account é o registro do usuário, e é ela que o app lê —
+        // independentemente de a pessoa ter entrado pelo JWT próprio ou pela
+        // sessão hospedada do Base44. O getMyAccount resolve as duas
+        // identidades e devolve sempre a Account.
+        //
+        // É isso que torna o corte indolor: ninguém é deslogado, ninguém
+        // precisa relogar, e mesmo assim todo mundo passa a ler e gravar no
+        // registro novo. Cada usuário migra para o JWT naturalmente na próxima
+        // vez que sair e entrar.
+        const temSessao = !!getToken() || !!appParams.token;
 
-        if (!resolvido) {
-          if (appParams.token) {
-            await checkUserAuth();
-          } else {
-            setIsLoadingAuth(false);
-            setIsAuthenticated(false);
+        if (temSessao) {
+          const ok = await carregarConta();
+          if (!ok) {
+            // Só cai para o auth.me() quando a Account não pôde ser resolvida.
+            // Estado degradado, não normal: `user` volta a ser um User do
+            // Base44, com agregados que já não são mais atualizados.
+            if (appParams.token) {
+              await checkUserAuth();
+            } else {
+              setIsLoadingAuth(false);
+              setIsAuthenticated(false);
+            }
           }
+        } else {
+          setIsLoadingAuth(false);
+          setIsAuthenticated(false);
         }
         setIsLoadingPublicSettings(false);
       } catch (appError) {
@@ -110,13 +124,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Resolve a sessão pelo JWT próprio. Devolve true se conseguiu; false manda o
-  // chamador cair no fluxo do Base44.
+  // Carrega a Account do usuário autenticado, seja qual for a identidade.
+  // Devolve true se conseguiu; false manda o chamador degradar.
   //
   // A Account tem `read: false` no RLS, então ela NÃO é lida por
-  // base44.entities — só pelo getMyAccount, que usa service role atrás do
-  // resolveIdentity.
-  const checkJwtAuth = async () => {
+  // base44.entities — só por function com service role atrás do resolveIdentity.
+  const carregarConta = async () => {
+    const temJwt = !!getToken();
     try {
       setIsLoadingAuth(true);
       const res = await base44.functions.invoke('getMyAccount', {});
@@ -126,19 +140,39 @@ export const AuthProvider = ({ children }) => {
         return false;
       }
       setUser(account);
-      setAuthMode('jwt');
+      setAuthMode(temJwt ? 'jwt' : 'base44');
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
       return true;
     } catch (error) {
-      // 401 = token expirado ou inválido (o nosso vale 30 dias e não tem
-      // revogação). 404 = autenticado mas sem Account, caso do admin que nunca
-      // usou o app. Nos dois casos o token local não serve: limpar evita que o
-      // usuário fique preso num loop de sessão morta a cada abertura do app.
-      if (error?.status === 401 || error?.status === 404) {
+      // 404: autenticado, mas sem Account. Acontece com quem se cadastrou pelo
+      // login hospedado do Base44 depois do corte. Provisiona e segue — sem
+      // isso a pessoa ficaria como usuário legado, sem progresso e sem
+      // assinatura, invisível para todo o backend novo.
+      if (error?.status === 404) {
+        try {
+          const res = await base44.functions.invoke('ensureMyAccount', {});
+          const account = res?.data?.account;
+          if (account) {
+            setUser(account);
+            setAuthMode(temJwt ? 'jwt' : 'base44');
+            setIsAuthenticated(true);
+            setIsLoadingAuth(false);
+            return true;
+          }
+        } catch (e2) {
+          console.error('ensureMyAccount falhou:', e2);
+        }
+      }
+
+      // 401 com token nosso = expirado ou inválido (vale 30 dias e não tem
+      // revogação). Limpar evita o usuário ficar preso num loop de sessão morta
+      // a cada abertura do app. Só limpamos o NOSSO token: a sessão do Base44
+      // não é nossa para invalidar.
+      if (error?.status === 401 && temJwt) {
         clearToken();
       }
-      console.error('JWT auth check failed:', error);
+      console.error('Falha ao carregar a conta:', error);
       setIsLoadingAuth(false);
       return false;
     }
@@ -183,8 +217,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   const navigateToLogin = () => {
-    // Use the SDK's redirectToLogin method
-    base44.auth.redirectToLogin(withNativeReturnMarker(window.location.href));
+    // Manda para a Home, onde ficam os botões de Google e Apple, em vez do
+    // login hospedado do Base44. É o caminho pelo qual cada usuário migra para
+    // o JWT: quem precisa se autenticar de novo já entra pelo fluxo novo.
+    //
+    // Não usamos o router aqui porque este contexto vive ACIMA do <Router> na
+    // árvore (App.jsx monta AuthProvider fora dele), então não há navigate
+    // disponível — e a recarga completa é desejável de qualquer forma, para o
+    // bootstrapAuth rodar de novo do zero.
+    window.location.href = '/';
   };
 
   return (

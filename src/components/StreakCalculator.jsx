@@ -6,10 +6,10 @@ import { base44 } from "@/api/base44Client";
  */
 export async function calculateStreakDays(userEmail) {
   try {
-    const attempts = await base44.entities.QuizAttempt.filter(
-      { user_email: userEmail },
-      "-created_date"
-    );
+    // userEmail é ignorado de propósito: o dono vem da identidade autenticada,
+    // no servidor. Manter o parâmetro evita mexer nos ~4 chamadores.
+    const res = await base44.functions.invoke('getMyQuizAttempts', { sort: '-created_date' });
+    const attempts = res?.data?.attempts || [];
 
     if (attempts.length === 0) {
       return 0;
@@ -78,11 +78,8 @@ export async function calculateStreakDays(userEmail) {
  */
 export async function getLastPracticeDate(userEmail) {
   try {
-    const attempts = await base44.entities.QuizAttempt.filter(
-      { user_email: userEmail },
-      "-created_date",
-      1
-    );
+    const res = await base44.functions.invoke('getMyQuizAttempts', { sort: '-created_date', limit: 1 });
+    const attempts = res?.data?.attempts || [];
 
     if (attempts.length === 0) {
       return null;

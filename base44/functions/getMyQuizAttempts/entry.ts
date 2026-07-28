@@ -1,5 +1,28 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
+// getMyQuizAttempts
+// -----------------------------------------------------------------------------
+// Devolve as tentativas do usuário autenticado. Substitui as leituras de
+// QuizAttempt que o frontend fazia direto.
+//
+// POR QUE ISTO PRECISOU EXISTIR NO CORTE:
+// o RLS da QuizAttempt é `user_email == {{user.email}}`. Sob JWT não existe
+// sessão Base44, esse contexto resolve NULO, e o filtro não casa com nada — a
+// leitura devolve lista VAZIA em vez de erro. Silenciosamente.
+//
+// O estrago não seria cosmético. Quiz.jsx usa essa leitura para contar as
+// tentativas do dia e aplicar o limite do plano gratuito: lista vazia significa
+// usuário free com acesso ilimitado. Achievements, Perfil, ModuleDetail e o
+// cálculo de sequência ficariam todos zerados, com cara de dado legítimo.
+//
+// O dono vem de identity.email, NUNCA do corpo — mesma regra do
+// recordQuizAttempt e do updateUserProgress. Com service role, o RLS não protege
+// mais nada; o filtro explícito é a barreira.
+//
+// Filtros aceitos (todos opcionais): module_id, phase_id, quiz_type, correct.
+// `sort` e `limit` são repassados como vinham nas chamadas originais.
+// -----------------------------------------------------------------------------
+
 function b64urlToBytes(input) {
   let s = input.replace(/-/g, '+').replace(/_/g, '/');
   while (s.length % 4) s += '=';
@@ -92,86 +115,43 @@ Deno.serve(async (req) => {
     const identity = await resolveIdentity(req, base44);
 
     if (!identity) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      return Response.json({ error: 'Unauthorized', success: false }, { status: 401 });
     }
 
-    // O DONO DO PROGRESSO VEM DA IDENTIDADE, NUNCA DO CORPO.
-    //
-    // Esta função autenticava e depois gravava no user_email que o cliente
-    // mandasse, usando service role. Bastava trocar esse campo para escrever no
-    // progresso de qualquer outro usuário. Enquanto o RLS ainda valia era um
-    // furo grave; depois do corte é o furo — sob JWT não existe sessão Base44,
-    // o RLS resolve nulo e o filtro explícito por identity.email vira a única
-    // barreira que existe entre um usuário e os dados dos outros.
-    //
-    // user_email continua sendo aceito no corpo para não quebrar quem já chama
-    // assim, mas é IGNORADO.
-    const { module_id, phase_id, case_id } = await req.json();
-    const user_email = (identity.email || '').trim().toLowerCase();
+    let body = {};
+    try { body = await req.json(); } catch (_) { /* sem corpo = sem filtros */ }
 
-    if (!module_id || !phase_id || !case_id) {
-      return Response.json({ error: 'Parâmetros obrigatórios: module_id, phase_id, case_id' }, { status: 400 });
-    }
+    const query = { user_email: (identity.email || '').trim().toLowerCase() };
+    if (body.module_id) query.module_id = body.module_id;
+    if (body.phase_id) query.phase_id = body.phase_id;
+    if (body.quiz_type) query.quiz_type = body.quiz_type;
+    if (typeof body.correct === 'boolean') query.correct = body.correct;
 
-    // Buscar registro existente de UserProgress para este usuário/fase
-    const existing = await base44.asServiceRole.entities.UserProgress.filter({
-      user_email,
-      module_id,
-      phase_id
-    });
+    const sort = body.sort || '-created_date';
+    const limit = typeof body.limit === 'number' && body.limit > 0 ? body.limit : null;
 
-    let progressRecord = existing[0] || null;
-
-    // Se não existe, buscar a fase para obter o completion_goal
-    let completion_goal = progressRecord?.completion_goal || 0;
-
-    if (!progressRecord) {
-      const phases = await base44.asServiceRole.entities.Phase.filter({ id: phase_id });
-      const phase = phases[0];
-      completion_goal = phase?.total_cases || 0;
-    }
-
-    const now = new Date().toISOString();
-
-    if (!progressRecord) {
-      // Criar novo registro
-      const completed_case_ids = [case_id];
-      const completion_count = 1;
-      const status = completion_count >= completion_goal && completion_goal > 0 ? 'completed' : 'incomplete';
-
-      progressRecord = await base44.asServiceRole.entities.UserProgress.create({
-        user_email,
-        module_id,
-        phase_id,
-        completed_case_ids,
-        completion_count,
-        completion_goal,
-        status,
-        last_updated: now
-      });
+    let attempts = [];
+    if (limit) {
+      attempts = await base44.asServiceRole.entities.QuizAttempt.filter(query, sort, limit);
     } else {
-      // Atualizar registro existente
-      const currentIds = progressRecord.completed_case_ids || [];
-
-      // Evitar duplicatas
-      if (currentIds.includes(case_id)) {
-        return Response.json({ progress: progressRecord, updated: false });
+      // Sem limite explícito: pagina até esgotar. As chamadas originais do
+      // frontend não passavam limite e o SDK tem teto por página — parar na
+      // primeira página truncaria a contagem de quem tem muitas tentativas, e
+      // truncar aqui vira limite de plano aplicado errado.
+      const batchSize = 500;
+      let skip = 0;
+      while (true) {
+        const batch = await base44.asServiceRole.entities.QuizAttempt.filter(query, sort, batchSize, skip);
+        if (!batch || batch.length === 0) break;
+        attempts = attempts.concat(batch);
+        if (batch.length < batchSize) break;
+        skip += batchSize;
       }
-
-      const completed_case_ids = [...currentIds, case_id];
-      const completion_count = completed_case_ids.length;
-      const status = completion_count >= completion_goal && completion_goal > 0 ? 'completed' : 'incomplete';
-
-      progressRecord = await base44.asServiceRole.entities.UserProgress.update(progressRecord.id, {
-        completed_case_ids,
-        completion_count,
-        status,
-        last_updated: now
-      });
     }
 
-    return Response.json({ progress: progressRecord, updated: true });
+    return Response.json({ success: true, count: attempts.length, attempts });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error('Erro em getMyQuizAttempts:', error);
+    return Response.json({ error: error.message, success: false }, { status: 500 });
   }
 });

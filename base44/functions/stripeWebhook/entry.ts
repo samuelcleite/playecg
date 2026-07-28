@@ -24,9 +24,13 @@ Deno.serve(async (req) => {
         async function activatePremium(email, { amount, subscriptionId, couponId }) {
             if (!email) return;
 
-            const users = await base44.asServiceRole.entities.User.filter({ email });
-            if (users.length > 0) {
-                await base44.asServiceRole.entities.User.update(users[0].id, {
+            // CORTE: a assinatura passa a viver na Account. A resolução já era
+            // por email, que é idêntico dos dois lados — só o alvo muda.
+            const contas = await base44.asServiceRole.entities.Account.filter({
+                email: email.trim().toLowerCase()
+            });
+            if (contas.length > 0) {
+                await base44.asServiceRole.entities.Account.update(contas[0].id, {
                     subscription_type: 'premium',
                     subscription_start_date: new Date().toISOString()
                 });
@@ -87,9 +91,11 @@ Deno.serve(async (req) => {
             const sub = event.data.object;
             const email = sub.metadata?.user_email;
             if (email) {
-                const users = await base44.asServiceRole.entities.User.filter({ email });
-                if (users.length > 0) {
-                    await base44.asServiceRole.entities.User.update(users[0].id, {
+                const contas = await base44.asServiceRole.entities.Account.filter({
+                    email: email.trim().toLowerCase()
+                });
+                if (contas.length > 0) {
+                    await base44.asServiceRole.entities.Account.update(contas[0].id, {
                         subscription_type: 'free'
                     });
                 }

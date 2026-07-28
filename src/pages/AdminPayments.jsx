@@ -53,7 +53,11 @@ export default function AdminPayments() {
     setPayments(paymentsData);
 
     // Carregar usuários correspondentes
-    const allUsers = await base44.entities.User.list();
+    // CORTE: o registro do usuário é a Account, que tem `read: false` no RLS --
+    // nem admin a lê pelo cliente. A leitura passa pelo adminListAccounts, que
+    // usa service role atrás de um gate de admin.
+    const resContas = await base44.functions.invoke('adminListAccounts', {});
+    const allUsers = resContas?.data?.accounts || [];
     const usersMap = {};
     allUsers.forEach(u => {
       usersMap[u.email] = u;

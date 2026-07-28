@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
+import { getCurrentUser } from '@/lib/currentUser';
 // calculateStreakDays removed - using local version to avoid extra API call
 import { loadUserAchievements } from "@/components/AchievementChecker";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
@@ -40,7 +41,7 @@ export default function Dashboard() {
 
   const init = async () => {
     try {
-      const userData = await base44.auth.me();
+      const userData = await getCurrentUser();
       setUser(userData);
 
       if (!userData.profile_completed) {

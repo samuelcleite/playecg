@@ -33,19 +33,20 @@ Deno.serve(async (req) => {
     console.log('📩 RevenueCat event:', type, 'user:', appUserId);
     if (!appUserId) return Response.json({ received: true });
 
-    // Resolve o app_user_id até a linha User (que continua sendo o registro de escrita
-    // até o corte). Tenta como User.id; se não achar, tenta como Account.id e usa o
-    // email da Account para chegar no User.
-    async function resolveUsers() {
-      const porId = await base44.asServiceRole.entities.User.filter({ id: appUserId });
-      if (porId.length > 0) return porId;
+    // Resolve o app_user_id até a Account, que passa a ser o registro de escrita.
+    // Tenta como Account.id (compras feitas depois do corte); se não achar, tenta
+    // como User.id (todas as compras anteriores) e chega na Account pelo email.
+    async function resolveAccount() {
+      const porId = await base44.asServiceRole.entities.Account.filter({ id: appUserId });
+      if (porId.length > 0) return porId[0];
 
-      const contas = await base44.asServiceRole.entities.Account.filter({ id: appUserId });
-      if (contas.length === 0) return [];
+      const users = await base44.asServiceRole.entities.User.filter({ id: appUserId });
+      if (users.length === 0) return null;
 
-      const email = (contas[0].email || '').trim().toLowerCase();
-      if (!email) return [];
-      return await base44.asServiceRole.entities.User.filter({ email });
+      const email = (users[0].email || '').trim().toLowerCase();
+      if (!email) return null;
+      const contas = await base44.asServiceRole.entities.Account.filter({ email });
+      return contas.length > 0 ? contas[0] : null;
     }
 
     const ACTIVATE = ['INITIAL_PURCHASE','RENEWAL','UNCANCELLATION','PRODUCT_CHANGE','NON_RENEWING_PURCHASE'];
@@ -55,9 +56,9 @@ Deno.serve(async (req) => {
     const BILLABLE = ['INITIAL_PURCHASE','RENEWAL','NON_RENEWING_PURCHASE'];
 
     if (ACTIVATE.includes(type)) {
-      const users = await resolveUsers();
-      if (users.length > 0) {
-        await base44.asServiceRole.entities.User.update(users[0].id, {
+      const conta = await resolveAccount();
+      if (conta) {
+        await base44.asServiceRole.entities.Account.update(conta.id, {
           subscription_type: 'premium',
           subscription_start_date: new Date().toISOString()
         });
@@ -68,7 +69,7 @@ Deno.serve(async (req) => {
           // inteiro sem necessidade.
           try {
             await base44.asServiceRole.entities.Payment.create({
-              user_email: users[0].email,
+              user_email: conta.email,
               reference_id: event.transaction_id || event.original_transaction_id || `appstore_${Date.now()}`,
               amount: event.price_in_purchased_currency ?? 0,
               discount_amount: 0,
@@ -82,9 +83,9 @@ Deno.serve(async (req) => {
         }
       }
     } else if (DEACTIVATE.includes(type)) {
-      const users = await resolveUsers();
-      if (users.length > 0) {
-        await base44.asServiceRole.entities.User.update(users[0].id, {
+      const conta = await resolveAccount();
+      if (conta) {
+        await base44.asServiceRole.entities.Account.update(conta.id, {
           subscription_type: 'free'
         });
       }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { getCurrentUser } from '@/lib/currentUser';
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,7 +40,7 @@ export default function AprendaECG() {
   }, []);
 
   const loadData = async () => {
-    const userData = await base44.auth.me();
+    const userData = await getCurrentUser();
     setUser(userData);
 
     const [contentsData, modulesData, phasesData, progressRes] = await Promise.all([

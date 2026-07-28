@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { withNativeReturnMarker } from "@/utils/nativeOAuth";
+import { signInWithGoogle, getToken } from "@/lib/customAuth";
+import { signInWithApple } from "@/lib/appleAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -22,7 +23,17 @@ export default function Home() {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  const [erroLogin, setErroLogin] = useState(null);
+  const [entrando, setEntrando] = useState(null); // 'google' | 'apple' | null
+
   useEffect(() => {
+    // Nossa sessão tem precedência: quem tem token JWT já está logado, e o
+    // base44.auth.isAuthenticated() não sabe disso — devolveria false e deixaria
+    // o usuário preso na landing mesmo autenticado.
+    if (getToken()) {
+      navigate(createPageUrl("Dashboard"), { replace: true });
+      return;
+    }
     base44.auth.isAuthenticated().then((authed) => {
       if (authed) {
         navigate(createPageUrl("Dashboard"), { replace: true });
@@ -32,8 +43,38 @@ export default function Home() {
     });
   }, []);
 
-  const handleLogin = () => {
-    base44.auth.redirectToLogin(withNativeReturnMarker(window.location.origin + createPageUrl("Dashboard")));
+  // Os CTAs secundários ("Começar Gratuitamente" e a barra fixa do mobile) levam
+  // à escolha de provedor no topo, em vez de escolherem um por conta própria.
+  // Repetir o par de botões em três lugares poluiria a página, e mandar direto
+  // para o Google esconderia o Apple — que no iOS não é opcional quando se
+  // oferece login de terceiros.
+  const irParaEscolhaDeLogin = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const entrarComGoogle = async () => {
+    setErroLogin(null);
+    setEntrando('google');
+    try {
+      // Redireciona (web) ou abre a aba nativa (Despia). O retorno cai em /auth,
+      // que troca o code pelo nosso token — por isso não há navegação aqui.
+      await signInWithGoogle();
+    } catch (e) {
+      setErroLogin(e?.message || 'Não foi possível entrar com o Google.');
+      setEntrando(null);
+    }
+  };
+
+  const entrarComApple = async () => {
+    setErroLogin(null);
+    setEntrando('apple');
+    try {
+      await signInWithApple();
+      navigate(createPageUrl("Dashboard"), { replace: true });
+    } catch (e) {
+      setErroLogin(e?.message || 'Não foi possível entrar com a Apple.');
+      setEntrando(null);
+    }
   };
 
   const features = [
@@ -80,7 +121,8 @@ export default function Home() {
           </div>
           <div className="hidden sm:flex items-center gap-3">
             <Button
-              onClick={handleLogin}
+              onClick={entrarComGoogle}
+              disabled={!!entrando}
               className="bg-[#22C55E] hover:bg-green-600 text-white font-semibold"
             >
               Entrar
@@ -106,15 +148,27 @@ export default function Home() {
             <p className="text-xl text-blue-200 mb-12 max-w-2xl mx-auto">
               Mais de 1200 exames para você aprender a interpretar um eletrocardiograma na prática, sem excesso de teoria.
             </p>
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-3">
               <Button
-                onClick={handleLogin}
+                onClick={entrarComGoogle}
+                disabled={!!entrando}
                 size="lg"
-                className="bg-[#22C55E] hover:bg-green-600 text-white text-lg px-10 py-6 shadow-xl font-semibold"
+                className="bg-[#22C55E] hover:bg-green-600 text-white text-lg px-10 py-6 shadow-xl font-semibold w-full max-w-xs"
               >
-                Entrar / Cadastrar
-                <ArrowRight className="w-5 h-5 ml-2" />
+                {entrando === 'google' ? 'Abrindo...' : 'Continuar com Google'}
               </Button>
+              <Button
+                onClick={entrarComApple}
+                disabled={!!entrando}
+                size="lg"
+                variant="outline"
+                className="bg-white text-[#0D3B66] border-white hover:bg-gray-100 text-lg px-10 py-6 shadow-xl font-semibold w-full max-w-xs"
+              >
+                {entrando === 'apple' ? 'Abrindo...' : 'Continuar com Apple'}
+              </Button>
+              {erroLogin && (
+                <p className="text-sm text-red-300 max-w-xs text-center mt-1">{erroLogin}</p>
+              )}
             </div>
           </motion.div>
         </div>
@@ -201,7 +255,7 @@ export default function Home() {
                 ))}
               </ul>
               <Button
-                onClick={handleLogin}
+                onClick={irParaEscolhaDeLogin}
                 variant="outline"
                 className="border-blue-400 text-blue-200 hover:bg-blue-800 bg-transparent gap-2 px-8 py-3 text-base"
               >
@@ -216,7 +270,7 @@ export default function Home() {
       {/* Mobile fixed bottom CTA */}
       <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0D3B66] border-t border-blue-800 px-6 py-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
         <Button
-          onClick={handleLogin}
+          onClick={irParaEscolhaDeLogin}
           size="lg"
           className="w-full bg-[#22C55E] hover:bg-green-600 text-white text-base font-bold py-5 shadow-xl"
         >

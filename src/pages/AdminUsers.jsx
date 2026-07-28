@@ -63,8 +63,12 @@ export default function AdminUsers() {
   const loadData = async () => {
     setLoading(true);
     
-    // Carregar todos os usuários
-    const usersData = await base44.entities.User.list('-created_date');
+    // CORTE: o registro do usuário é a Account, que tem `read: false` no RLS --
+    // nem admin a lê pelo cliente. A leitura passa pelo adminListAccounts, que
+    // usa service role atrás de um gate de admin.
+    const resContas = await base44.functions.invoke('adminListAccounts', {});
+    const usersData = (resContas?.data?.accounts || [])
+      .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
     setUsers(usersData);
 
     // Carregar todos os pagamentos
@@ -120,7 +124,10 @@ export default function AdminUsers() {
     setMessage(null);
 
     try {
-      await base44.entities.User.update(user.id, {
+      // A Account tem `update` restrito a __service_only__: nem admin escreve
+      // nela pelo cliente. Por isso a escrita passa por function.
+      await base44.functions.invoke('adminSetSubscription', {
+        user_email: user.email,
         subscription_type: 'free'
       });
 
@@ -580,7 +587,7 @@ export default function AdminUsers() {
                               </div>
                               <div className="p-4 bg-orange-50 rounded-lg">
                                 <p className="text-sm text-gray-600 mb-1">Sequência</p>
-                                <p className="text-2xl font-bold text-orange-600">{user.streak_days || 0} dias</p>
+                                <p className="text-2xl font-bold text-orange-600">{user.current_streak || 0} dias</p>
                               </div>
                               <div className="p-4 bg-green-50 rounded-lg">
                                 <p className="text-sm text-gray-600 mb-1">Acertos</p>

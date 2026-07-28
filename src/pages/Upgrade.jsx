@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { getCurrentUser, refreshCurrentUser } from '@/lib/currentUser';
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { isIOSNativeApp } from "@/utils/platform";
@@ -61,7 +62,11 @@ export default function Upgrade() {
       setProcessing(true);
       for (let attempt = 0; attempt < 10; attempt++) {
         try {
-          const current = await base44.auth.me();
+          // refreshCurrentUser, NÃO getCurrentUser: este laço existe para
+          // esperar o webhook confirmar o pagamento, e ler do cache devolveria
+          // para sempre o mesmo "free" da carga inicial da tela — o usuário
+          // pagaria e ficaria preso no paywall.
+          const current = await refreshCurrentUser();
           if (current?.subscription_type === "premium") {
             setUser(current);
             // Reflete premium no app recarregando a rota (fallback simples).
@@ -89,7 +94,7 @@ export default function Upgrade() {
   }, []);
 
   const loadUser = async () => {
-    const userData = await base44.auth.me();
+    const userData = await getCurrentUser();
     setUser(userData);
   };
 

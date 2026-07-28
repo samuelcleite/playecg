@@ -1,5 +1,23 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
-import Stripe from 'npm:stripe@17.5.0';
+
+// adminSetSubscription
+// -----------------------------------------------------------------------------
+// Substitui a escrita que o AdminUsers.jsx fazia direto do frontend:
+//   base44.entities.User.update(user.id, { subscription_type: 'free' })
+//
+// Depois do corte isso não funciona mais. A Account tem `update` restrito a
+// `__service_only__` no RLS, então nem admin a altera pelo cliente — a escrita
+// precisa passar por uma function com service role.
+//
+// Aceita 'free' e 'premium'. O caminho para 'premium' já existia em
+// manuallyUpgradeToPremium; aqui ele fica junto do rebaixamento para que a tela
+// admin tenha um único ponto de escrita de assinatura.
+//
+// NÃO mexe em Payment. Rebaixar alguém aqui não cancela cobrança nenhuma no
+// Stripe nem na App Store — é ajuste do nosso registro, e cancelar de verdade
+// continua sendo cancelStripeSubscription ou a própria loja. Misturar as duas
+// coisas num botão de admin criaria a ilusão de que clicar resolve a cobrança.
+// -----------------------------------------------------------------------------
 
 function b64urlToBytes(input) {
   let s = input.replace(/-/g, '+').replace(/_/g, '/');
@@ -88,61 +106,45 @@ async function resolveIdentity(req, base44) {
 }
 
 Deno.serve(async (req) => {
-    try {
-        const base44 = createClientFromRequest(req);
+  try {
+    const base44 = createClientFromRequest(req);
+    const identity = await resolveIdentity(req, base44);
 
-        const identity = await resolveIdentity(req, base44);
-        if (!identity) {
-            return Response.json({ error: 'Não autenticado', success: false }, { status: 401 });
-        }
-
-        // O registro do usuário é a Account. Antes isto era base44.auth.me(), que
-        // sob JWT falha — e falharia justamente no fluxo de pagamento.
-        const contas = await base44.asServiceRole.entities.Account.filter({
-            email: (identity.email || '').trim().toLowerCase()
-        });
-        const user = contas && contas.length > 0 ? contas[0] : null;
-        if (!user) {
-            return Response.json({ error: 'Conta não encontrada', success: false }, { status: 404 });
-        }
-
-        if (user.subscription_type !== 'premium') {
-            return Response.json({ error: 'Você não possui assinatura premium ativa', success: false }, { status: 400 });
-        }
-
-        const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY"));
-
-        // Buscar pagamento Stripe mais recente do usuário
-        const payments = await base44.asServiceRole.entities.Payment.filter({
-            user_email: user.email,
-            status: 'PAID'
-        });
-
-        const stripePayment = payments
-            .filter(p => p.stripe_subscription_id)
-            .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))[0];
-
-        if (!stripePayment || !stripePayment.stripe_subscription_id) {
-            return Response.json({ error: 'Assinatura Stripe ativa não encontrada', success: false }, { status: 404 });
-        }
-
-        // Cancelar assinatura no Stripe
-        await stripe.subscriptions.cancel(stripePayment.stripe_subscription_id);
-
-        await base44.asServiceRole.entities.Payment.update(stripePayment.id, {
-            status: 'CANCELED',
-            updated_at: new Date().toISOString()
-        });
-
-        // CORTE: a assinatura vive na Account (já resolvida acima).
-        await base44.asServiceRole.entities.Account.update(user.id, {
-            subscription_type: 'free'
-        });
-
-        return Response.json({ success: true, message: 'Assinatura cancelada com sucesso' });
-
-    } catch (error) {
-        console.error('Erro ao cancelar assinatura Stripe:', error.message);
-        return Response.json({ error: error.message, success: false }, { status: 500 });
+    if (!identity || identity.role !== 'admin') {
+      return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
+
+    const { user_email, subscription_type } = await req.json();
+
+    if (!user_email || !['free', 'premium'].includes(subscription_type)) {
+      return Response.json(
+        { error: 'Parâmetros: user_email e subscription_type ("free" | "premium")', success: false },
+        { status: 400 }
+      );
+    }
+
+    const email = user_email.trim().toLowerCase();
+    const contas = await base44.asServiceRole.entities.Account.filter({ email });
+
+    if (contas.length === 0) {
+      return Response.json({ error: 'Conta não encontrada', success: false }, { status: 404 });
+    }
+
+    const updates = { subscription_type };
+    // Só carimba a data ao PROMOVER. Ao rebaixar, preservamos a data original:
+    // ela é histórico de quando a assinatura começou, e zerá-la apagaria a única
+    // pista de quanto tempo a pessoa foi premium.
+    if (subscription_type === 'premium') {
+      updates.subscription_start_date = new Date().toISOString();
+    }
+
+    await base44.asServiceRole.entities.Account.update(contas[0].id, updates);
+
+    console.log('adminSetSubscription:', email, '->', subscription_type, 'por', identity.email);
+
+    return Response.json({ success: true, user_email: email, subscription_type });
+  } catch (error) {
+    console.error('Erro em adminSetSubscription:', error);
+    return Response.json({ error: error.message, success: false }, { status: 500 });
+  }
 });

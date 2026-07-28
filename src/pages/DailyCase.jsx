@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { getCurrentUser } from '@/lib/currentUser';
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,7 +38,7 @@ export default function DailyCase() {
   const loadDailyCase = async () => {
     setLoading(true);
     try {
-      const userData = await base44.auth.me();
+      const userData = await getCurrentUser();
       setUser(userData);
 
       const response = await base44.functions.invoke('getDailyCase', {});
@@ -102,13 +103,21 @@ export default function DailyCase() {
 
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);
 
-    await base44.entities.QuizAttempt.create({
-      user_email: user.email,
+    // Era um create direto na entidade, que sob JWT falharia: o RLS de escrita
+    // da QuizAttempt exige user_email == sessão, e não há sessão Base44.
+    //
+    // Passa a usar recordQuizAttempt, o caminho canônico. Efeito colateral
+    // desejável: o caso do dia agora conta nos agregados. Antes não contava —
+    // o create direto não incrementava nada —, mas o recálculo a partir da
+    // QuizAttempt sempre contou, então incremental e recálculo divergiam. Isso
+    // alinha os dois.
+    await base44.functions.invoke('recordQuizAttempt', {
       case_id: ecgCase.id,
       module_id: ecgCase.module_id,
       phase_id: ecgCase.phase_id,
       user_answer: selectedAnswers.join(", "),
       correct: correct,
+      quiz_type: 'daily',
       time_spent: timeSpent
     });
 

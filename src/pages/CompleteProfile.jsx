@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { User } from "@/entities/User";
 import { useNavigate } from "react-router-dom";
+import { getCurrentUser, refreshCurrentUser } from '@/lib/currentUser';
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ export default function CompleteProfile() {
 
   const loadUser = async () => {
     try {
-      const userData = await User.me();
+      const userData = await getCurrentUser();
       setUser(userData);
       
       // Se o perfil já foi completado, redirecionar para o dashboard
@@ -44,12 +44,11 @@ export default function CompleteProfile() {
         return;
       }
 
-      // Garantir que o subscription_type seja "free" se não estiver definido
-      if (!userData.subscription_type) {
-        await User.updateMyUserData({ subscription_type: "free" });
-        // Optionally, update userData object locally to reflect the change for subsequent formData set
-        userData.subscription_type = "free";
-      }
+      // O bloco que forçava subscription_type: "free" foi removido. O schema da
+      // Account já materializa esse default na criação, então o campo nunca vem
+      // vazio — e escrevê-lo daqui seria pedir ao servidor para aceitar
+      // subscription_type vindo do cliente, que é justamente o que o
+      // updateMyProfile recusa a fazer.
 
       setFormData({
         full_name: userData.full_name || "",
@@ -68,15 +67,22 @@ export default function CompleteProfile() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    await User.updateMyUserData({
+    // updateMyProfile grava na Account. subscription_type NÃO vai junto: a
+    // function ignora o campo de propósito, porque aceitá-lo do cliente
+    // permitiria um POST com subscription_type: "premium". O default do schema
+    // já cuida disso na criação da Account.
+    await base44.functions.invoke('updateMyProfile', {
       full_name: formData.full_name,
       specialty: formData.specialty,
       country: formData.country,
       state: formData.state,
       city: formData.city,
-      profile_completed: true,
-      subscription_type: "free" // Novos usuários nascem "free"; premium é liberado via pagamento
+      profile_completed: true
     });
+
+    // Sem isso o Dashboard leria o cache anterior, com profile_completed false,
+    // e mandaria o usuário de volta para esta mesma tela.
+    await refreshCurrentUser();
 
     // Notifica o admin sobre o novo usuário (em background, sem bloquear a navegação)
     notifyAdminNewUser({}).catch((err) => console.error("Falha ao notificar admin:", err));
