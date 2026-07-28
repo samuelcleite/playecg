@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { getCurrentUser } from '@/lib/currentUser';
+import { clearToken } from '@/lib/customAuth';
 import {
   Activity,
   Bell,
@@ -113,6 +114,10 @@ export default function Layout({ children, currentPageName }) {
   ];
 
   const handleLogout = async () => {
+  // clearToken ANTES do logout hospedado: sem isso o nosso token continua no
+  // cofre, e a proxima abertura do app volta logado por JWT -- o usuario clica
+  // em sair, o app fecha a sessao do Base44, e ele reaparece logado.
+    clearToken();
     await base44.auth.logout("/");
   };
 

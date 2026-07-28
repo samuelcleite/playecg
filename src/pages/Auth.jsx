@@ -14,7 +14,14 @@ export default function Auth() {
       if (!code) return
       done.current = true
       loginWithGoogleCode(code)
-        .then(acc => { setStatus('Logado: ' + acc.email); setTimeout(() => navigate('/'), 1500) })
+        .then(acc => {
+          setStatus('Logado: ' + acc.email)
+          // RECARGA COMPLETA, não navigate(): o AuthContext já resolveu a sessão
+          // no boot desta página, com a credencial antiga. Uma navegação do
+          // router não o refaz, e o usuário entraria como quem estava logado
+          // antes. A recarga faz o bootstrapAuth rodar de novo com o token novo.
+          setTimeout(() => { window.location.href = '/' }, 1200)
+        })
         .catch(e => setStatus('Erro: ' + e.message))
     }
     tryExtract()
