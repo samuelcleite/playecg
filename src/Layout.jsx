@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
+import { getCurrentUser } from '@/lib/currentUser';
 import {
   Activity,
   Bell,
@@ -63,7 +64,7 @@ export default function Layout({ children, currentPageName }) {
 
   const loadUser = async () => {
     try {
-      const userData = await base44.auth.me();
+      const userData = await getCurrentUser();
       setUser(userData);
     } catch (error) {
       console.error("Error loading user:", error);

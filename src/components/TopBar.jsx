@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
+import { getCurrentUser } from '@/lib/currentUser';
 import { calculateStreakDays } from "@/components/StreakCalculator";
 import { Activity, Flame, Star, Crown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,7 @@ export default function TopBar() {
   useEffect(() => {
     const load = async () => {
       try {
-        const userData = await base44.auth.me();
+        const userData = await getCurrentUser();
         setUser(userData);
         const streak = await calculateStreakDays(userData.email);
         setStreakDays(streak);

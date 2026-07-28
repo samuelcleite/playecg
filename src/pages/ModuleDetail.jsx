@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
+import { getCurrentUser } from '@/lib/currentUser';
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import TopBar from "@/components/TopBar";
@@ -120,7 +121,7 @@ export default function ModuleDetail() {
       return;
     }
 
-    const userData = await base44.auth.me();
+    const userData = await getCurrentUser();
     setUser(userData);
 
     // --- CRÍTICO: tudo que só depende de moduleId/phaseId/email roda em paralelo ---
@@ -135,12 +136,13 @@ export default function ModuleDetail() {
           return null;
         }),
       // Tentativas apenas para saber se usuário já entrou na fase (verificar redirect)
-      base44.entities.QuizAttempt.filter({
-        user_email: userData.email,
+      base44.functions.invoke('getMyQuizAttempts', {
         module_id: moduleId,
         phase_id: phaseId,
-        quiz_type: "module"
-      }, "-created_date", 1),
+        quiz_type: "module",
+        sort: "-created_date",
+        limit: 1
+      }).then(r => r?.data?.attempts || []),
     ]);
 
     const foundModule = moduleData.find(m => m.id === moduleId);

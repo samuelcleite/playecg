@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { User } from "@/entities/User";
 import { ECGCase } from "@/entities/ECGCase";
-import { QuizAttempt } from "@/entities/QuizAttempt";
+import { getCurrentUser } from '@/lib/currentUser';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -147,12 +146,12 @@ export default function Quiz() {
   };
 
   const loadData = async () => {
-    const userData = await User.me();
+    const userData = await getCurrentUser();
     setUser(userData);
 
     // Buscar tentativas e casos em paralelo (os casos não dependem das tentativas)
     const [attempts, allCases] = await Promise.all([
-      QuizAttempt.filter({ user_email: userData.email }),
+      base44.functions.invoke('getMyQuizAttempts', {}).then(r => r?.data?.attempts || []),
       ECGCase.list(),
     ]);
 
@@ -301,12 +300,12 @@ export default function Quiz() {
 
       // Verificar se o usuário errou 5 questões da mesma fase
       if (!correct && currentCase.module_id && currentCase.phase_id) {
-        const incorrectAttemptsInPhase = await QuizAttempt.filter({
-          user_email: user.email,
+        const resIncorretas = await base44.functions.invoke('getMyQuizAttempts', {
           module_id: currentCase.module_id,
           phase_id: currentCase.phase_id,
           correct: false
         });
+        const incorrectAttemptsInPhase = resIncorretas?.data?.attempts || [];
 
         // Contar casos únicos errados nesta fase
         const uniqueIncorrectCases = new Set(incorrectAttemptsInPhase.map(attempt => attempt.case_id));
@@ -335,7 +334,8 @@ export default function Quiz() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const todayDate = today.toISOString().split('T')[0];
-        const allAttempts = await QuizAttempt.filter({ user_email: user.email });
+        const resTodas = await base44.functions.invoke('getMyQuizAttempts', {});
+        const allAttempts = resTodas?.data?.attempts || [];
         const todayAttempts = allAttempts.filter(attempt => {
           const attemptDate = new Date(attempt.created_date);
           attemptDate.setHours(0, 0, 0, 0);

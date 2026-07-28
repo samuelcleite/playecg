@@ -68,7 +68,12 @@ export default function AdminActivity() {
       navigate(createPageUrl("Dashboard"));
       return;
     }
-    const usersData = await base44.entities.User.list("full_name");
+    // CORTE: o registro do usuário é a Account, que tem `read: false` no RLS --
+    // nem admin a lê pelo cliente. A leitura passa pelo adminListAccounts, que
+    // usa service role atrás de um gate de admin.
+    const resContas = await base44.functions.invoke('adminListAccounts', {});
+    const usersData = (resContas?.data?.accounts || [])
+      .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
     setUsers(usersData);
     setLoading(false);
     loadGeneralStats();

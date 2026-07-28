@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { getCurrentUser, refreshCurrentUser } from '@/lib/currentUser';
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { calculateStreakDays } from "@/components/StreakCalculator";
 import { loadUserAchievements } from "@/components/AchievementChecker";
@@ -83,7 +84,7 @@ export default function Profile() {
   const isRefreshing = usePullToRefresh(loadData, containerRef);
 
   async function loadData() {
-    const userData = await base44.auth.me();
+    const userData = await getCurrentUser();
     setUser(userData);
     
     setFormData({
@@ -96,7 +97,8 @@ export default function Profile() {
     const streak = await calculateStreakDays(userData.email);
     setStreakDays(streak);
 
-    const attempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email });
+    const resAttempts = await base44.functions.invoke('getMyQuizAttempts', {});
+    const attempts = resAttempts?.data?.attempts || [];
     const correctCount = attempts.filter(a => a.correct).length;
     
     // Calcular módulos completados a partir de QuizAttempt
@@ -200,7 +202,10 @@ export default function Profile() {
   };
 
   const handleSaveProfile = async () => {
-    await base44.auth.updateMe(formData);
+    // base44.auth.updateMe escrevia no User pela sessão hospedada — não existe
+    // mais sob JWT, e o registro do usuário agora é a Account.
+    await base44.functions.invoke('updateMyProfile', formData);
+    await refreshCurrentUser();
     setIsEditing(false);
     await loadData();
   };
@@ -338,11 +343,10 @@ export default function Profile() {
 
               {/* Saída de emergência do modo de teste.
                   Aparece SEMPRE que existe token JWT no cofre, independente de
-                  role — e é assim de propósito: durante a transição o `user`
-                  desta tela vem de base44.auth.me(), que falha exatamente
-                  quando o token JWT está ativo. Amarrar este botão ao role
-                  esconderia a saída justamente no estado em que ela é
-                  necessária, e no celular não há outro caminho até o /authtest.
+                  role. Depois do corte o `user` desta tela vem da Account e não
+                  quebra mais sob JWT, mas a saída continua incondicional de
+                  propósito: no celular não há outro caminho até o /authtest, e
+                  amarrá-la ao role já escondeu a saída uma vez.
                   Sai na limpeza da Fase 4. */}
               {temTokenJwt && (
                 <Button

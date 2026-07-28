@@ -217,8 +217,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   const navigateToLogin = () => {
-    // Use the SDK's redirectToLogin method
-    base44.auth.redirectToLogin(withNativeReturnMarker(window.location.href));
+    // Manda para a Home, onde ficam os botões de Google e Apple, em vez do
+    // login hospedado do Base44. É o caminho pelo qual cada usuário migra para
+    // o JWT: quem precisa se autenticar de novo já entra pelo fluxo novo.
+    //
+    // Não usamos o router aqui porque este contexto vive ACIMA do <Router> na
+    // árvore (App.jsx monta AuthProvider fora dele), então não há navigate
+    // disponível — e a recarga completa é desejável de qualquer forma, para o
+    // bootstrapAuth rodar de novo do zero.
+    window.location.href = '/';
   };
 
   return (

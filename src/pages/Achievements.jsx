@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import { base44 } from "@/api/base44Client";
+import { getCurrentUser } from '@/lib/currentUser';
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { loadUserAchievements } from "@/components/AchievementChecker";
 
@@ -25,10 +26,11 @@ export default function Achievements() {
   const isRefreshing = usePullToRefresh(loadData, containerRef);
 
   async function loadData() {
-    const userData = await base44.auth.me();
+    const userData = await getCurrentUser();
     setUser(userData);
 
-    const attempts = await base44.entities.QuizAttempt.filter({ user_email: userData.email }, "-created_date", 500);
+    const resAttempts = await base44.functions.invoke('getMyQuizAttempts', { sort: '-created_date', limit: 500 });
+    const attempts = resAttempts?.data?.attempts || [];
 
     // Calcular streak localmente, sem chamada extra
     const uniqueDates = [...new Set(attempts.map(a => new Date(a.created_date).toISOString().split('T')[0]))].sort().reverse();

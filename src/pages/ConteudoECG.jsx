@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { getCurrentUser } from '@/lib/currentUser';
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,7 +33,7 @@ export default function ConteudoECG() {
   }, []);
 
   const loadContent = async () => {
-    const userData = await base44.auth.me();
+    const userData = await getCurrentUser();
     setUser(userData);
 
     const type = searchParams.get('type');
