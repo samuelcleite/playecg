@@ -225,6 +225,12 @@ export const AuthProvider = ({ children }) => {
     // árvore (App.jsx monta AuthProvider fora dele), então não há navigate
     // disponível — e a recarga completa é desejável de qualquer forma, para o
     // bootstrapAuth rodar de novo do zero.
+    //
+    // A GUARDA NÃO É OPCIONAL: sem ela, um authError na própria Home vira laço
+    // infinito de recarga — '/' redireciona para '/', que recarrega, que
+    // redireciona de novo. O redirectToLogin anterior mandava para um domínio
+    // externo e por isso não fechava o ciclo; mandar para dentro do app fecha.
+    if (window.location.pathname === '/') return;
     window.location.href = '/';
   };
 
