@@ -25,7 +25,8 @@ import {
   FileText,
   Calendar,
   User,
-  ArrowLeft
+  ArrowLeft,
+  KeyRound
 } from "lucide-react";
 import {
   Sidebar,
@@ -102,6 +103,12 @@ export default function Layout({ children, currentPageName }) {
     { title: "Gerenciar Usuários", url: createPageUrl("AdminUsers"), icon: Users },
     { title: "Gerenciar Atividade", url: createPageUrl("AdminActivity"), icon: Activity },
     { title: "Notificações Push", url: createPageUrl("AdminNotifications"), icon: Bell },
+    // TEMPORÁRIO (migração JWT): única porta de entrada do /authtest no app.
+    // A WebView do Despia não tem barra de endereço, então sem este item a rota
+    // é inalcançável no celular. Fica atrás do menu admin, logo invisível para
+    // todo mundo menos ecgdescomplica@gmail.com. Sai na limpeza da Fase 4,
+    // junto com a rota, o AuthTest.jsx e o nativeOAuth.js.
+    { title: "Teste de login (JWT)", url: createPageUrl("AuthTest"), icon: KeyRound },
   ];
 
   const handleLogout = async () => {
