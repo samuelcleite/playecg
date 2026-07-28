@@ -1,5 +1,24 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
+// adminSetSubscription
+// -----------------------------------------------------------------------------
+// Substitui a escrita que o AdminUsers.jsx fazia direto do frontend:
+//   base44.entities.User.update(user.id, { subscription_type: 'free' })
+//
+// Depois do corte isso não funciona mais. A Account tem `update` restrito a
+// `__service_only__` no RLS, então nem admin a altera pelo cliente — a escrita
+// precisa passar por uma function com service role.
+//
+// Aceita 'free' e 'premium'. O caminho para 'premium' já existia em
+// manuallyUpgradeToPremium; aqui ele fica junto do rebaixamento para que a tela
+// admin tenha um único ponto de escrita de assinatura.
+//
+// NÃO mexe em Payment. Rebaixar alguém aqui não cancela cobrança nenhuma no
+// Stripe nem na App Store — é ajuste do nosso registro, e cancelar de verdade
+// continua sendo cancelStripeSubscription ou a própria loja. Misturar as duas
+// coisas num botão de admin criaria a ilusão de que clicar resolve a cobrança.
+// -----------------------------------------------------------------------------
+
 function b64urlToBytes(input) {
   let s = input.replace(/-/g, '+').replace(/_/g, '/');
   while (s.length % 4) s += '=';
@@ -91,87 +110,41 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const identity = await resolveIdentity(req, base44);
 
-    if (!identity) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!identity || identity.role !== 'admin') {
+      return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    // O DONO DO PROGRESSO VEM DA IDENTIDADE, NUNCA DO CORPO.
-    //
-    // Esta função autenticava e depois gravava no user_email que o cliente
-    // mandasse, usando service role. Bastava trocar esse campo para escrever no
-    // progresso de qualquer outro usuário. Enquanto o RLS ainda valia era um
-    // furo grave; depois do corte é o furo — sob JWT não existe sessão Base44,
-    // o RLS resolve nulo e o filtro explícito por identity.email vira a única
-    // barreira que existe entre um usuário e os dados dos outros.
-    //
-    // user_email continua sendo aceito no corpo para não quebrar quem já chama
-    // assim, mas é IGNORADO.
-    const { module_id, phase_id, case_id } = await req.json();
-    const user_email = (identity.email || '').trim().toLowerCase();
+    const { user_email, subscription_type } = await req.json();
 
-    if (!module_id || !phase_id || !case_id) {
-      return Response.json({ error: 'Parâmetros obrigatórios: module_id, phase_id, case_id' }, { status: 400 });
+    if (!user_email || !['free', 'premium'].includes(subscription_type)) {
+      return Response.json(
+        { error: 'Parâmetros: user_email e subscription_type ("free" | "premium")', success: false },
+        { status: 400 }
+      );
     }
 
-    // Buscar registro existente de UserProgress para este usuário/fase
-    const existing = await base44.asServiceRole.entities.UserProgress.filter({
-      user_email,
-      module_id,
-      phase_id
-    });
+    const email = user_email.trim().toLowerCase();
+    const contas = await base44.asServiceRole.entities.Account.filter({ email });
 
-    let progressRecord = existing[0] || null;
-
-    // Se não existe, buscar a fase para obter o completion_goal
-    let completion_goal = progressRecord?.completion_goal || 0;
-
-    if (!progressRecord) {
-      const phases = await base44.asServiceRole.entities.Phase.filter({ id: phase_id });
-      const phase = phases[0];
-      completion_goal = phase?.total_cases || 0;
+    if (contas.length === 0) {
+      return Response.json({ error: 'Conta não encontrada', success: false }, { status: 404 });
     }
 
-    const now = new Date().toISOString();
-
-    if (!progressRecord) {
-      // Criar novo registro
-      const completed_case_ids = [case_id];
-      const completion_count = 1;
-      const status = completion_count >= completion_goal && completion_goal > 0 ? 'completed' : 'incomplete';
-
-      progressRecord = await base44.asServiceRole.entities.UserProgress.create({
-        user_email,
-        module_id,
-        phase_id,
-        completed_case_ids,
-        completion_count,
-        completion_goal,
-        status,
-        last_updated: now
-      });
-    } else {
-      // Atualizar registro existente
-      const currentIds = progressRecord.completed_case_ids || [];
-
-      // Evitar duplicatas
-      if (currentIds.includes(case_id)) {
-        return Response.json({ progress: progressRecord, updated: false });
-      }
-
-      const completed_case_ids = [...currentIds, case_id];
-      const completion_count = completed_case_ids.length;
-      const status = completion_count >= completion_goal && completion_goal > 0 ? 'completed' : 'incomplete';
-
-      progressRecord = await base44.asServiceRole.entities.UserProgress.update(progressRecord.id, {
-        completed_case_ids,
-        completion_count,
-        status,
-        last_updated: now
-      });
+    const updates = { subscription_type };
+    // Só carimba a data ao PROMOVER. Ao rebaixar, preservamos a data original:
+    // ela é histórico de quando a assinatura começou, e zerá-la apagaria a única
+    // pista de quanto tempo a pessoa foi premium.
+    if (subscription_type === 'premium') {
+      updates.subscription_start_date = new Date().toISOString();
     }
 
-    return Response.json({ progress: progressRecord, updated: true });
+    await base44.asServiceRole.entities.Account.update(contas[0].id, updates);
+
+    console.log('adminSetSubscription:', email, '->', subscription_type, 'por', identity.email);
+
+    return Response.json({ success: true, user_email: email, subscription_type });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error('Erro em adminSetSubscription:', error);
+    return Response.json({ error: error.message, success: false }, { status: 500 });
   }
 });

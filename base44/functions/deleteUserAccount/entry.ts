@@ -1,6 +1,92 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 import Stripe from 'npm:stripe@17.5.0';
 
+function b64urlToBytes(input) {
+  let s = input.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  const bin = atob(s);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+function b64urlToStr(input) {
+  let s = input.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  return atob(s);
+}
+
+// Verifica um JWT HS256 assinado com a mesma JWT_SECRET e os mesmos parâmetros
+// (crypto.subtle nativo, sem dependência externa) que googleSignIn/appleSignIn
+// usam para assinar. Qualquer falha (base64 inválido, assinatura, exp) => null,
+// para cair de volta no fluxo de sessão Base44 em vez de derrubar a função.
+async function verifyJwtHS256(token, secret) {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const [headerB64, payloadB64, sigB64] = parts;
+    const header = JSON.parse(b64urlToStr(headerB64));
+    if (header.alg !== 'HS256') return null;
+    const payload = JSON.parse(b64urlToStr(payloadB64));
+
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+
+    const valid = await crypto.subtle.verify(
+      'HMAC',
+      key,
+      b64urlToBytes(sigB64),
+      new TextEncoder().encode(`${headerB64}.${payloadB64}`)
+    );
+    if (!valid) return null;
+
+    if (typeof payload.exp !== 'number' || payload.exp < Math.floor(Date.now() / 1000)) {
+      return null;
+    }
+
+    return payload;
+  } catch (_e) {
+    return null;
+  }
+}
+
+// Aceita tanto o JWT próprio (googleSignIn/appleSignIn) quanto a sessão Base44.
+// JWT NUNCA concede admin: role é sempre 'user' nesse caminho, por decisão de
+// arquitetura — mesmo que o payload assinado carregue um campo role.
+async function resolveIdentity(req, base44) {
+  const authHeader = req.headers.get('authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const secret = Deno.env.get('JWT_SECRET');
+    if (secret) {
+      const token = authHeader.slice('Bearer '.length).trim();
+      const payload = await verifyJwtHS256(token, secret);
+      if (payload && payload.email) {
+        return { email: payload.email, role: 'user', source: 'jwt' };
+      }
+    }
+  }
+
+  // base44.auth.me() LANÇA (não retorna null) quando o Authorization traz um
+  // Bearer que não é JWT próprio válido nem sessão Base44 — tratamos a exceção
+  // como não autenticado: null, o contrato já esperado por quem chama (=> 401).
+  let user;
+  try {
+    user = await base44.auth.me();
+  } catch (_e) {
+    return null;
+  }
+  if (user) {
+    return { email: user.email, role: user.role, source: 'base44' };
+  }
+
+  return null;
+}
+
 // Lojas de billing nativo: só o próprio usuário cancela, dentro da loja — nunca via servidor.
 const STORE_SUBS = ['app_store', 'play_store'];
 // Lojas do RevenueCat que NÃO exigem cancelamento na loja: Stripe (cancelável via API,
@@ -206,13 +292,20 @@ async function deleteAll(base44, entityName, filter) {
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-        const user = await base44.auth.me();
+        const identity = await resolveIdentity(req, base44);
 
-        if (!user) {
+        if (!identity) {
             return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
-        const userEmail = user.email;
+        const userEmail = (identity.email || '').trim().toLowerCase();
+
+        // A linha User pode não existir (usuário JWT-nativo, criado depois do corte).
+        // Tudo o que depende dela — o User.id como app_user_id histórico no RevenueCat,
+        // as PushSubscription antigas chaveadas por user_id, e o delete final — passa a
+        // ser condicional. `user` nulo é um estado esperado, não um erro.
+        const users = await base44.asServiceRole.entities.User.filter({ email: userEmail });
+        const user = users && users.length > 0 ? users[0] : null;
 
         // 1) Assinatura de loja ativa → BLOQUEAR antes de apagar qualquer coisa.
         // Sinal local de compra na loja: só o revenuecatWebhook cria Payment com este
@@ -232,7 +325,7 @@ Deno.serve(async (req) => {
         const accountId = contas && contas.length > 0 ? contas[0].id : null;
 
         const storeCheck = await checkActiveStoreSubscription(
-            [user.id, accountId],
+            [user?.id, accountId],
             storePayments.length > 0
         );
         if (storeCheck.error) {
@@ -261,8 +354,9 @@ Deno.serve(async (req) => {
             });
         }
 
-        // 3) A partir daqui, apagar. Filhos primeiro, User por último: uma falha parcial
-        // deixa apenas dados órfãos benignos e a conta ainda autenticável para retry.
+        // 3) A partir daqui, apagar. Filhos primeiro, registro do usuário por último:
+        // uma falha parcial deixa apenas dados órfãos benignos e a conta ainda
+        // autenticável para retry.
         await deleteAll(base44, 'QuizAttempt', { user_email: userEmail });
         await deleteAll(base44, 'DailyQuizStats', { user_email: userEmail });
         await deleteAll(base44, 'CouponUsage', { user_email: userEmail });
@@ -274,12 +368,26 @@ Deno.serve(async (req) => {
         // conta — deixar uma inscrição órfã significaria continuar mandando push
         // para alguém que pediu para ser esquecido.
         await deleteAll(base44, 'PushSubscription', { user_email: userEmail });
-        await deleteAll(base44, 'PushSubscription', { user_id: user.id });
+        if (user) {
+            await deleteAll(base44, 'PushSubscription', { user_id: user.id });
+        }
         // Payment por último entre os filhos: só depois do cancelamento do Stripe.
         await deleteAll(base44, 'Payment', { user_email: userEmail });
 
-        // User por último.
-        await base44.asServiceRole.entities.User.delete(user.id);
+        // CORTE: a Account é o registro do usuário, então é ela que morre — e é ela
+        // que carrega as credenciais (google_id/apple_id). Enquanto a Account existir,
+        // um novo login com o mesmo Google/Apple reencontraria a conta "excluída".
+        //
+        // A linha User é apagada TAMBÉM, quando existe: ela é resquício da migração e
+        // deixá-la para trás faria um futuro backfillAccountFromUser ressuscitar a
+        // Account a partir dela. Ordem: Account primeiro (é o que trava o relogin),
+        // User depois — se a segunda falhar, sobrou um registro inerte que nada lê.
+        if (accountId) {
+            await base44.asServiceRole.entities.Account.delete(accountId);
+        }
+        if (user) {
+            await base44.asServiceRole.entities.User.delete(user.id);
+        }
 
         return Response.json({ success: true });
     } catch (error) {

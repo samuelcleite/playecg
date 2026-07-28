@@ -38,9 +38,15 @@ Deno.serve(async (req) => {
             updated_at: new Date().toISOString()
         });
 
-        await base44.asServiceRole.entities.User.update(user.id, {
-            subscription_type: 'free'
+        // CORTE: a assinatura vive na Account.
+        const contas = await base44.asServiceRole.entities.Account.filter({
+            email: (user.email || '').trim().toLowerCase()
         });
+        if (contas.length > 0) {
+            await base44.asServiceRole.entities.Account.update(contas[0].id, {
+                subscription_type: 'free'
+            });
+        }
 
         return Response.json({ success: true, message: 'Assinatura cancelada com sucesso' });
 

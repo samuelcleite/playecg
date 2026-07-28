@@ -110,22 +110,22 @@ Deno.serve(async (req) => {
 
         console.log('👤 Upgrading user to premium manually:', user_email);
 
-        // Buscar usuário
-        const users = await base44.asServiceRole.entities.User.filter({
-            email: user_email
+        // CORTE: o registro do usuário é a Account.
+        const contas = await base44.asServiceRole.entities.Account.filter({
+            email: (user_email || '').trim().toLowerCase()
         });
 
-        if (users.length === 0) {
-            return Response.json({ 
+        if (contas.length === 0) {
+            return Response.json({
                 error: 'Usuário não encontrado',
-                success: false 
+                success: false
             }, { status: 404 });
         }
 
-        const user = users[0];
+        const user = contas[0];
 
         // Atualizar para premium
-        await base44.asServiceRole.entities.User.update(user.id, {
+        await base44.asServiceRole.entities.Account.update(user.id, {
             subscription_type: 'premium',
             subscription_start_date: new Date().toISOString()
         });
