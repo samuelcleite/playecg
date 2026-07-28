@@ -71,6 +71,18 @@ async function verifyAppleIdToken(idToken, clientId) {
 
 // ---- handler ----
 export default async function appleSignIn(req) {
+  try {
+    return await handle(req);
+  } catch (e) {
+    console.error('appleSignIn falhou:', e?.stack || e?.message || e);
+    return Response.json(
+      { error: `appleSignIn: ${e?.message || e}`, stage: 'exception' },
+      { status: 500 }
+    );
+  }
+}
+
+async function handle(req) {
   const { apple_id_token, full_name } = await req.json();
   if (!apple_id_token)
     return Response.json({ error: 'apple_id_token é obrigatório' }, { status: 400 });

@@ -23,6 +23,21 @@ async function signJwt(payload, secret, ttl = 60 * 60 * 24 * 30) {
 }
 
 export default async function googleSignIn(req) {
+  // try/catch no corpo inteiro: sem isto, QUALQUER exceção vira um 500 mudo e o
+  // usuário vê "Request failed with status code 500" sem nada acionável — foi
+  // exatamente o que aconteceu no primeiro login pela Home.
+  try {
+    return await handle(req);
+  } catch (e) {
+    console.error('googleSignIn falhou:', e?.stack || e?.message || e);
+    return Response.json(
+      { error: `googleSignIn: ${e?.message || e}`, stage: 'exception' },
+      { status: 500 }
+    );
+  }
+}
+
+async function handle(req) {
   let { google_code } = await req.json();
   if (!google_code)
     return Response.json({ error: 'google_code is required' }, { status: 400 });

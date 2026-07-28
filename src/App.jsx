@@ -45,8 +45,16 @@ const AuthenticatedApp = () => {
     );
   }
 
+  // Rotas que precisam funcionar SEM sessão. A /auth é a mais importante: é onde
+  // o retorno do OAuth entrega o `code`, e ela roda por definição com o usuário
+  // deslogado. Mandá-la para a tela de login descarta o code e o login nunca
+  // conclui — o usuário fica preso num ciclo de "entrar" que volta para a Home.
+  const rotasPublicas = ['/', '/auth', '/authtest', '/home', '/instale',
+                         '/privacidade', '/termos', '/suporte', '/excluir-conta'];
+  const rotaEhPublica = rotasPublicas.includes(location.pathname.toLowerCase());
+
   // Handle authentication errors
-  if (authError) {
+  if (authError && !rotaEhPublica) {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
