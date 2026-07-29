@@ -10,7 +10,6 @@ import Termos from './pages/Termos';
 import Suporte from './pages/Suporte';
 import ExcluirConta from './pages/ExcluirConta';
 import Auth from './pages/Auth';
-import AuthTest from './pages/AuthTest';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -49,7 +48,7 @@ const AuthenticatedApp = () => {
   // o retorno do OAuth entrega o `code`, e ela roda por definição com o usuário
   // deslogado. Mandá-la para a tela de login descarta o code e o login nunca
   // conclui — o usuário fica preso num ciclo de "entrar" que volta para a Home.
-  const rotasPublicas = ['/', '/auth', '/authtest', '/home', '/instale',
+  const rotasPublicas = ['/', '/auth', '/home', '/instale',
                          '/privacidade', '/termos', '/suporte', '/excluir-conta'];
   const rotaEhPublica = rotasPublicas.includes(location.pathname.toLowerCase());
 
@@ -99,7 +98,6 @@ const AuthenticatedApp = () => {
       <Route path="/suporte" element={<Suporte />} />
       <Route path="/excluir-conta" element={<ExcluirConta />} />
       <Route path="/auth" element={<Auth />} />
-      <Route path="/authtest" element={<AuthTest />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
     </AnimatePresence>
