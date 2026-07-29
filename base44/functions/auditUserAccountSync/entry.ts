@@ -1,5 +1,19 @@
 import { createClientFromRequest } from 'npm:@base44/sdk';
 
+// ⚠️ ESTA FUNÇÃO FICOU ENGANOSA DEPOIS DO CORTE. Ela compara User e Account e
+// reporta divergências. Antes do corte, divergência significava problema.
+// Agora o User está CONGELADO e a Account é a fonte de verdade: toda compra,
+// edição de perfil e ponto ganho aparece aqui como "divergência" — e é o
+// comportamento correto, não um defeito a corrigir.
+//
+// Ela continua útil só para uma coisa: achar User sem Account. Nunca use a lista
+// de divergências como motivo para escrever de volta no sentido User -> Account.
+// Foi essa leitura invertida que rebaixou dois assinantes para free em
+// 2026-07-29.
+//
+// É SÓ LEITURA — não escreve nada, então é segura de rodar.
+
+
 // Auditoria somente leitura: compara User x Account e devolve um relatório JSON.
 // Não faz nenhum create/update/delete em nenhuma entidade, sob nenhuma condição.
 

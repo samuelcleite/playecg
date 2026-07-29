@@ -110,7 +110,15 @@ Deno.serve(async (req) => {
                 success: false
             }, { status: 401 });
         }
-        const user = identity.record;
+    // A ACCOUNT é o registro do usuário, sempre. NÃO usar identity.record: ele é
+    // o User quando a sessão é hospedada, e o User está CONGELADO desde o corte.
+    // Ler dele faz o resultado depender de por onde a pessoa entrou no app, e
+    // devolve estado que ninguém mais atualiza — foi assim que uma execução de
+    // manutenção rebaixou dois assinantes para free.
+    const contasDoUsuario = await base44.asServiceRole.entities.Account.filter({
+        email: (identity.email || '').trim().toLowerCase()
+    });
+    const user = contasDoUsuario && contasDoUsuario.length > 0 ? contasDoUsuario[0] : {};
         const email = identity.email;
 
         console.log('🔍 Getting subscription info for user:', email);
