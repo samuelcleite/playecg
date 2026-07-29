@@ -56,7 +56,10 @@ export default function AdminCouponStats() {
     const couponsData = await base44.entities.Coupon.list("-created_date");
     setCoupons(couponsData);
 
-    const usagesData = await base44.entities.CouponUsage.list("-used_at");
+    const resUsos = await base44.functions.invoke('adminListRecords', {
+      entity: 'CouponUsage', sort: '-used_at'
+    });
+    const usagesData = resUsos?.data?.records || [];
     setUsages(usagesData);
 
     // Calcular estatísticas gerais

@@ -4,16 +4,16 @@
   "properties": {
     "user_email": {
       "type": "string",
-      "description": "Email do usu\u00e1rio que conquistou o trof\u00e9u"
+      "description": "Email do usuário que conquistou o troféu"
     },
     "achievement_id": {
       "type": "string",
-      "description": "ID do trof\u00e9u (refer\u00eancia \u00e0 entidade Achievement)"
+      "description": "ID do troféu (referência à entidade Achievement)"
     },
     "earned_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Data e hora em que o trof\u00e9u foi conquistado"
+      "description": "Data e hora em que o troféu foi conquistado"
     }
   },
   "required": [
@@ -23,28 +23,24 @@
   ],
   "rls": {
     "read": {
-      "$or": [
-        {
-          "user_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "__service_only__"
+      }
     },
-    "write": {
-      "$or": [
-        {
-          "user_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+    "create": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
     }
   }
 }

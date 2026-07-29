@@ -49,7 +49,10 @@ export default function AdminPayments() {
     setLoading(true);
     
     // Carregar todos os pagamentos
-    const paymentsData = await base44.entities.Payment.list('-created_date');
+    const resPag = await base44.functions.invoke('adminListRecords', {
+      entity: 'Payment', sort: '-created_date'
+    });
+    const paymentsData = resPag?.data?.records || [];
     setPayments(paymentsData);
 
     // Carregar usuários correspondentes

@@ -362,15 +362,7 @@ Deno.serve(async (req) => {
         await deleteAll(base44, 'CouponUsage', { user_email: userEmail });
         await deleteAll(base44, 'UserProgress', { user_email: userEmail });
         await deleteAll(base44, 'UserAchievement', { user_email: userEmail });
-        // Duas passagens: a PushSubscription migrou de user_id para user_email na
-        // Fase 1.2, e linhas antigas podem ter só uma das duas chaves preenchidas.
-        // Apagar por email E por id garante que nada sobrevive à exclusão da
-        // conta — deixar uma inscrição órfã significaria continuar mandando push
-        // para alguém que pediu para ser esquecido.
         await deleteAll(base44, 'PushSubscription', { user_email: userEmail });
-        if (user) {
-            await deleteAll(base44, 'PushSubscription', { user_id: user.id });
-        }
         // Payment por último entre os filhos: só depois do cancelamento do Stripe.
         await deleteAll(base44, 'Payment', { user_email: userEmail });
 

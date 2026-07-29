@@ -2,13 +2,9 @@
   "name": "PushSubscription",
   "type": "object",
   "properties": {
-    "user_id": {
-      "type": "string",
-      "description": "ID do usu\u00e1rio (User.id do Base44) \u2014 substitu\u00eddo por user_email na migra\u00e7\u00e3o para Account; sai do schema na limpeza final"
-    },
     "user_email": {
       "type": "string",
-      "description": "Email do dono do registro \u2014 alinha esta entidade com todas as outras per-user, que j\u00e1 usam user_email. Ainda n\u00e3o preenchido: backfill e escrita vem na Fase 1.2"
+      "description": "Email do dono do registro — alinha esta entidade com todas as outras per-user, que já usam user_email. Ainda não preenchido: backfill e escrita vem na Fase 1.2"
     },
     "endpoint": {
       "type": "string",
@@ -16,11 +12,11 @@
     },
     "p256dh": {
       "type": "string",
-      "description": "Chave p\u00fablica do cliente para encripta\u00e7\u00e3o"
+      "description": "Chave pública do cliente para encriptação"
     },
     "auth": {
       "type": "string",
-      "description": "Token de autentica\u00e7\u00e3o do cliente"
+      "description": "Token de autenticação do cliente"
     }
   },
   "required": [
@@ -30,28 +26,24 @@
   ],
   "rls": {
     "read": {
-      "$or": [
-        {
-          "user_id": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "__service_only__"
+      }
     },
-    "write": {
-      "$or": [
-        {
-          "user_id": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+    "create": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
     }
   }
 }

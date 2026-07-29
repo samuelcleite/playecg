@@ -72,11 +72,15 @@ export default function AdminUsers() {
     setUsers(usersData);
 
     // Carregar todos os pagamentos
-    const paymentsData = await base44.entities.Payment.list('-created_date');
+    const resPag = await base44.functions.invoke('adminListRecords', {
+      entity: 'Payment', sort: '-created_date'
+    });
+    const paymentsData = resPag?.data?.records || [];
     setPayments(paymentsData);
 
     // Carregar estatísticas de tentativas por usuário
-    const allAttempts = await base44.entities.QuizAttempt.list();
+    const resAtt = await base44.functions.invoke('adminListRecords', { entity: 'QuizAttempt' });
+    const allAttempts = resAtt?.data?.records || [];
     const attemptsMap = {};
     allAttempts.forEach(attempt => {
       if (!attemptsMap[attempt.user_email]) {

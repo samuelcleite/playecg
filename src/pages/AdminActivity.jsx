@@ -82,7 +82,11 @@ export default function AdminActivity() {
   const loadGeneralStats = async () => {
     setLoadingGeneral(true);
     try {
-      const attempts = await base44.entities.QuizAttempt.filter({}, "-created_date", 5000);
+      // RLS das entidades per-user fechado: leitura admin passa por function.
+      const resAtt = await base44.functions.invoke('adminListRecords', {
+        entity: 'QuizAttempt', sort: '-created_date', limit: 5000
+      });
+      const attempts = resAtt?.data?.records || [];
       const modules = await base44.entities.Module.list("order");
 
       // Tentativas por dia (últimos 30 dias)
@@ -191,7 +195,11 @@ export default function AdminActivity() {
   const loadUserActivity = async (userEmail) => {
     setLoadingActivity(true);
     try {
-      const attempts = await base44.entities.QuizAttempt.filter({ user_email: userEmail }, "-created_date", 2000);
+      // RLS das entidades per-user fechado: leitura admin passa por function.
+      const resAtt = await base44.functions.invoke('adminListRecords', {
+        entity: 'QuizAttempt', filter: { user_email: userEmail }, sort: '-created_date', limit: 2000
+      });
+      const attempts = resAtt?.data?.records || [];
       const modules = await base44.entities.Module.list("order");
       const phases = await base44.entities.Phase.list("order");
 

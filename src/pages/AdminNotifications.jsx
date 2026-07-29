@@ -26,7 +26,10 @@ export default function AdminNotifications() {
       const userData = await base44.auth.me();
       setUser(userData);
       if (userData.role !== "admin") return;
-      const subs = await base44.entities.PushSubscription.list("-created_date", 200);
+      const resSubs = await base44.functions.invoke('adminListRecords', {
+        entity: 'PushSubscription', sort: '-created_date', limit: 200
+      });
+      const subs = resSubs?.data?.records || [];
       setSubscriptions(subs);
     } finally {
       setLoading(false);
@@ -140,7 +143,7 @@ export default function AdminNotifications() {
                         disabled={!s.user_email}
                         className={`w-full text-left px-3 py-2 rounded-lg text-xs border transition-all disabled:opacity-50 ${s.user_email && targetUserEmail === s.user_email ? "border-ecg-green bg-ecg-green/10 text-ecg-midnight font-bold" : "border-gray-100 bg-white hover:bg-gray-50 text-gray-600"}`}
                       >
-                        <span className="font-mono">{s.user_email || `(sem e-mail) ${s.user_id}`}</span>
+                        <span className="font-mono">{s.user_email || '(sem e-mail)'}</span>
                         <span className="ml-2 text-gray-400 truncate">{s.endpoint?.slice(0, 40)}...</span>
                       </button>
                     ))}
