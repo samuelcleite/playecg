@@ -55,12 +55,39 @@ export default function Upgrade() {
   }, []);
 
   // Handler global de sucesso do Despia (compra iOS via RevenueCat).
-  // NÃO libera acesso direto: faz polling do usuário atual até o webhook do
-  // RevenueCat marcar subscription_type === "premium" (até ~20s).
+  //
+  // Antes isto era só um laço de polling à espera do revenuecatWebhook: até 20s
+  // de "Processando...", e se o webhook demorasse mais que a janela o usuário
+  // caía num diálogo pedindo para atualizar a tela. Numa compra real foi
+  // exatamente o que aconteceu — o pagamento passou, mas só apareceu depois de
+  // fechar e reabrir o app.
+  //
+  // Agora perguntamos ao RevenueCat em vez de esperar que ele avise. Ele já sabe
+  // da compra no instante em que ela acontece. O polling continua como rede de
+  // segurança, para o caso da consulta falhar por rede.
   useEffect(() => {
     window.iapSuccess = async () => {
       setProcessing(true);
+
+      const irParaDashboard = (conta) => {
+        if (conta) setUser(conta);
+        window.location.href = createPageUrl("Dashboard");
+      };
+
+      // 1) Caminho rápido: consulta direta ao RevenueCat.
+      try {
+        const res = await base44.functions.invoke('syncStoreSubscription', {});
+        if (res?.data?.premium) {
+          irParaDashboard(await refreshCurrentUser());
+          return;
+        }
+      } catch (error) {
+        console.error("syncStoreSubscription falhou, caindo no polling:", error);
+      }
+
+      // 2) Rede de segurança: espera o webhook, como antes.
       for (let attempt = 0; attempt < 10; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
         try {
           // refreshCurrentUser, NÃO getCurrentUser: este laço existe para
           // esperar o webhook confirmar o pagamento, e ler do cache devolveria
@@ -68,22 +95,20 @@ export default function Upgrade() {
           // pagaria e ficaria preso no paywall.
           const current = await refreshCurrentUser();
           if (current?.subscription_type === "premium") {
-            setUser(current);
-            // Reflete premium no app recarregando a rota (fallback simples).
-            window.location.href = createPageUrl("Dashboard");
+            irParaDashboard(current);
             return;
           }
         } catch (error) {
           console.error("Erro ao verificar assinatura (iapSuccess):", error);
         }
-        await new Promise((resolve) => setTimeout(resolve, 2000));
       }
+
       // Esgotou ~20s sem confirmar premium.
       setProcessing(false);
       setErrorDialog({
         open: true,
         title: 'Confirmando seu pagamento',
-        message: 'Recebemos sua compra e ela está sendo processada. Aguarde alguns instantes e atualize a tela. Se o acesso não liberar, use a opção "Restaurar Compras" no app.',
+        message: 'Recebemos sua compra e ela está sendo processada. Aguarde alguns instantes e atualize a tela. Se o acesso não liberar, use a opção Restaurar Compras no app.',
         details: ''
       });
     };
@@ -213,8 +238,10 @@ export default function Upgrade() {
     try {
       const restored = await restoreIOSPurchases(user?.id);
       if (restored) {
-        // Reaproveita o mesmo polling do auth.me() usado na compra para
-        // refletir o premium (aguarda o webhook e recarrega a rota).
+        // Mesmo caminho da compra: consulta o RevenueCat e, se houver assinatura
+        // ativa, libera na hora. Restaurar não gera webhook nenhum — a compra é
+        // antiga —, então aqui a consulta direta não é otimização, é o único
+        // jeito de o acesso voltar sem intervenção.
         await window.iapSuccess?.();
         return;
       }
