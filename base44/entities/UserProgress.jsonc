@@ -4,11 +4,11 @@
   "properties": {
     "user_email": {
       "type": "string",
-      "description": "Email do usu\u00e1rio"
+      "description": "Email do usuário"
     },
     "module_id": {
       "type": "string",
-      "description": "ID do m\u00f3dulo"
+      "description": "ID do módulo"
     },
     "phase_id": {
       "type": "string",
@@ -20,12 +20,12 @@
         "type": "string"
       },
       "default": [],
-      "description": "IDs dos casos conclu\u00eddos (acertou pelo menos 1 vez OU tentou 3+ vezes)"
+      "description": "IDs dos casos concluídos (acertou pelo menos 1 vez OU tentou 3+ vezes)"
     },
     "completion_count": {
       "type": "number",
       "default": 0,
-      "description": "Quantidade de casos conclu\u00eddos"
+      "description": "Quantidade de casos concluídos"
     },
     "completion_goal": {
       "type": "number",
@@ -44,7 +44,7 @@
     "last_updated": {
       "type": "string",
       "format": "date-time",
-      "description": "\u00daltima atualiza\u00e7\u00e3o do progresso"
+      "description": "Última atualização do progresso"
     }
   },
   "required": [
@@ -55,28 +55,24 @@
   ],
   "rls": {
     "read": {
-      "$or": [
-        {
-          "user_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "__service_only__"
+      }
     },
-    "write": {
-      "$or": [
-        {
-          "user_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+    "create": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
     }
   }
 }

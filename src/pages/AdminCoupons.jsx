@@ -75,7 +75,8 @@ export default function AdminCoupons() {
     const couponsData = await base44.entities.Coupon.list("-created_date");
     setCoupons(couponsData);
 
-    const usageData = await base44.entities.CouponUsage.list();
+    const resUso = await base44.functions.invoke('adminListRecords', { entity: 'CouponUsage' });
+    const usageData = resUso?.data?.records || [];
     const stats = {};
     usageData.forEach(usage => {
       if (!stats[usage.coupon_id]) {

@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    const { user_email, user_id, title, body } = await req.json();
+    const { user_email, title, body } = await req.json();
 
     const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
     const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
@@ -104,17 +104,13 @@ Deno.serve(async (req) => {
 
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
-    // Alvo: user_email é a chave preferida (a PushSubscription migrou de user_id
-    // para user_email na Fase 1.2). user_id continua aceito como fallback para
-    // que o frontend possa subir antes ou depois desta função, em qualquer
-    // ordem, sem quebrar. Sem nenhum dos dois, faz broadcast.
+    // Alvo por user_email. O fallback por user_id foi removido junto com o
+    // campo: a entidade não tem mais essa chave.
     let subscriptions;
     if (user_email) {
       subscriptions = await base44.asServiceRole.entities.PushSubscription.filter({
         user_email: user_email.trim().toLowerCase()
       });
-    } else if (user_id) {
-      subscriptions = await base44.asServiceRole.entities.PushSubscription.filter({ user_id });
     } else {
       subscriptions = await base44.asServiceRole.entities.PushSubscription.list('-created_date', 1000);
     }

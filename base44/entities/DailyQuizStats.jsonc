@@ -4,12 +4,12 @@
   "properties": {
     "user_email": {
       "type": "string",
-      "description": "Email do usu\u00e1rio"
+      "description": "Email do usuário"
     },
     "date": {
       "type": "string",
       "format": "date",
-      "description": "Data para qual as estat\u00edsticas s\u00e3o v\u00e1lidas (YYYY-MM-DD)"
+      "description": "Data para qual as estatísticas são válidas (YYYY-MM-DD)"
     },
     "failed_cases_ids": {
       "type": "array",
@@ -17,7 +17,7 @@
         "type": "string"
       },
       "default": [],
-      "description": "IDs dos casos em que o usu\u00e1rio esgotou 3 tentativas sem acertar neste dia"
+      "description": "IDs dos casos em que o usuário esgotou 3 tentativas sem acertar neste dia"
     }
   },
   "required": [
@@ -26,28 +26,24 @@
   ],
   "rls": {
     "read": {
-      "$or": [
-        {
-          "user_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "__service_only__"
+      }
     },
-    "write": {
-      "$or": [
-        {
-          "user_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+    "create": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
     }
   }
 }

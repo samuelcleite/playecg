@@ -4,7 +4,7 @@
   "properties": {
     "user_email": {
       "type": "string",
-      "description": "Email do usu\u00e1rio"
+      "description": "Email do usuário"
     },
     "case_id": {
       "type": "string",
@@ -12,19 +12,19 @@
     },
     "module_id": {
       "type": "string",
-      "description": "ID do m\u00f3dulo ao qual o caso pertence"
+      "description": "ID do módulo ao qual o caso pertence"
     },
     "phase_id": {
       "type": "string",
-      "description": "ID da fase \u00e0 qual o caso pertence"
+      "description": "ID da fase à qual o caso pertence"
     },
     "user_answer": {
       "type": "string",
-      "description": "Resposta do usu\u00e1rio"
+      "description": "Resposta do usuário"
     },
     "correct": {
       "type": "boolean",
-      "description": "Se acertou ou n\u00e3o"
+      "description": "Se acertou ou não"
     },
     "time_spent": {
       "type": "number",
@@ -37,7 +37,7 @@
         "module",
         "daily"
       ],
-      "description": "Tipo de quiz: random (Quiz Aleat\u00f3rio), module (M\u00f3dulos), daily (Caso do Dia)"
+      "description": "Tipo de quiz: random (Quiz Aleatório), module (Módulos), daily (Caso do Dia)"
     },
     "case_source": {
       "type": "string",
@@ -45,7 +45,7 @@
         "current_phase",
         "previous_phase"
       ],
-      "description": "Para quiz tipo module: se o caso \u00e9 da fase atual ou de fases anteriores"
+      "description": "Para quiz tipo module: se o caso é da fase atual ou de fases anteriores"
     }
   },
   "required": [
@@ -56,32 +56,23 @@
   ],
   "rls": {
     "read": {
-      "$or": [
-        {
-          "user_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
     },
     "update": {
-      "$or": [
-        {
-          "user_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "__service_only__"
+      }
     },
     "delete": {
       "user_condition": {
-        "role": "admin"
+        "role": "__service_only__"
       }
     }
   }
