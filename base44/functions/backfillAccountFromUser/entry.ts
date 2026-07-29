@@ -15,9 +15,12 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 // Requer admin. (O caminho JWT nunca concede admin, por decisão de arquitetura,
 // então esta função só é alcançável pela sessão Base44.)
 //
-// O QUE COPIA do User:
+// O QUE COPIA do User: **APENAS ao CRIAR uma Account que não existe**.
 //   full_name, subscription_type, subscription_start_date, specialty, country,
 //   state, city, profile_completed.
+//   Em Account que já existe, esses campos NÃO são tocados: depois do corte o
+//   User é registro congelado e a Account é a fonte de verdade. Copiar do User
+//   para uma Account viva desfaz compras e edições de perfil — aconteceu.
 //
 // O QUE **RECALCULA** a partir de QuizAttempt (não copia do User):
 //   total_attempts, total_first_attempts, correct_first_attempts,
@@ -345,8 +348,26 @@ Deno.serve(async (req) => {
       }
 
       const stats = computeStatsFromAttempts(attemptsByEmail.get(key) || []);
-      const desejado = { ...profileFromUser(u), ...stats };
       const existente = accountsByEmail.get(key) || null;
+
+      // O QUE ESTA FUNÇÃO ESCREVE DEPENDE DE A ACCOUNT JÁ EXISTIR — e essa
+      // distinção não é detalhe, é a correção de um estrago real.
+      //
+      // Antes do corte, o User era a fonte de verdade e copiar perfil e
+      // assinatura dele para a Account estava certo. Depois do corte o User
+      // virou registro CONGELADO: toda escrita vai para a Account. Rodar a
+      // versão antiga desta função em 2026-07-29 sobrescreveu, com o estado
+      // velho do User, uma assinatura premium comprada no dia anterior e uma
+      // edição de nome feita pelo próprio usuário — dois usuários rebaixados
+      // para free por uma função de manutenção.
+      //
+      // Account já existe  -> SÓ agregados. Perfil e assinatura são da Account
+      //                       e ninguém mais tem autoridade para mudá-los aqui.
+      // Account não existe -> copia o perfil do User, porque não há nada a
+      //                       destruir e é a única fonte disponível.
+      const desejado = existente
+        ? { ...stats }
+        : { ...profileFromUser(u), ...stats };
 
       const difs = CAMPOS_AGREGADOS
         .filter(campo => norm(u[campo]) !== norm(stats[campo]))
