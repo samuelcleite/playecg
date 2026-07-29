@@ -39,12 +39,10 @@ import {
   XCircle,
   Trash2,
   Bell,
-  LogOut,
-  KeyRound
+  LogOut
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { createPageUrl } from "@/utils";
-import { getToken, clearToken } from "@/lib/customAuth";
+import { clearToken } from "@/lib/customAuth";
 
 export default function Profile() {
   const [user, setUser] = useState(null);
@@ -73,9 +71,6 @@ export default function Profile() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
   const containerRef = useRef(null);
-  // Lido a cada render, não em estado: o token pode ter sido limpo em outra
-  // tela e não queremos um valor congelado escondendo a saída de emergência.
-  const temTokenJwt = !!getToken();
 
   useEffect(() => {
     loadData();
@@ -327,43 +322,6 @@ export default function Profile() {
             </Button>
           </div>
 
-          {/* TEMPORÁRIO (migração JWT): entrada do /authtest no celular.
-              O menu admin do Layout só existe na sidebar do desktop — a barra
-              inferior do mobile renderiza apenas navigationItems —, então no
-              aparelho não há como chegar em nenhuma tela admin. Como o Perfil
-              está na barra inferior, é o único ponto de entrada possível.
-              Sai na limpeza da Fase 4, junto com a rota e o AuthTest.jsx. */}
-          {(user?.role === "admin" || temTokenJwt) && (
-            <div className="mt-3 flex flex-col items-center gap-2">
-              <Link to={createPageUrl("AuthTest")}>
-                <Button
-                  variant="outline"
-                  className="gap-2 border-dashed border-gray-300 text-gray-500 hover:bg-gray-100"
-                >
-                  <KeyRound className="w-4 h-4" />
-                  Teste de login (JWT)
-                </Button>
-              </Link>
-
-              {/* Saída de emergência do modo de teste.
-                  Aparece SEMPRE que existe token JWT no cofre, independente de
-                  role. Depois do corte o `user` desta tela vem da Account e não
-                  quebra mais sob JWT, mas a saída continua incondicional de
-                  propósito: no celular não há outro caminho até o /authtest, e
-                  amarrá-la ao role já escondeu a saída uma vez.
-                  Sai na limpeza da Fase 4. */}
-              {temTokenJwt && (
-                <Button
-                  variant="outline"
-                  onClick={() => { clearToken(); window.location.href = '/'; }}
-                  className="gap-2 border-dashed border-red-300 text-red-600 hover:bg-red-50"
-                >
-                  <XCircle className="w-4 h-4" />
-                  Sair do modo de teste
-                </Button>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Subscription Info - Only for Premium Users */}
