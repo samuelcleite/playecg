@@ -155,24 +155,35 @@ Deno.serve(async (req) => {
     if (!identity) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    // record: fonte só-leitura dos campos extras (user.points). email: chave dos filtros.
-    // UserAchievement.create NÃO é escrita no registro do usuário → permitido converter.
-    const user = identity.record;
-    const email = identity.email;
+    const email = (identity.email || '').trim().toLowerCase();
 
-    // Buscar dados necessários em paralelo
+    // Os pontos vêm da ACCOUNT, sempre — não de identity.record.
+    // O `record` é o User quando a sessão é hospedada, e o User está CONGELADO
+    // desde o corte: usá-lo aqui faria as conquistas de pontos serem avaliadas
+    // contra um valor que ninguém mais atualiza, e o resultado dependeria de por
+    // onde a pessoa entrou no app.
+    const contas = await base44.asServiceRole.entities.Account.filter({ email });
+    const user = contas && contas.length > 0 ? contas[0] : {};
+
+    // SERVICE ROLE nas entidades per-user. Elas passaram a exigir
+    // __service_only__ no RLS, então o cliente user-scoped devolve lista VAZIA
+    // aqui — sem erro. Efeito: nenhuma conquista desbloquearia, e nada indicaria
+    // o porquê. Achievement e Phase são conteúdo, com RLS aberto, e seguem no
+    // cliente comum.
+    //
+    // O dono vem de identity.email, nunca do corpo.
     const [allAchievements, userProgress, phases, existingUserAchievements] = await Promise.all([
       base44.entities.Achievement.filter({ active: true }),
-      base44.entities.UserProgress.filter({ user_email: email }),
+      base44.asServiceRole.entities.UserProgress.filter({ user_email: email }),
       base44.entities.Phase.list(),
-      base44.entities.UserAchievement.filter({ user_email: email }),
+      base44.asServiceRole.entities.UserAchievement.filter({ user_email: email }),
     ]);
 
     // IDs de troféus já conquistados
     const alreadyEarnedIds = new Set(existingUserAchievements.map(ua => ua.achievement_id));
 
     // Calcular streak
-    const allAttemptsDates = (await base44.entities.QuizAttempt.filter({ user_email: email }))
+    const allAttemptsDates = (await base44.asServiceRole.entities.QuizAttempt.filter({ user_email: email }))
       .map(a => new Date(a.created_date).toISOString().split('T')[0]);
     const uniqueDates = [...new Set(allAttemptsDates)].sort().reverse();
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -189,7 +200,7 @@ Deno.serve(async (req) => {
     }
 
     // Calcular stats
-    const allAttempts = await base44.entities.QuizAttempt.filter({ user_email: email });
+    const allAttempts = await base44.asServiceRole.entities.QuizAttempt.filter({ user_email: email });
     const correctCount = allAttempts.filter(a => a.correct).length;
 
     // Calcular fases completadas (para completedModules) usando UserProgress
