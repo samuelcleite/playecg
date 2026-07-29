@@ -22,7 +22,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 // O QUE **RECALCULA** a partir de QuizAttempt (não copia do User):
 //   total_attempts, total_first_attempts, correct_first_attempts,
 //   module_first_attempts, module_correct_first_attempts, current_streak,
-//   last_practice_date.
+//   last_practice_date, points, level.
 //   Motivo: os agregados no User são incrementais (recordQuizAttempt) e podem ter
 //   derivado. A QuizAttempt é a fonte de verdade e é chaveada por user_email, que
 //   é idêntico dos dois lados. Recalcular também torna esta função repetível na
@@ -36,8 +36,9 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 //     não concede admin por decisão de arquitetura, e gravar role:'admin' na
 //     Account criaria um caminho de escalação para o dia em que alguém confiar
 //     nesse campo. Admin continua sendo quem entra pela sessão Base44.
-//   - points, level — nada no código escreve esses campos (são mortos) e eles
-//     saem do schema da Account na limpeza final.
+//     (points e level SÃO recalculados — ver a lista acima. Eles eram campos
+//     mortos até a implementação de pontos; rodar esta função é o que dá a
+//     pontuação histórica a quem já tinha tentativas antes dela existir.)
 // -----------------------------------------------------------------------------
 
 function b64urlToBytes(input) {
@@ -126,6 +127,20 @@ async function resolveIdentity(req, base44) {
   return null;
 }
 
+// ===== REGRA DE PONTUAÇÃO (espelho de recordQuizAttempt) =====================
+// Os dois caminhos — o incremental do recordQuizAttempt e este recálculo —
+// precisam produzir o mesmo número. Se divergirem, cada rodada deste recálculo
+// muda os pontos de todo mundo sem motivo aparente. Ao mexer nos valores, mexer
+// nos três arquivos.
+const PONTOS_ACERTO_PRIMEIRA = 10;
+const PONTOS_ACERTO_REVISAO = 3;
+const PONTOS_POR_NIVEL = 100;
+
+function nivelPara(pontos) {
+  return 1 + Math.floor((pontos || 0) / PONTOS_POR_NIVEL);
+}
+// ==============================================================================
+
 // Data YYYY-MM-DD no timezone do Brasil (America/Sao_Paulo)
 function getBrasiliaDateStr(date) {
   return new Intl.DateTimeFormat('en-CA', {
@@ -200,6 +215,13 @@ function computeStatsFromAttempts(attempts) {
     }
   }
 
+  // Pontos: 10 por acerto na primeira tentativa do caso, 3 por acerto em
+  // revisão. Equivalente a somar tentativa a tentativa, mas em forma fechada.
+  const acertos_totais = attempts.filter(a => a.correct).length;
+  const points =
+    correct_first_attempts * PONTOS_ACERTO_PRIMEIRA +
+    (acertos_totais - correct_first_attempts) * PONTOS_ACERTO_REVISAO;
+
   return {
     total_attempts,
     total_first_attempts,
@@ -207,7 +229,9 @@ function computeStatsFromAttempts(attempts) {
     module_first_attempts,
     module_correct_first_attempts,
     current_streak,
-    last_practice_date
+    last_practice_date,
+    points,
+    level: nivelPara(points)
   };
 }
 
@@ -308,7 +332,9 @@ Deno.serve(async (req) => {
       'module_first_attempts',
       'module_correct_first_attempts',
       'current_streak',
-      'last_practice_date'
+      'last_practice_date',
+      'points',
+      'level'
     ];
 
     for (const u of users) {

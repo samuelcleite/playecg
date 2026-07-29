@@ -4,15 +4,15 @@
   "properties": {
     "email": {
       "type": "string",
-      "description": "min\u00fasculo, sem espa\u00e7os \u2014 identidade \u00fanica"
+      "description": "minúsculo, sem espaços — identidade única"
     },
     "full_name": {
       "type": "string",
-      "description": "Nome completo do usu\u00e1rio"
+      "description": "Nome completo do usuário"
     },
     "password_hash": {
       "type": "string",
-      "description": "PBKDF2 salt:hash, vazio para contas s\u00f3-Google"
+      "description": "PBKDF2 salt:hash, vazio para contas só-Google"
     },
     "google_id": {
       "type": "string",
@@ -36,7 +36,7 @@
         "admin"
       ],
       "default": "user",
-      "description": "Papel do usu\u00e1rio no app"
+      "description": "Papel do usuário no app"
     },
     "subscription_type": {
       "type": "string",
@@ -45,33 +45,33 @@
         "premium"
       ],
       "default": "free",
-      "description": "Tipo de assinatura do usu\u00e1rio"
+      "description": "Tipo de assinatura do usuário"
     },
     "subscription_start_date": {
       "type": "string",
       "format": "date-time",
-      "description": "Data de in\u00edcio da assinatura premium"
+      "description": "Data de início da assinatura premium"
     },
     "specialty": {
       "type": "string",
-      "description": "Especialidade m\u00e9dica do usu\u00e1rio"
+      "description": "Especialidade médica do usuário"
     },
     "country": {
       "type": "string",
-      "description": "Pa\u00eds onde o usu\u00e1rio atua"
+      "description": "País onde o usuário atua"
     },
     "state": {
       "type": "string",
-      "description": "Estado onde o usu\u00e1rio atua"
+      "description": "Estado onde o usuário atua"
     },
     "city": {
       "type": "string",
-      "description": "Cidade onde o usu\u00e1rio atua"
+      "description": "Cidade onde o usuário atua"
     },
     "profile_completed": {
       "type": "boolean",
       "default": false,
-      "description": "Se o usu\u00e1rio completou o perfil inicial"
+      "description": "Se o usuário completou o perfil inicial"
     },
     "total_attempts": {
       "type": "number",
@@ -81,7 +81,7 @@
     "total_first_attempts": {
       "type": "number",
       "default": 0,
-      "description": "N\u00famero de casos distintos j\u00e1 tentados"
+      "description": "Número de casos distintos já tentados"
     },
     "correct_first_attempts": {
       "type": "number",
@@ -91,21 +91,21 @@
     "module_first_attempts": {
       "type": "number",
       "default": 0,
-      "description": "Primeiras tentativas em casos de m\u00f3dulo"
+      "description": "Primeiras tentativas em casos de módulo"
     },
     "module_correct_first_attempts": {
       "type": "number",
       "default": 0,
-      "description": "Primeiras tentativas corretas em casos de m\u00f3dulo"
+      "description": "Primeiras tentativas corretas em casos de módulo"
     },
     "current_streak": {
       "type": "number",
       "default": 0,
-      "description": "Sequ\u00eancia atual de dias praticados"
+      "description": "Sequência atual de dias praticados"
     },
     "last_practice_date": {
       "type": "string",
-      "description": "\u00daltima data de pr\u00e1tica (YYYY-MM-DD)"
+      "description": "Última data de prática (YYYY-MM-DD)"
     },
     "last_login_at": {
       "type": "string",
@@ -113,11 +113,13 @@
     },
     "points": {
       "type": "number",
-      "description": "Pontos acumulados"
+      "default": 0,
+      "description": "Pontos acumulados. 10 por acerto na 1a tentativa do caso, 3 por acerto em revisao. Ver recordQuizAttempt."
     },
     "level": {
       "type": "number",
-      "description": "Nível atual do usuário"
+      "default": 1,
+      "description": "Nivel, derivado dos pontos: 1 + floor(points / 100). Nunca editado a mao."
     }
   },
   "required": [

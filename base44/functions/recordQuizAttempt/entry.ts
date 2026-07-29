@@ -18,6 +18,28 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 //    em diante.
 // -----------------------------------------------------------------------------
 
+// ===== REGRA DE PONTUAÇÃO =====================================================
+// Definida aqui e ESPELHADA em backfillAccountFromUser e ensureMyAccount, que
+// recalculam pontos a partir do histórico de QuizAttempt.
+//
+// Os dois caminhos precisam produzir o mesmo número. Se divergirem, cada vez que
+// o recálculo rodar os pontos de todo mundo mudam sozinhos — foi exatamente esse
+// tipo de divergência (ordenação das tentativas) que inflou as taxas de acerto
+// no primeiro dry-run do backfill. Ao mexer nestes valores, mexer nos três.
+//
+// A escolha: acertar de primeira vale mais do que acertar revisando. Revisão
+// ainda pontua, senão a única forma de ganhar ponto seria nunca errar — o que
+// pune justamente quem está aprendendo. E erro nunca tira ponto: perder
+// progresso por tentar é o desenho errado para um app de estudo.
+const PONTOS_ACERTO_PRIMEIRA = 10;
+const PONTOS_ACERTO_REVISAO = 3;
+const PONTOS_POR_NIVEL = 100;
+
+function nivelPara(pontos) {
+  return 1 + Math.floor((pontos || 0) / PONTOS_POR_NIVEL);
+}
+// ==============================================================================
+
 // Data YYYY-MM-DD no timezone do Brasil (America/Sao_Paulo)
 function getBrasiliaDateStr(date) {
   return new Intl.DateTimeFormat('en-CA', {
@@ -181,6 +203,14 @@ Deno.serve(async (req) => {
           updates.module_correct_first_attempts = (account.module_correct_first_attempts || 0) + 1;
         }
       }
+    }
+
+    // Pontos. Só acerto pontua; o nível é sempre derivado, nunca somado à parte,
+    // para não existir estado em que pontos e nível discordem.
+    if (isCorrect) {
+      const ganho = isFirstForCase ? PONTOS_ACERTO_PRIMEIRA : PONTOS_ACERTO_REVISAO;
+      updates.points = (account.points || 0) + ganho;
+      updates.level = nivelPara(updates.points);
     }
 
     // Streak

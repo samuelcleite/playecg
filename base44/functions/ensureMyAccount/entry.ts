@@ -109,6 +109,20 @@ async function resolveIdentity(req, base44) {
   return null;
 }
 
+// ===== REGRA DE PONTUAÇÃO (espelho de recordQuizAttempt) =====================
+// Os dois caminhos — o incremental do recordQuizAttempt e este recálculo —
+// precisam produzir o mesmo número. Se divergirem, cada rodada deste recálculo
+// muda os pontos de todo mundo sem motivo aparente. Ao mexer nos valores, mexer
+// nos três arquivos.
+const PONTOS_ACERTO_PRIMEIRA = 10;
+const PONTOS_ACERTO_REVISAO = 3;
+const PONTOS_POR_NIVEL = 100;
+
+function nivelPara(pontos) {
+  return 1 + Math.floor((pontos || 0) / PONTOS_POR_NIVEL);
+}
+// ==============================================================================
+
 // Data YYYY-MM-DD no timezone do Brasil (America/Sao_Paulo)
 function getBrasiliaDateStr(date) {
   return new Intl.DateTimeFormat('en-CA', {
@@ -168,14 +182,22 @@ async function computeStatsFromAttempts(base44, email) {
     }
   }
 
+  const correct_first_attempts = first.filter(a => a.correct).length;
+  const acertos_totais = attempts.filter(a => a.correct).length;
+  const points =
+    correct_first_attempts * PONTOS_ACERTO_PRIMEIRA +
+    (acertos_totais - correct_first_attempts) * PONTOS_ACERTO_REVISAO;
+
   return {
     total_attempts: attempts.length,
     total_first_attempts: first.length,
-    correct_first_attempts: first.filter(a => a.correct).length,
+    correct_first_attempts,
     module_first_attempts: firstModule.length,
     module_correct_first_attempts: firstModule.filter(a => a.correct).length,
     current_streak,
-    last_practice_date: uniqueDates[0] || ''
+    last_practice_date: uniqueDates[0] || '',
+    points,
+    level: nivelPara(points)
   };
 }
 
