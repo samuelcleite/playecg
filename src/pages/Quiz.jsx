@@ -666,6 +666,25 @@ export default function Quiz() {
           <p className="text-gray-500 mt-1 text-sm md:text-base">Analise o traçado e faça seu diagnóstico</p>
         </div>
 
+        {/* Contador compacto do limite diário — versão mobile.
+            O alerta abaixo é `hidden md:block`, então no app o usuário gratuito
+            não tinha nenhuma indicação de quantas questões restavam: descobria
+            o limite ao ser bloqueado. Aqui vai só o número, sem o card inteiro,
+            que ocuparia metade da tela do quiz. */}
+        {!isPremium && (
+          <div className="md:hidden flex items-center justify-between px-4 py-2 bg-amber-50 border-b border-amber-200">
+            <span className="text-sm text-amber-900">
+              <strong>{dailyQuizCount}/{FREE_DAILY_LIMIT}</strong> questões hoje
+              {dailyQuizCount >= FREE_DAILY_LIMIT && (
+                <span className="ml-1 text-orange-700">· 1 por hora</span>
+              )}
+            </span>
+            <Link to={createPageUrl("Upgrade")} className="text-sm font-semibold text-amber-800 underline underline-offset-2">
+              Ver Premium
+            </Link>
+          </div>
+        )}
+
         {/* Daily Limit Warning for Free Users - hidden on mobile */}
         {!isPremium && (
           <Alert className="hidden md:block bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200">

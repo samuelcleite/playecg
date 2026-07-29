@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { signInWithGoogle, getToken } from "@/lib/customAuth";
+import { signInWithGoogle, getToken, clearToken } from "@/lib/customAuth";
+import { withNativeReturnMarker } from "@/utils/nativeOAuth";
 import { signInWithApple } from "@/lib/appleAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -65,6 +66,17 @@ export default function Home() {
     }
   };
 
+  // Abre o login hospedado do Base44, que é o que concede admin. Limpa o token
+  // JWT antes: se ele existir, o bootstrapAuth o aplicaria no próximo boot e a
+  // sessão hospedada recém-criada seria ignorada — o admin logaria e voltaria
+  // como usuário comum, sem entender por quê.
+  const loginAdministrativo = () => {
+    clearToken();
+    base44.auth.redirectToLogin(
+      withNativeReturnMarker(window.location.origin + createPageUrl("Dashboard"))
+    );
+  };
+
   const entrarComApple = async () => {
     setErroLogin(null);
     setEntrando('apple');
@@ -122,6 +134,20 @@ export default function Home() {
             <span className="font-bold text-white text-xl">PlayECG</span>
           </div>
           <div className="hidden sm:flex items-center gap-3">
+            {/* ENTRADA DO ADMIN — só no desktop, de propósito.
+                O JWT nunca concede admin: o resolveIdentity grava role 'user'
+                nesse caminho por decisão de arquitetura. Admin existe apenas
+                pela sessão hospedada do Base44, e ao trocar a Home pelos botões
+                de Google/Apple eu removi o único lugar que abria essa sessão —
+                deixando as telas administrativas inalcançáveis.
+                Fica escondido no mobile porque telas admin não devem existir no
+                app publicado. */}
+            <button
+              onClick={loginAdministrativo}
+              className="text-blue-300 hover:text-white text-sm underline underline-offset-4"
+            >
+              Acesso administrativo
+            </button>
             <Button
               onClick={entrarComGoogle}
               disabled={!!entrando}
