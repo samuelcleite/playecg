@@ -127,6 +127,16 @@ export const AuthProvider = ({ children }) => {
   // Carrega a Account do usuário autenticado, seja qual for a identidade.
   // Devolve true se conseguiu; false manda o chamador degradar.
   //
+  // Android: configura o RevenueCat com o Account.id — o MESMO id que o iOS
+  // manda como external_id e que o revenuecatWebhook/syncStoreSubscription
+  // resolvem. Aquecimento, não pré-requisito: purchaseAndroidPlan também
+  // inicializa por conta própria. Guard de plataforma vive dentro da função
+  // (no-op na web e no Despia). Sem await: não pode atrasar nem quebrar o auth.
+  const aquecerComprasAndroid = (account) =>
+    initAndroidPurchases(account?.id).catch((error) =>
+      console.error('Falha ao inicializar RevenueCat (Android):', error)
+    );
+
   // A Account tem `read: false` no RLS, então ela NÃO é lida por
   // base44.entities — só por function com service role atrás do resolveIdentity.
   const carregarConta = async () => {
@@ -143,6 +153,7 @@ export const AuthProvider = ({ children }) => {
       setAuthMode(temJwt ? 'jwt' : 'base44');
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
+      aquecerComprasAndroid(account);
       return true;
     } catch (error) {
       // 404: autenticado, mas sem Account. Acontece com quem se cadastrou pelo
@@ -158,6 +169,7 @@ export const AuthProvider = ({ children }) => {
             setAuthMode(temJwt ? 'jwt' : 'base44');
             setIsAuthenticated(true);
             setIsLoadingAuth(false);
+            aquecerComprasAndroid(account);
             return true;
           }
         } catch (e2) {
@@ -186,13 +198,6 @@ export const AuthProvider = ({ children }) => {
       setUser(currentUser);
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
-
-      // Android: configura o RevenueCat com o User.id do Base44 (a chave que o
-      // revenuecatWebhook usa). Guarded por plataforma — no-op na web e no
-      // Despia. Sem await de propósito: não pode atrasar nem quebrar o auth.
-      initAndroidPurchases(currentUser?.id).catch((error) =>
-        console.error('Falha ao inicializar RevenueCat (Android):', error)
-      );
     } catch (error) {
       console.error('User auth check failed:', error);
       setIsLoadingAuth(false);

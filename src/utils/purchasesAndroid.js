@@ -15,9 +15,10 @@ async function loadPurchases() {
 }
 
 // Configura o RevenueCat no Android. No-op em qualquer outra plataforma.
-// appUserId DEVE ser o User.id do Base44: é a chave que o revenuecatWebhook usa
-// para achar o User e ativar a assinatura. Configurar com outro valor faz a
-// compra completar sem liberar o premium.
+// appUserId DEVE ser o Account.id: é o external_id que o iOS também usa, e o
+// revenuecatWebhook resolve por ele (com fallback para o User.id legado das
+// compras anteriores ao corte). Configurar com outro valor faz a compra
+// completar sem liberar o premium.
 export async function initAndroidPurchases(appUserId) {
   if (!isAndroidNativeApp()) return;
   if (!appUserId) {
