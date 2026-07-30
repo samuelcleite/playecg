@@ -22,6 +22,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Retorno do OAuth do Google. O login abre numa Custom Tab (o
+                 Google recusa OAuth em WebView embutida), e a Custom Tab é um
+                 processo à parte: o deeplink é o único caminho de volta.
+                 O esquema 'playecg' é o mesmo já usado pelo Despia no iOS —
+                 apps e sistemas distintos, sem colisão. Quem emite o deeplink
+                 é public/native-callback.html, que já roda em produção. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="playecg" />
+            </intent-filter>
+
         </activity>
 
         <provider

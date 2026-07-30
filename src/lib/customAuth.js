@@ -1,6 +1,7 @@
 import { base44 } from '@/api/base44Client'
 import { appParams } from '@/lib/app-params'
 import despia from 'despia-native'
+import { isAndroidNativeApp } from '@/utils/platform'
 
 const TOKEN_KEY = 'app_auth_token'
 const VAULT_KEY = 'app_session_token'
@@ -32,10 +33,21 @@ export function clearToken() {
 }
 
 export async function signInWithGoogle() {
-  const scheme = isNative() ? 'playecg' : ''
+  // O Android (Capacitor) precisa do mesmo deeplink de retorno que o Despia, por
+  // um motivo diferente: lá é o comando oauth:// que abre a aba nativa, aqui é o
+  // Google que recusa OAuth em WebView embutida (disallowed_useragent). Nos dois
+  // casos o login sai da WebView e só o deeplink traz o code de volta.
+  const androidNativo = isAndroidNativeApp()
+  const scheme = (isNative() || androidNativo) ? 'playecg' : ''
   const { data } = await base44.functions.invoke('googleAuthUrl', { deeplink_scheme: scheme })
   if (!data?.url) throw new Error('sem URL do Google')
-  if (isNative()) {
+  if (androidNativo) {
+    // Custom Tabs. O import é dinâmico para o plugin não entrar no bundle que
+    // roda em playecg.app e dentro do Despia. O retorno é tratado pelo listener
+    // de appUrlOpen em src/utils/androidDeepLink.js.
+    const { Browser } = await import('@capacitor/browser')
+    await Browser.open({ url: data.url })
+  } else if (isNative()) {
     despia(`oauth://?url=${encodeURIComponent(data.url)}`)
   } else {
     window.location.href = data.url
