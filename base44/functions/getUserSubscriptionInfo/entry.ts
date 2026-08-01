@@ -98,6 +98,67 @@ async function resolveIdentity(req, base44) {
   return null;
 }
 
+const LOJAS_NAO_APP = ['stripe', 'promotional'];
+
+// Pergunta ao RevenueCat o estado REAL da assinatura de loja deste usuário.
+//
+// POR QUE EXISTE: o revenuecatWebhook, de propósito, NÃO trata CANCELLATION —
+// quem pagou o mês usa o mês inteiro. O efeito colateral é que o cancelamento
+// não deixava rastro em lugar nenhum, e o Perfil continuava prometendo
+// "renovação automática" para quem já tinha cancelado na App Store. Guardar o
+// estado na Account no webhook resolveria só os cancelamentos futuros; o
+// RevenueCat já sabe de todos: `unsubscribe_detected_at` marca o cancelamento e
+// `expires_date` é a data real do fim do acesso — mais confiável que os "+30
+// dias" estimados a partir do último Payment (que erravam por um dia).
+//
+// Qualquer falha (rede, status inesperado, JSON) => null, e o chamador mantém o
+// comportamento antigo em vez de derrubar a tela de assinatura.
+async function consultarAssinaturaLoja(appUserId, apiKey) {
+  let resp;
+  try {
+    resp = await fetch(
+      `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(appUserId)}`,
+      { headers: { Authorization: `Bearer ${apiKey}` } }
+    );
+  } catch (e) {
+    console.error('getUserSubscriptionInfo: rede RevenueCat:', e.message);
+    return null;
+  }
+
+  if (resp.status !== 200 && resp.status !== 201) {
+    console.error('getUserSubscriptionInfo: status inesperado:', resp.status);
+    return null;
+  }
+
+  let body;
+  try {
+    body = await resp.json();
+  } catch (_e) {
+    return null;
+  }
+
+  const subscriptions = body?.subscriber?.subscriptions || {};
+  const agora = Date.now();
+
+  // Pega a assinatura de loja que vai mais longe: se houve troca de produto, é
+  // ela quem define até quando o acesso vale.
+  let melhor = null;
+  for (const sub of Object.values(subscriptions)) {
+    if (typeof sub?.store === 'string' && LOJAS_NAO_APP.includes(sub.store)) continue;
+    const fim = sub?.expires_date ? new Date(sub.expires_date).getTime() : null;
+    if (fim == null || fim <= agora) continue;
+    if (!melhor || fim > melhor.fim) melhor = { fim, sub };
+  }
+
+  if (!melhor) return null;
+
+  return {
+    expiresAt: new Date(melhor.fim).toISOString(),
+    willRenew: !melhor.sub.unsubscribe_detected_at,
+    store: melhor.sub.store || null
+  };
+}
+
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
@@ -186,12 +247,37 @@ Deno.serve(async (req) => {
         const isAppStore = latestPayment.payment_method === 'APP_STORE_SUBSCRIPTION';
         const paymentId = latestPayment.stripe_subscription_id || null;
 
+        // Só a assinatura de loja passa pelo RevenueCat; Stripe e manual não têm
+        // subscriber lá e a consulta seria uma ida de rede jogada fora.
+        let estadoLoja = null;
+        if (isAppStore) {
+            const apiKey = Deno.env.get('REVENUECAT_SECRET_KEY');
+            if (apiKey) {
+                // Os dois ids pela mesma razão do syncStoreSubscription: compra
+                // feita antes do corte do AuthContext está gravada sob o User.id.
+                const users = await base44.asServiceRole.entities.User.filter({ email });
+                const idLegado = users && users.length > 0 ? users[0].id : null;
+                const ids = [...new Set([user.id, idLegado].filter(Boolean))];
+                for (const id of ids) {
+                    estadoLoja = await consultarAssinaturaLoja(id, apiKey);
+                    if (estadoLoja) break;
+                }
+            } else {
+                console.error('getUserSubscriptionInfo: REVENUECAT_SECRET_KEY ausente');
+            }
+        }
+
         const subscriptionInfo = {
             amount: latestPayment.amount,
             lastRenewal: lastRenewal.toISOString(),
-            nextRenewal: nextRenewal.toISOString(),
+            // A data da loja é a verdade sobre até quando o acesso vale; os +30
+            // dias só continuam valendo quando não temos resposta do RevenueCat.
+            nextRenewal: estadoLoja?.expiresAt || nextRenewal.toISOString(),
             paymentMethod: isAppStore ? 'APP_STORE_SUBSCRIPTION' : (isStripe ? 'Stripe' : 'Manual'),
-            paymentId: paymentId
+            paymentId: paymentId,
+            // null = não sabemos (Stripe, manual, ou RevenueCat indisponível).
+            // A tela só avisa do cancelamento quando isso é explicitamente false.
+            willRenew: estadoLoja ? estadoLoja.willRenew : null
         };
 
         console.log('✅ Returning subscription info:', subscriptionInfo);

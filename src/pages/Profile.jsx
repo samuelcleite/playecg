@@ -161,7 +161,10 @@ export default function Profile() {
           lastRenewal: new Date(info.lastRenewal),
           nextRenewal: new Date(info.nextRenewal),
           paymentMethod: info.paymentMethod,
-          paymentId: info.paymentId
+          paymentId: info.paymentId,
+          // null quando o backend não sabe (Stripe/manual/RevenueCat fora do ar):
+          // nesse caso a tela mantém o texto de renovação automática.
+          willRenew: info.willRenew ?? null
         });
       } else {
         const startDate = user?.subscription_start_date 
@@ -176,7 +179,8 @@ export default function Profile() {
           lastRenewal: startDate,
           nextRenewal: nextRenewal,
           paymentMethod: 'Manual',
-          paymentId: null
+          paymentId: null,
+          willRenew: null
         });
       }
     } catch (error) {
@@ -191,7 +195,8 @@ export default function Profile() {
         lastRenewal: startDate,
         nextRenewal: nextRenewal,
         paymentMethod: 'Manual',
-        paymentId: null
+        paymentId: null,
+        willRenew: null
       });
     }
   };
@@ -256,6 +261,9 @@ export default function Profile() {
   };
 
   const isPremium = user?.subscription_type === "premium";
+  // Cancelada na loja mas ainda dentro do período pago: o acesso continua até a
+  // data de expiração, e é justamente isso que a tela precisa dizer.
+  const assinaturaCancelada = subscriptionInfo?.willRenew === false;
 
   const nextLevelPoints = (user?.level || 1) * 100;
   const currentLevelProgress = ((user?.points || 0) % 100);
@@ -355,12 +363,14 @@ export default function Profile() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 mb-1">Próxima Renovação</p>
-                      <p className="text-lg font-medium text-gray-900">
-                        {subscriptionInfo.nextRenewal.toLocaleDateString('pt-BR', { 
-                          day: '2-digit', 
-                          month: 'long', 
-                          year: 'numeric' 
+                      <p className="text-sm text-gray-600 mb-1">
+                        {assinaturaCancelada ? 'Acesso Premium até' : 'Próxima Renovação'}
+                      </p>
+                      <p className={`text-lg font-medium ${assinaturaCancelada ? 'text-red-600' : 'text-gray-900'}`}>
+                        {subscriptionInfo.nextRenewal.toLocaleDateString('pt-BR', {
+                          day: '2-digit',
+                          month: 'long',
+                          year: 'numeric'
                         })}
                       </p>
                     </div>
@@ -372,13 +382,29 @@ export default function Profile() {
                     </div>
                   </div>
 
-                  <Alert className="bg-blue-50 border-blue-200 mb-4">
-                    <AlertCircle className="w-5 h-5 text-blue-600" />
-                    <AlertDescription className="text-blue-900 ml-2">
-                      <strong>Renovação Automática:</strong> Sua assinatura será renovada automaticamente todo mês. 
-                      Você pode cancelar a qualquer momento sem multas.
-                    </AlertDescription>
-                  </Alert>
+                  {assinaturaCancelada ? (
+                    <Alert className="bg-red-50 border-red-200 mb-4">
+                      <XCircle className="w-5 h-5 text-red-600" />
+                      <AlertDescription className="text-red-900 ml-2">
+                        <strong>Assinatura cancelada:</strong> a renovação automática foi desligada.
+                        Você continua com acesso Premium até{' '}
+                        {subscriptionInfo.nextRenewal.toLocaleDateString('pt-BR', {
+                          day: '2-digit',
+                          month: 'long',
+                          year: 'numeric'
+                        })}
+                        . Depois dessa data sua conta volta para o plano gratuito.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <Alert className="bg-blue-50 border-blue-200 mb-4">
+                      <AlertCircle className="w-5 h-5 text-blue-600" />
+                      <AlertDescription className="text-blue-900 ml-2">
+                        <strong>Renovação Automática:</strong> Sua assinatura será renovada automaticamente todo mês.
+                        Você pode cancelar a qualquer momento sem multas.
+                      </AlertDescription>
+                    </Alert>
+                  )}
 
                   {subscriptionInfo.paymentMethod === 'Stripe' && subscriptionInfo.paymentId && (
                     <Button
@@ -395,7 +421,9 @@ export default function Profile() {
                     <Alert className="bg-blue-50 border-blue-200">
                       <AlertCircle className="w-5 h-5 text-blue-600" />
                       <AlertDescription className="text-blue-900">
-                        Sua assinatura é gerenciada pela App Store. Para alterar ou cancelar, acesse Ajustes &gt; sua conta Apple &gt; Assinaturas.
+                        {assinaturaCancelada
+                          ? 'Sua assinatura é gerenciada pela App Store. Mudou de ideia? Você pode reativar a renovação em Ajustes > sua conta Apple > Assinaturas.'
+                          : 'Sua assinatura é gerenciada pela App Store. Para alterar ou cancelar, acesse Ajustes > sua conta Apple > Assinaturas.'}
                       </AlertDescription>
                     </Alert>
                   ) : (subscriptionInfo.paymentMethod === 'Manual' || !subscriptionInfo.paymentId) && (
