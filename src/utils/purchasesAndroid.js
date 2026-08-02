@@ -14,19 +14,16 @@ async function loadPurchases() {
   return Purchases;
 }
 
-// Configura o RevenueCat no Android. No-op em qualquer outra plataforma.
-// appUserId DEVE ser o Account.id: é o external_id que o iOS também usa, e o
-// revenuecatWebhook resolve por ele (com fallback para o User.id legado das
-// compras anteriores ao corte). Configurar com outro valor faz a compra
-// completar sem liberar o premium.
-// Teto de tempo para chamadas da ponte nativa. Uma chamada do Capacitor que
-// nunca invoca o callback deixa a promise pendente PARA SEMPRE — e como o
-// configure é memoizado, uma única chamada travada envenena toda compra e todo
-// restore da sessão. Foi exatamente o que travou num tablet Samsung: os dois
-// botões ficaram em "Processando..." sem erro nenhum e sem saída.
+// Teto de tempo para QUALQUER etapa que possa pendurar. Duas coisas aqui podem
+// não responder nunca: o import dinâmico do plugin (rede) e as chamadas da ponte
+// nativa do Capacitor (que simplesmente não invocam o callback em certas
+// falhas). Uma promise pendente para sempre — ainda por cima memoizada, no caso
+// do configure — envenena toda compra e todo restore da sessão. Foi o que
+// travou num tablet Samsung: os dois botões em "Processando..." sem erro, sem
+// saída a não ser fechar o app.
 //
 // Ao estourar, o configurePromise é zerado (ver o .catch abaixo), então a
-// próxima tentativa refaz a chamada do zero em vez de esperar pela morta.
+// tentativa seguinte refaz tudo do zero em vez de esperar pela morta.
 const CONFIGURE_TIMEOUT_MS = 15000;
 
 function comTeto(promise, nome, ms = CONFIGURE_TIMEOUT_MS) {
@@ -41,6 +38,11 @@ function comTeto(promise, nome, ms = CONFIGURE_TIMEOUT_MS) {
   ]);
 }
 
+// Configura o RevenueCat no Android. No-op em qualquer outra plataforma.
+// appUserId DEVE ser o Account.id: é o external_id que o iOS também usa, e o
+// revenuecatWebhook resolve por ele (com fallback para o User.id legado das
+// compras anteriores ao corte). Configurar com outro valor faz a compra
+// completar sem liberar o premium.
 export async function initAndroidPurchases(appUserId) {
   if (!isAndroidNativeApp()) return;
   if (!appUserId) {
@@ -52,7 +54,11 @@ export async function initAndroidPurchases(appUserId) {
 
   if (!configurePromise) {
     configurePromise = (async () => {
-      const Purchases = await loadPurchases();
+      // O import dinâmico também precisa de teto: se o chunk do plugin não
+      // chegar, esta linha pendura ANTES de qualquer chamada nativa, e o teto do
+      // configure abaixo nunca chega a existir. Foi o buraco da primeira versão
+      // deste fix — o sintoma continuou idêntico porque o travamento era aqui.
+      const Purchases = await comTeto(loadPurchases(), "carregar plugin");
       await comTeto(
         Purchases.configure({
           apiKey: RC_ANDROID_KEY,
@@ -105,7 +111,7 @@ export async function purchaseAndroidPlan(plan, appUserId) {
   if (!isAndroidNativeApp()) return PURCHASE_UNAVAILABLE;
 
   await initAndroidPurchases(appUserId);
-  const Purchases = await loadPurchases();
+  const Purchases = await comTeto(loadPurchases(), "carregar plugin");
 
   const offerings = await comTeto(Purchases.getOfferings(), "getOfferings");
   const aPackage = pickPackage(offerings?.current, plan);
@@ -133,7 +139,7 @@ export async function restoreAndroidPurchases(appUserId) {
   if (!isAndroidNativeApp()) return false;
 
   await initAndroidPurchases(appUserId);
-  const Purchases = await loadPurchases();
+  const Purchases = await comTeto(loadPurchases(), "carregar plugin");
 
   const { customerInfo } = await comTeto(
     Purchases.restorePurchases(),
