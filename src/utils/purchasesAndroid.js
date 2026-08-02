@@ -19,20 +19,47 @@ async function loadPurchases() {
 // revenuecatWebhook resolve por ele (com fallback para o User.id legado das
 // compras anteriores ao corte). Configurar com outro valor faz a compra
 // completar sem liberar o premium.
+// Teto de tempo para chamadas da ponte nativa. Uma chamada do Capacitor que
+// nunca invoca o callback deixa a promise pendente PARA SEMPRE — e como o
+// configure é memoizado, uma única chamada travada envenena toda compra e todo
+// restore da sessão. Foi exatamente o que travou num tablet Samsung: os dois
+// botões ficaram em "Processando..." sem erro nenhum e sem saída.
+//
+// Ao estourar, o configurePromise é zerado (ver o .catch abaixo), então a
+// próxima tentativa refaz a chamada do zero em vez de esperar pela morta.
+const CONFIGURE_TIMEOUT_MS = 15000;
+
+function comTeto(promise, nome, ms = CONFIGURE_TIMEOUT_MS) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`RevenueCat: ${nome} não respondeu em ${ms}ms`)),
+        ms
+      )
+    ),
+  ]);
+}
+
 export async function initAndroidPurchases(appUserId) {
   if (!isAndroidNativeApp()) return;
   if (!appUserId) {
-    console.error("RevenueCat: appUserId ausente — configure() abortado");
-    return;
+    // Antes isto era um `return` silencioso, e quem chamava seguia adiante para
+    // um SDK não configurado — onde a ponte nativa pode nunca responder.
+    // Interromper aqui é o comportamento correto: sem id não há compra possível.
+    throw new Error("RevenueCat: appUserId ausente — configure() abortado");
   }
 
   if (!configurePromise) {
     configurePromise = (async () => {
       const Purchases = await loadPurchases();
-      await Purchases.configure({
-        apiKey: RC_ANDROID_KEY,
-        appUserID: String(appUserId),
-      });
+      await comTeto(
+        Purchases.configure({
+          apiKey: RC_ANDROID_KEY,
+          appUserID: String(appUserId),
+        }),
+        "configure"
+      );
     })().catch((error) => {
       // Libera o guard para permitir nova tentativa numa chamada posterior.
       configurePromise = null;
@@ -80,13 +107,15 @@ export async function purchaseAndroidPlan(plan, appUserId) {
   await initAndroidPurchases(appUserId);
   const Purchases = await loadPurchases();
 
-  const offerings = await Purchases.getOfferings();
+  const offerings = await comTeto(Purchases.getOfferings(), "getOfferings");
   const aPackage = pickPackage(offerings?.current, plan);
   // Offering vazio/sem o plano: esperado enquanto os produtos não existem no
   // Play Console. Retorna em vez de lançar.
   if (!aPackage) return PURCHASE_UNAVAILABLE;
 
   try {
+    // Sem teto de tempo aqui, de propósito: a pessoa pode levar minutos
+    // legitimamente na folha de pagamento do Google Play.
     const { customerInfo } = await Purchases.purchasePackage({ aPackage });
     return hasEntitlement(customerInfo) ? PURCHASE_SUCCESS : PURCHASE_PENDING;
   } catch (error) {
@@ -106,6 +135,9 @@ export async function restoreAndroidPurchases(appUserId) {
   await initAndroidPurchases(appUserId);
   const Purchases = await loadPurchases();
 
-  const { customerInfo } = await Purchases.restorePurchases();
+  const { customerInfo } = await comTeto(
+    Purchases.restorePurchases(),
+    "restorePurchases"
+  );
   return hasEntitlement(customerInfo);
 }

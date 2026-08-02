@@ -206,7 +206,6 @@ export default function Upgrade() {
           await window.iapSuccess();
           return;
         }
-        setProcessing(false);
         if (result === PURCHASE_CANCELLED) return; // usuário desistiu: sem diálogo
         setErrorDialog({
           open: true,
@@ -218,13 +217,18 @@ export default function Upgrade() {
         });
       } catch (error) {
         console.error("Erro ao iniciar compra Android:", error);
-        setProcessing(false);
         setErrorDialog({
           open: true,
           title: 'Erro ao Iniciar Compra',
-          message: error?.message || "Não foi possível iniciar a compra. Tente novamente.",
-          details: ''
+          message: "Não foi possível iniciar a compra. Tente novamente.",
+          // A mensagem crua vai para details de propósito: sem acesso ao console
+          // do aparelho, esta é a única forma de diagnosticar em campo.
+          details: error?.message || String(error)
         });
+      } finally {
+        // Sem este finally, qualquer caminho que não passe pelos returns acima
+        // deixa os dois botões desabilitados para sempre.
+        setProcessing(false);
       }
       return;
     }
@@ -283,7 +287,6 @@ export default function Upgrade() {
           await window.iapSuccess();
           return;
         }
-        setProcessing(false);
         setErrorDialog({
           open: true,
           title: 'Nenhuma Compra Encontrada',
@@ -292,13 +295,15 @@ export default function Upgrade() {
         });
       } catch (error) {
         console.error("Erro ao restaurar compras Android:", error);
-        setProcessing(false);
         setErrorDialog({
           open: true,
           title: 'Erro ao Restaurar Compras',
-          message: error?.message || "Não foi possível restaurar suas compras. Tente novamente.",
-          details: ''
+          message: "Não foi possível restaurar suas compras. Tente novamente.",
+          // Mensagem crua para diagnóstico em campo — ver o mesmo em handleUpgrade.
+          details: error?.message || String(error)
         });
+      } finally {
+        setProcessing(false);
       }
       return;
     }
@@ -752,6 +757,15 @@ export default function Upgrade() {
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-4">
               <p className="text-base text-gray-900">{errorDialog.message}</p>
+              {/* Detalhe técnico. Existe porque em app nativo não há console
+                  acessível: sem isto, uma falha de compra no aparelho de outra
+                  pessoa é indiagnosticável. Discreto de propósito — serve para
+                  ser lido em voz alta ou fotografado, não para assustar. */}
+              {errorDialog.details && (
+                <p className="text-xs text-gray-500 font-mono break-words border-t border-gray-200 pt-3">
+                  {errorDialog.details}
+                </p>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
