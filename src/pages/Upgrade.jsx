@@ -484,10 +484,13 @@ export default function Upgrade() {
                 </button>
               </div>
 
-              {/* Coupon Section — oculto no app iOS nativo: o desconto é
-                  concedido fora do IAP (exigência da Apple, Guideline 3.1.1).
-                  Na web (Stripe) permanece inalterado. */}
-              {!isIOSNativeApp() && (
+              {/* Coupon Section — oculto nos DOIS apps nativos: o desconto é
+                  concedido fora da compra da loja, o que a Apple proíbe
+                  (Guideline 3.1.1) e o Google também, pela política de
+                  pagamentos para bens digitais. No Android o cupom nem chegava a
+                  funcionar: ele desconta no checkout do Stripe, e o app Android
+                  não passa por lá. Na web permanece inalterado. */}
+              {!isIOSNativeApp() && !isAndroid && (
                 <div className="mb-6 p-4 bg-white rounded-lg border-2 border-blue-200">
                   <div className="flex items-center gap-2 mb-3">
                     <Tag className="w-5 h-5 text-amber-600" />
