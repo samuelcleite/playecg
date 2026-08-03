@@ -100,6 +100,19 @@ async function resolveIdentity(req, base44) {
 
 const LOJAS_NAO_APP = ['stripe', 'promotional'];
 
+// Só o revenuecatWebhook cria Payment com estes valores. Dois porque o webhook
+// passou a distinguir a loja; os Payments do iOS já gravados seguem com o
+// rótulo antigo para sempre (não há backfill), então ler os dois é permanente.
+const METODOS_DE_LOJA = ['APP_STORE_SUBSCRIPTION', 'PLAY_STORE_SUBSCRIPTION'];
+
+// O subscriber v1 do RevenueCat devolve o store em minúsculas.
+function lojaDoRevenueCat(s) {
+  const v = (s || '').toUpperCase();
+  if (v === 'PLAY_STORE') return 'PLAY_STORE';
+  if (v === 'APP_STORE' || v === 'MAC_APP_STORE') return 'APP_STORE';
+  return null;
+}
+
 // Pergunta ao RevenueCat o estado REAL da assinatura de loja deste usuário.
 //
 // POR QUE EXISTE: o revenuecatWebhook, de propósito, NÃO trata CANCELLATION —
@@ -215,6 +228,7 @@ Deno.serve(async (req) => {
                         lastRenewal: startDate.toISOString(),
                         nextRenewal: nextRenewal.toISOString(),
                         paymentMethod: 'Manual',
+                        store: null,
                         paymentId: null
                     }
                 });
@@ -241,16 +255,17 @@ Deno.serve(async (req) => {
 
         // Detectar se é Stripe
         const isStripe = latestPayment.payment_method === 'STRIPE_SUBSCRIPTION' || !!latestPayment.stripe_subscription_id;
-        // Assinaturas da App Store (RevenueCat) não têm stripe_subscription_id e
-        // precisam ser distinguidas do fallback 'Manual', senão a tela de Perfil
-        // manda o assinante falar com o suporte em vez de cancelar na Apple.
-        const isAppStore = latestPayment.payment_method === 'APP_STORE_SUBSCRIPTION';
+        // Assinaturas de loja (RevenueCat, App Store ou Google Play) não têm
+        // stripe_subscription_id e precisam ser distinguidas do fallback
+        // 'Manual', senão a tela de Perfil manda o assinante falar com o suporte
+        // em vez de cancelar na loja.
+        const isLoja = METODOS_DE_LOJA.includes(latestPayment.payment_method);
         const paymentId = latestPayment.stripe_subscription_id || null;
 
         // Só a assinatura de loja passa pelo RevenueCat; Stripe e manual não têm
         // subscriber lá e a consulta seria uma ida de rede jogada fora.
         let estadoLoja = null;
-        if (isAppStore) {
+        if (isLoja) {
             const apiKey = Deno.env.get('REVENUECAT_SECRET_KEY');
             if (apiKey) {
                 // Os dois ids pela mesma razão do syncStoreSubscription: compra
@@ -267,13 +282,27 @@ Deno.serve(async (req) => {
             }
         }
 
+        // QUAL loja. O RevenueCat é a fonte melhor: ele acerta até quem comprou
+        // no Android ANTES do webhook distinguir, cujo Payment está gravado como
+        // App Store — sem reescrever histórico. Sem resposta dele, vale o que
+        // está no Payment.
+        const store = isLoja
+            ? (lojaDoRevenueCat(estadoLoja?.store)
+               || (latestPayment.payment_method === 'PLAY_STORE_SUBSCRIPTION' ? 'PLAY_STORE' : 'APP_STORE'))
+            : null;
+
         const subscriptionInfo = {
             amount: latestPayment.amount,
             lastRenewal: lastRenewal.toISOString(),
             // A data da loja é a verdade sobre até quando o acesso vale; os +30
             // dias só continuam valendo quando não temos resposta do RevenueCat.
             nextRenewal: estadoLoja?.expiresAt || nextRenewal.toISOString(),
-            paymentMethod: isAppStore ? 'APP_STORE_SUBSCRIPTION' : (isStripe ? 'Stripe' : 'Manual'),
+            // 'APP_STORE_SUBSCRIPTION' aqui significa "compra de loja", não
+            // "Apple": é o discriminador que os clientes já instalados comparam.
+            // Trocá-lo por loja jogaria o assinante Android com cache antigo no
+            // ramo 'Manual' ("fale com o suporte"). Quem diz a loja é `store`.
+            paymentMethod: isLoja ? 'APP_STORE_SUBSCRIPTION' : (isStripe ? 'Stripe' : 'Manual'),
+            store,
             paymentId: paymentId,
             // null = não sabemos (Stripe, manual, ou RevenueCat indisponível).
             // A tela só avisa do cancelamento quando isso é explicitamente false.

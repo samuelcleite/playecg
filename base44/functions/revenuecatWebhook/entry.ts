@@ -64,6 +64,16 @@ Deno.serve(async (req) => {
         });
 
         if (BILLABLE.includes(type)) {
+          // O RevenueCat manda a loja em `event.store`. Só APP_STORE e
+          // PLAY_STORE viram rótulo próprio: qualquer outra coisa (campo
+          // ausente, AMAZON, TEST_STORE...) cai no rótulo histórico da App
+          // Store, que é o que TODOS os leitores já tratam. Inventar um
+          // terceiro valor aqui deixaria o Payment invisível para
+          // getUserSubscriptionInfo e para a checagem de exclusão de conta.
+          const paymentMethod = event.store === 'PLAY_STORE'
+            ? 'PLAY_STORE_SUBSCRIPTION'
+            : 'APP_STORE_SUBSCRIPTION';
+
           // O premium já foi concedido acima. Se o registro de Payment falhar,
           // apenas logamos: retornar erro faria o RevenueCat re-tentar o evento
           // inteiro sem necessidade.
@@ -74,11 +84,11 @@ Deno.serve(async (req) => {
               amount: event.price_in_purchased_currency ?? 0,
               discount_amount: 0,
               status: 'PAID',
-              payment_method: 'APP_STORE_SUBSCRIPTION',
+              payment_method: paymentMethod,
               paid_at: new Date().toISOString()
             });
           } catch (paymentError) {
-            console.error('Erro ao criar Payment do App Store:', paymentError.message);
+            console.error('Erro ao criar Payment de loja:', paymentError.message);
           }
         }
       }
