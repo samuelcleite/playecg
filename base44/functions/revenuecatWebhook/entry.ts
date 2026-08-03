@@ -30,7 +30,9 @@ Deno.serve(async (req) => {
     // oferece alias pelo caminho que o Despia expõe. Resolvemos pelos dois.
     const appUserId = event.app_user_id;
 
-    console.log('📩 RevenueCat event:', type, 'user:', appUserId);
+    // `store` no log: é o campo que decide o payment_method logo abaixo, e sem
+    // isso só dá para conferir se ele chegou olhando o Payment já gravado.
+    console.log('📩 RevenueCat event:', type, 'store:', event.store, 'user:', appUserId);
     if (!appUserId) return Response.json({ received: true });
 
     // Resolve o app_user_id até a Account, que passa a ser o registro de escrita.
