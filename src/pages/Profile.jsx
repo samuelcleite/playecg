@@ -421,9 +421,17 @@ export default function Profile() {
                     <Alert className="bg-blue-50 border-blue-200">
                       <AlertCircle className="w-5 h-5 text-blue-600" />
                       <AlertDescription className="text-blue-900">
+                        {/* Texto neutro entre as lojas de propósito. O
+                            payment_method gravado é APP_STORE_SUBSCRIPTION para
+                            QUALQUER compra de loja, inclusive Google Play — o
+                            revenuecatWebhook não distingue. Até isso ser
+                            corrigido no backend, dizer "App Store" aqui manda o
+                            assinante Android para os Ajustes da Apple. E nem a
+                            plataforma em uso serve de pista: quem assinou no
+                            iPhone pode abrir o app Android com a mesma conta. */}
                         {assinaturaCancelada
-                          ? 'Sua assinatura é gerenciada pela App Store. Mudou de ideia? Você pode reativar a renovação em Ajustes > sua conta Apple > Assinaturas.'
-                          : 'Sua assinatura é gerenciada pela App Store. Para alterar ou cancelar, acesse Ajustes > sua conta Apple > Assinaturas.'}
+                          ? 'Sua assinatura é gerenciada pela loja onde você assinou. Mudou de ideia? Você pode reativar a renovação na área de Assinaturas da App Store ou da Google Play.'
+                          : 'Sua assinatura é gerenciada pela loja onde você assinou. Para alterar ou cancelar, acesse a área de Assinaturas na App Store ou na Google Play.'}
                       </AlertDescription>
                     </Alert>
                   ) : (subscriptionInfo.paymentMethod === 'Manual' || !subscriptionInfo.paymentId) && (

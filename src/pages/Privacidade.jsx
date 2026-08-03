@@ -8,8 +8,10 @@ const SECTIONS = [
     title: "Dados que coletamos",
     items: [
       "Dados de cadastro: nome e e-mail, fornecidos no login (incluindo login via Google e Sign in with Apple).",
+      "Dados de perfil, quando você os informa: especialidade, país, estado e cidade.",
       "Dados de uso: progresso nos módulos, resultados de quizzes, pontuação e conquistas, para viabilizar as funcionalidades do app.",
-      "Dados de assinatura: informações sobre seu plano e status de assinatura, processadas por nossos parceiros de pagamento (Stripe, na web; Apple, no iOS). Não armazenamos dados de cartão de crédito.",
+      "Dados de assinatura: informações sobre seu plano e status de assinatura, processadas por nossos parceiros de pagamento (Stripe, na web; Apple, no iOS; Google Play, no Android). Não armazenamos dados de cartão de crédito.",
+      "Notificações: se você autorizar o envio de notificações, guardamos o identificador de inscrição do seu navegador ou aparelho, usado apenas para entregá-las.",
     ],
   },
   {
@@ -21,7 +23,7 @@ const SECTIONS = [
   {
     title: "Compartilhamento",
     paragraphs: [
-      "Não vendemos seus dados. Compartilhamos dados apenas com provedores necessários ao funcionamento do serviço (por exemplo, provedor de infraestrutura, Stripe, Apple e RevenueCat para gestão de assinaturas).",
+      "Não vendemos seus dados. Compartilhamos dados apenas com provedores necessários ao funcionamento do serviço (por exemplo, provedor de infraestrutura, Stripe, Apple, Google e RevenueCat para gestão de assinaturas).",
     ],
   },
   {
@@ -93,7 +95,7 @@ export default function Privacidade() {
               Política de Privacidade
             </h1>
             <p className="text-sm text-gray-500">
-              Última atualização: 8 de julho de 2026
+              Última atualização: 2 de agosto de 2026
             </p>
           </div>
         </div>

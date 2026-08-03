@@ -341,9 +341,15 @@ export default function Upgrade() {
     }
   };
 
-  // No app iOS a compra é processada pela App Store (StoreKit/RevenueCat),
-  // não pelo Stripe — os textos de pagamento variam por plataforma.
+  // Em app nativo a compra é processada pela loja (RevenueCat sobre StoreKit no
+  // iOS, sobre Play Billing no Android), não pelo Stripe. Os textos precisam
+  // acompanhar: dizer "Stripe" dentro do app Android não é só impreciso — a
+  // política de pagamentos do Google proíbe indicar pagamento externo para bens
+  // digitais, do mesmo jeito que a da Apple. `loja` é null só na web.
   const isIOS = isIOSNativeApp();
+  const isAndroid = isAndroidNativeApp();
+  const loja = isIOS ? "App Store" : isAndroid ? "Google Play" : null;
+  const donoDaLoja = isIOS ? "Apple" : "Google";
 
   const originalPrice = selectedPlan === "annual" ? 499 : 59;
   const finalPrice = appliedCoupon?.pricing?.final_price || originalPrice;
@@ -564,18 +570,18 @@ export default function Upgrade() {
                   <div className="space-y-2">
                     <p className="font-semibold flex items-center gap-2">
                       <CreditCard className="w-4 h-4" />
-                      {isIOS
-                        ? "Pagamento Seguro pela App Store"
+                      {loja
+                        ? `Pagamento Seguro pela ${loja}`
                         : "Pagamento Seguro com Stripe"}
                     </p>
                     <p className="text-sm">
-                      {isIOS
-                        ? "A compra será processada com segurança pela App Store."
+                      {loja
+                        ? `A compra será processada com segurança pela ${loja}.`
                         : "Você será redirecionado para a página segura do Stripe. Aceita os principais cartões de crédito e débito."}
                     </p>
                     <p className="text-xs font-semibold text-blue-700">
-                      {isIOS
-                        ? "🔒 Pagamento seguro via App Store"
+                      {loja
+                        ? `🔒 Pagamento seguro via ${loja}`
                         : "🔒 Pagamento seguro via Stripe"}
                     </p>
                   </div>
@@ -601,8 +607,8 @@ export default function Upgrade() {
               </Button>
               <p className="text-center text-sm text-gray-600 mt-4 flex items-center justify-center gap-2">
                 <CheckCircle2 className="w-4 h-4" />
-                {isIOS
-                  ? "Compra processada com segurança pela App Store"
+                {loja
+                  ? `Compra processada com segurança pela ${loja}`
                   : "Checkout 100% seguro processado pelo Stripe"}
               </p>
 
@@ -738,8 +744,8 @@ export default function Upgrade() {
                 O pagamento é seguro?
               </h4>
               <p className="text-gray-600">
-                {isIOS
-                  ? "Completamente! Utilizamos o sistema de pagamentos da App Store. Seus dados de pagamento são processados diretamente pela Apple e nunca passam pelos nossos servidores."
+                {loja
+                  ? `Completamente! Utilizamos o sistema de pagamentos da ${loja}. Seus dados de pagamento são processados diretamente pela ${donoDaLoja} e nunca passam pelos nossos servidores.`
                   : "Completamente! Utilizamos o Stripe, uma das maiores plataformas de pagamento do mundo. Seus dados de pagamento são processados diretamente pelo Stripe e nunca passam pelos nossos servidores."}
               </p>
             </div>
