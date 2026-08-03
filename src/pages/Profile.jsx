@@ -44,6 +44,33 @@ import {
 import { motion } from "framer-motion";
 import { clearToken } from "@/lib/customAuth";
 
+// Instrução de cancelamento por loja. `store` ausente => texto neutro: acontece
+// com resposta de backend anterior ao campo ou quando o RevenueCat não respondeu.
+// Nunca chutar a loja — quem assinou no iPhone abre o app Android com a mesma conta.
+function instrucaoDaLoja(store, cancelada) {
+  if (store === 'APP_STORE') {
+    return cancelada
+      ? 'Sua assinatura é gerenciada pela App Store. Mudou de ideia? Você pode reativar a renovação em Ajustes > sua conta Apple > Assinaturas.'
+      : 'Sua assinatura é gerenciada pela App Store. Para alterar ou cancelar, acesse Ajustes > sua conta Apple > Assinaturas.';
+  }
+  if (store === 'PLAY_STORE') {
+    return cancelada
+      ? 'Sua assinatura é gerenciada pelo Google Play. Mudou de ideia? Você pode reativar a renovação na Play Store > Pagamentos e assinaturas > Assinaturas.'
+      : 'Sua assinatura é gerenciada pelo Google Play. Para alterar ou cancelar, acesse a Play Store > Pagamentos e assinaturas > Assinaturas.';
+  }
+  return cancelada
+    ? 'Sua assinatura é gerenciada pela loja onde você assinou. Mudou de ideia? Você pode reativar a renovação na área de Assinaturas da App Store ou da Google Play.'
+    : 'Sua assinatura é gerenciada pela loja onde você assinou. Para alterar ou cancelar, acesse a área de Assinaturas na App Store ou na Google Play.';
+}
+
+// Rótulo da linha "Forma de Pagamento". Sem `store`, não dá para nomear a loja.
+function rotuloDaFormaDePagamento(paymentMethod, store) {
+  if (paymentMethod !== 'APP_STORE_SUBSCRIPTION') return paymentMethod;
+  if (store === 'APP_STORE') return 'App Store';
+  if (store === 'PLAY_STORE') return 'Google Play';
+  return 'App Store / Google Play';
+}
+
 export default function Profile() {
   const [user, setUser] = useState(null);
   const [streakDays, setStreakDays] = useState(0);
@@ -161,6 +188,9 @@ export default function Profile() {
           lastRenewal: new Date(info.lastRenewal),
           nextRenewal: new Date(info.nextRenewal),
           paymentMethod: info.paymentMethod,
+          // 'APP_STORE' | 'PLAY_STORE' | null. null quando o backend não soube
+          // dizer a loja (ou é uma resposta anterior a este campo).
+          store: info.store ?? null,
           paymentId: info.paymentId,
           // null quando o backend não sabe (Stripe/manual/RevenueCat fora do ar):
           // nesse caso a tela mantém o texto de renovação automática.
@@ -377,7 +407,7 @@ export default function Profile() {
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Forma de Pagamento</p>
                       <p className="text-lg font-medium text-gray-900">
-                        {subscriptionInfo.paymentMethod}
+                        {rotuloDaFormaDePagamento(subscriptionInfo.paymentMethod, subscriptionInfo.store)}
                       </p>
                     </div>
                   </div>
@@ -421,17 +451,11 @@ export default function Profile() {
                     <Alert className="bg-blue-50 border-blue-200">
                       <AlertCircle className="w-5 h-5 text-blue-600" />
                       <AlertDescription className="text-blue-900">
-                        {/* Texto neutro entre as lojas de propósito. O
-                            payment_method gravado é APP_STORE_SUBSCRIPTION para
-                            QUALQUER compra de loja, inclusive Google Play — o
-                            revenuecatWebhook não distingue. Até isso ser
-                            corrigido no backend, dizer "App Store" aqui manda o
-                            assinante Android para os Ajustes da Apple. E nem a
-                            plataforma em uso serve de pista: quem assinou no
-                            iPhone pode abrir o app Android com a mesma conta. */}
-                        {assinaturaCancelada
-                          ? 'Sua assinatura é gerenciada pela loja onde você assinou. Mudou de ideia? Você pode reativar a renovação na área de Assinaturas da App Store ou da Google Play.'
-                          : 'Sua assinatura é gerenciada pela loja onde você assinou. Para alterar ou cancelar, acesse a área de Assinaturas na App Store ou na Google Play.'}
+                        {/* paymentMethod === 'APP_STORE_SUBSCRIPTION' significa
+                            "compra de loja", não "Apple": é o discriminador
+                            legado, mantido para não jogar cliente em cache no
+                            ramo 'Manual'. Quem diz a loja é `store`. */}
+                        {instrucaoDaLoja(subscriptionInfo.store, assinaturaCancelada)}
                       </AlertDescription>
                     </Alert>
                   ) : (subscriptionInfo.paymentMethod === 'Manual' || !subscriptionInfo.paymentId) && (

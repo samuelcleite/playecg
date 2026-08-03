@@ -188,7 +188,7 @@ async function checkOneSubscriber(appUserId) {
 // FAIL CLOSED em três situações:
 //   - qualquer consulta incerta (rede, status, JSON, loja indeterminável);
 //   - qualquer id com entitlement de loja ativo;
-//   - existe compra de App Store nos nossos registros e NENHUM dos ids é conhecido pelo
+//   - existe compra de loja nos nossos registros e NENHUM dos ids é conhecido pelo
 //     RevenueCat — sinal de que estamos perguntando pelo id errado, não de que não há
 //     assinatura. Sem isso, esta função autorizaria excluir conta com assinatura ATIVA.
 async function checkActiveStoreSubscription(appUserIds, hadStorePurchase) {
@@ -215,7 +215,7 @@ async function checkActiveStoreSubscription(appUserIds, hadStorePurchase) {
 
     if (hadStorePurchase && !algumHistorico) {
         console.error(
-            'deleteUserAccount: existe Payment de App Store mas o RevenueCat não conhece nenhum dos ids:',
+            'deleteUserAccount: existe Payment de loja mas o RevenueCat não conhece nenhum dos ids:',
             ids.join(', ')
         );
         return { error: true };
@@ -308,14 +308,23 @@ Deno.serve(async (req) => {
         const user = users && users.length > 0 ? users[0] : null;
 
         // 1) Assinatura de loja ativa → BLOQUEAR antes de apagar qualquer coisa.
-        // Sinal local de compra na loja: só o revenuecatWebhook cria Payment com este
+        // Sinal local de compra na loja: só o revenuecatWebhook cria Payment com estes
         // payment_method. Deliberadamente NÃO usamos subscription_type === 'premium' aqui:
         // assinante de Stripe e upgrade manual também são premium e nunca existiram no
         // RevenueCat — bloqueá-los quebraria a exclusão de conta exigida pela Apple.
-        const storePayments = await base44.asServiceRole.entities.Payment.filter({
-            user_email: userEmail,
-            payment_method: 'APP_STORE_SUBSCRIPTION'
-        });
+        // Duas consultas em vez de um match por lista: o operador $in entrou no
+        // Base44 depois da versão de SDK que esta função fixa, e um $in ignorado
+        // em silêncio devolveria lista VAZIA — desligando esta rede de segurança
+        // sem erro nenhum. Caminho de conformidade: prefere uma ida de rede a
+        // mais. Os dois valores são permanentes (iOS antigo nunca é reescrito).
+        const storePayments = [];
+        for (const metodo of ['APP_STORE_SUBSCRIPTION', 'PLAY_STORE_SUBSCRIPTION']) {
+            const linhas = await base44.asServiceRole.entities.Payment.filter({
+                user_email: userEmail,
+                payment_method: metodo
+            });
+            if (linhas && linhas.length > 0) storePayments.push(...linhas);
+        }
         // Ids candidatos no RevenueCat: o User.id (usado por toda compra até hoje) e o
         // Account.id (usado depois do corte do AuthContext). Consultar os dois cobre a
         // transição inteira sem depender de qual fase estamos.
