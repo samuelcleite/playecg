@@ -1,3 +1,4 @@
+import { Purchases } from "@revenuecat/purchases-capacitor";
 import { RC_ANDROID_KEY, RC_ENTITLEMENT, isAndroidNativeApp } from "./platform";
 
 // O configure() do RevenueCat só pode rodar uma vez por sessão. Guardamos a
@@ -6,13 +7,21 @@ import { RC_ANDROID_KEY, RC_ENTITLEMENT, isAndroidNativeApp } from "./platform";
 // concluir.
 let configurePromise = null;
 
-// Carrega o plugin nativo sob demanda. O import é dinâmico de propósito: um
-// import estático colocaria o SDK do RevenueCat no bundle que roda em
-// playecg.app e dentro do Despia (iOS), onde ele nunca é usado.
-async function loadPurchases() {
-  const { Purchases } = await import("@revenuecat/purchases-capacitor");
-  return Purchases;
-}
+// O import do plugin é ESTÁTICO, e isso foi uma correção, não um descuido.
+//
+// A versão original usava import() dinâmico para manter o RevenueCat fora do
+// bundle que roda em playecg.app e dentro do Despia. A premissa estava errada: o
+// SDK de verdade é nativo (Kotlin, dentro do APK), e o que o import traz é só a
+// casca JavaScript — 7 KB de constantes de enum e proxies de método.
+//
+// Em troca desses 7 KB, o import dinâmico introduzia uma requisição de rede no
+// meio do fluxo de compra. Num tablet Samsung ela pendurava indefinidamente, com
+// o chunk servido corretamente pelo servidor (HTTP 200, MIME certo, topo de
+// módulo síncrono) — causa nunca identificada. Estático, a etapa deixa de
+// existir: o módulo já está carregado quando a tela abre.
+//
+// Importar não ativa nada fora do Android: registerPlugin apenas cria um proxy,
+// e a implementação web continua atrás de import preguiçoso do próprio plugin.
 
 // Teto de tempo para QUALQUER etapa que possa pendurar. Duas coisas aqui podem
 // não responder nunca: o import dinâmico do plugin (rede) e as chamadas da ponte
@@ -54,11 +63,6 @@ export async function initAndroidPurchases(appUserId) {
 
   if (!configurePromise) {
     configurePromise = (async () => {
-      // O import dinâmico também precisa de teto: se o chunk do plugin não
-      // chegar, esta linha pendura ANTES de qualquer chamada nativa, e o teto do
-      // configure abaixo nunca chega a existir. Foi o buraco da primeira versão
-      // deste fix — o sintoma continuou idêntico porque o travamento era aqui.
-      const Purchases = await comTeto(loadPurchases(), "carregar plugin");
       await comTeto(
         Purchases.configure({
           apiKey: RC_ANDROID_KEY,
@@ -111,8 +115,6 @@ export async function purchaseAndroidPlan(plan, appUserId) {
   if (!isAndroidNativeApp()) return PURCHASE_UNAVAILABLE;
 
   await initAndroidPurchases(appUserId);
-  const Purchases = await comTeto(loadPurchases(), "carregar plugin");
-
   const offerings = await comTeto(Purchases.getOfferings(), "getOfferings");
   const aPackage = pickPackage(offerings?.current, plan);
   // Offering vazio/sem o plano: esperado enquanto os produtos não existem no
@@ -139,8 +141,6 @@ export async function restoreAndroidPurchases(appUserId) {
   if (!isAndroidNativeApp()) return false;
 
   await initAndroidPurchases(appUserId);
-  const Purchases = await comTeto(loadPurchases(), "carregar plugin");
-
   const { customerInfo } = await comTeto(
     Purchases.restorePurchases(),
     "restorePurchases"
