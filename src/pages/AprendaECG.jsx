@@ -173,15 +173,11 @@ export default function AprendaECG() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-amber-600 font-bold">✓</span>
-                  <span>Explicações detalhadas de cada fase</span>
+                  <span>Acesso à teoria antes de cada fase</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-amber-600 font-bold">✓</span>
-                  <span>Trilha de aprendizado progressiva</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-amber-600 font-bold">✓</span>
-                  <span>Gamificação e conquistas avançadas</span>
+                  <span>Do básico ao avançado, em ordem</span>
                 </li>
               </ul>
             </div>

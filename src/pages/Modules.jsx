@@ -11,8 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Trophy,
-  Zap,
   Sparkles,
   BookOpen,
   Lightbulb,
@@ -36,7 +34,6 @@ export default function Modules() {
   const [progress, setProgress] = useState({});
   const [introContent, setIntroContent] = useState(null);
   const [showIntroDialog, setShowIntroDialog] = useState(false);
-  const [overallAccuracy, setOverallAccuracy] = useState(0);
   const [isTrailLoading, setIsTrailLoading] = useState(true);
   const containerRef = useRef(null);
 
@@ -90,11 +87,8 @@ export default function Modules() {
       setIsTrailLoading(false); // a trilha já pode aparecer aqui
 
       // --- SECUNDÁRIO: não bloqueia a trilha, preenche os banners depois ---
-      base44.functions
-        .invoke("getUserStats", {})
-        .then((statsRes) => setOverallAccuracy(statsRes?.data?.moduleAccuracy ?? 0))
-        .catch((err) => console.error("getUserStats:", err));
-
+      // A chamada a getUserStats saiu junto com o banner de estatísticas: era
+      // o único consumidor dela nesta tela.
       base44.entities.Content.list()
         .then((contentsData) => {
           const intro = contentsData.find((c) => !c.module_id && !c.phase_id);
@@ -126,42 +120,15 @@ export default function Modules() {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Trilha de Aprendizado
+            Módulos
           </h1>
           <p className="text-gray-600 text-lg">
             Progrida pelos módulos e torne-se um especialista em ECG
           </p>
         </div>
 
-        {/* Stats Banner */}
-        <div className="grid md:grid-cols-2 gap-6 mb-12">
-          <Card className="border-none shadow-lg bg-[#0D3B66]">
-            <CardContent className="p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm opacity-90">Módulos Completos</p>
-                  <p className="text-3xl font-bold mt-1">
-                    {Object.values(progress).filter((p) => p?.completed).length}/
-                    {modules?.length || 0}
-                  </p>
-                </div>
-                <Trophy className="w-12 h-12 opacity-80" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-lg bg-[#1976D2]">
-            <CardContent className="p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm opacity-90">Taxa de Acerto</p>
-                  <p className="text-3xl font-bold mt-1">{overallAccuracy}%</p>
-                </div>
-                <Zap className="w-12 h-12 opacity-80" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Banner de estatísticas removido (Módulos Completos / Taxa de
+            Acerto): mesmo motivo dos outros blocos de estatística. */}
 
         {/* Introduction Section */}
         {introContent && (

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { signInWithGoogle, getToken, clearToken } from "@/lib/customAuth";
 import { withNativeReturnMarker } from "@/utils/nativeOAuth";
 import { signInWithApple } from "@/lib/appleAuth";
+import { isAppleDevice } from "@/utils/platform";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -124,8 +125,57 @@ export default function Home() {
     "Acesso a todos os casos clínicos, de maneira aleatória"
   ];
 
+  // O botão da Apple só aparece onde ele funciona e onde a Apple exige que
+  // exista: aparelho Apple. No Android/desktop ele só ocuparia espaço.
+  const mostrarApple = isAppleDevice();
+
   return (
-    <div className="min-h-screen bg-[#0D3B66]">
+    <>
+    {/* ══════════ MOBILE: landing enxuta, só login ══════════
+        Sem vitrine de planos, sem features, sem CTA que rola a página: quem
+        abre o app cai direto na escolha de provedor. Os dois botões quebrados
+        ("Assinar Premium" ia para uma rota protegida e voltava para cá;
+        "Começar Gratuitamente" só dava scrollTo) deixaram de existir. */}
+    <div className="md:hidden min-h-screen bg-[#0D3B66] flex flex-col justify-center px-6 py-10" style={{ paddingTop: 'calc(2.5rem + env(safe-area-inset-top, 0px))', paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom, 0px))' }}>
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm mx-auto text-center">
+        <img
+          src="https://media.base44.com/images/public/68e28688c6f4ec5cd17e317d/88192cd50_903B5817-5009-4B34-8478-509B00A9C6B8.png"
+          alt="PlayECG"
+          className="w-20 h-20 rounded-3xl shadow-2xl mx-auto mb-6"
+        />
+        <h1 className="text-2xl font-bold text-white leading-snug mb-10">
+          Aprenda ECG enquanto joga com mais de 1200 exames disponíveis
+        </h1>
+
+        <div className="flex flex-col gap-3">
+          <Button
+            onClick={entrarComGoogle}
+            disabled={!!entrando}
+            size="lg"
+            className="bg-[#22C55E] hover:bg-green-600 text-white text-base py-6 shadow-xl font-semibold w-full"
+          >
+            {entrando === 'google' ? 'Abrindo...' : 'Continuar com Google'}
+          </Button>
+          {mostrarApple && (
+            <Button
+              onClick={entrarComApple}
+              disabled={!!entrando}
+              size="lg"
+              variant="outline"
+              className="bg-white text-[#0D3B66] border-white hover:bg-gray-100 text-base py-6 shadow-xl font-semibold w-full"
+            >
+              {entrando === 'apple' ? 'Abrindo...' : 'Continuar com Apple'}
+            </Button>
+          )}
+          {erroLogin && (
+            <p className="text-sm text-red-300 text-center mt-1">{erroLogin}</p>
+          )}
+        </div>
+      </motion.div>
+    </div>
+
+    {/* ══════════ DESKTOP: landing completa (web), inalterada ══════════ */}
+    <div className="hidden md:block min-h-screen bg-[#0D3B66]">
       {/* Header */}
       <header className="bg-[#0D3B66] border-b border-blue-800 sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -255,12 +305,16 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              <Link to={createPageUrl("Upgrade")}>
-                <Button className="bg-[#22C55E] hover:bg-green-600 text-white gap-2 px-8 py-3 text-base shadow-lg font-semibold">
-                  <Crown className="w-5 h-5" />
-                  Assinar Premium
-                </Button>
-              </Link>
+              {/* Levava para /Upgrade, que é rota protegida: o visitante
+                  deslogado era redirecionado de volta para cá e parecia que o
+                  botão não fazia nada. Sem sessão, o passo é o login. */}
+              <Button
+                onClick={irParaEscolhaDeLogin}
+                className="bg-[#22C55E] hover:bg-green-600 text-white gap-2 px-8 py-3 text-base shadow-lg font-semibold"
+              >
+                <Crown className="w-5 h-5" />
+                Assinar Premium
+              </Button>
               <p className="text-blue-300 text-xs mt-4">
                 Assinatura mensal de R$ 59,00, renovada automaticamente. Pagamento seguro via Stripe (cartão de crédito). Cancele quando quiser.
               </p>
@@ -295,18 +349,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Mobile fixed bottom CTA */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0D3B66] border-t border-blue-800 px-6 py-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
-        <Button
-          onClick={irParaEscolhaDeLogin}
-          size="lg"
-          className="w-full bg-[#22C55E] hover:bg-green-600 text-white text-base font-bold py-5 shadow-xl"
-        >
-          Entrar / Cadastrar
-          <ArrowRight className="w-5 h-5 ml-2" />
-        </Button>
-      </div>
-
       {/* Footer */}
       <footer className="py-8 px-6 text-center text-blue-300 text-sm border-t border-blue-800 bg-[#0D3B66]">
         <div className="flex items-center justify-center gap-2 mb-2">
@@ -316,5 +358,6 @@ export default function Home() {
         <p>Aprenda ECG jogando. Sua evolução começa aqui.</p>
       </footer>
     </div>
+    </>
   );
 }

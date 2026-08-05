@@ -575,32 +575,9 @@ export default function Profile() {
           </CardContent>
         </Card>
 
-        {/* Detailed Stats */}
-        <Card className="border-none shadow-lg">
-          <CardHeader>
-            <CardTitle>Estatísticas Detalhadas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total de Tentativas</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalAttempts}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Respostas Corretas</p>
-                <p className="text-2xl font-bold text-green-600">{stats.correctAnswers}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Taxa de Acerto</p>
-                <p className="text-2xl font-bold text-blue-600">{stats.accuracy}%</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Módulos Completos</p>
-                <p className="text-2xl font-bold text-[#1976D2]">{stats.completedModules}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* "Estatísticas Detalhadas" removido junto com os demais blocos de
+            estatística do app: os números não fecham com a realidade e a
+            correção não é prioridade agora. */}
 
         {/* Danger Zone */}
         <Card className="border-red-200 bg-red-50/30 shadow-lg">
@@ -668,9 +645,7 @@ export default function Profile() {
                 <p className="font-semibold text-amber-900 mb-2">O que você vai perder:</p>
                 <ul className="list-disc list-inside space-y-1 text-sm text-amber-800">
                   <li>Acesso aos módulos estruturados</li>
-                  <li>Explicações detalhadas dos casos</li>
-                  <li>Sistema completo de gamificação</li>
-                  <li>Badges e conquistas exclusivas</li>
+                  <li>Acesso à teoria antes de cada fase</li>
                   <li>Análise de desempenho detalhada</li>
                 </ul>
               </div>

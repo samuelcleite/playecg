@@ -25,7 +25,6 @@ import {
   CreditCard,
   XCircle,
   ShieldCheck,
-  CheckCircle2,
   RotateCcw
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -281,11 +280,8 @@ export default function Upgrade() {
   ];
 
   const premiumFeatures = [
-    "Trilha de aprendizado estruturada",
-    "Todos os módulos e fases desbloqueados",
-    "Explicações detalhadas de cada caso",
-    "Sistema completo de gamificação",
-    "Badges e troféus exclusivos",
+    "Aprenda do básico ao avançado em módulos estruturados",
+    "Acesso à teoria antes de cada fase",
     "Análise de desempenho detalhada",
     "Acesso ilimitado a todos os casos",
     "Conteúdo atualizado regularmente",
@@ -322,9 +318,6 @@ export default function Upgrade() {
                 <Zap className="w-8 h-8 text-gray-600" />
               </div>
               <CardTitle className="text-2xl">Versão Gratuita</CardTitle>
-              <div className="mt-4">
-                <span className="text-2xl font-bold text-gray-500">Gratuito</span>
-              </div>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3">
@@ -347,9 +340,6 @@ export default function Upgrade() {
 
           {/* Premium Plan */}
           <Card className="border-none shadow-2xl bg-blue-50 relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-[#22C55E] text-white px-4 py-1 text-sm font-semibold">
-              Mais Popular
-            </div>
             <CardHeader className="text-center pb-4">
               <div className="w-16 h-16 bg-[#0D3B66] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <Crown className="w-8 h-8 text-white" />
@@ -497,11 +487,8 @@ export default function Upgrade() {
                         ? "A compra será processada com segurança pela App Store."
                         : "Você será redirecionado para a página segura do Stripe. Aceita os principais cartões de crédito e débito."}
                     </p>
-                    <p className="text-xs font-semibold text-blue-700">
-                      {isIOS
-                        ? "🔒 Pagamento seguro via App Store"
-                        : "🔒 Pagamento seguro via Stripe"}
-                    </p>
+                    {/* Terceira linha removida: repetia o título do próprio
+                        bloco, duas linhas acima. */}
                   </div>
                 </AlertDescription>
               </Alert>
@@ -519,16 +506,12 @@ export default function Upgrade() {
                 ) : (
                   <>
                     <CreditCard className="w-5 h-5 mr-2" />
-                    Ir para Checkout Seguro
+                    Adquirir Premium
                   </>
                 )}
               </Button>
-              <p className="text-center text-sm text-gray-600 mt-4 flex items-center justify-center gap-2">
-                <CheckCircle2 className="w-4 h-4" />
-                {isIOS
-                  ? "Compra processada com segurança pela App Store"
-                  : "Checkout 100% seguro processado pelo Stripe"}
-              </p>
+              {/* Aviso de pagamento seguro removido daqui: o bloco azul logo
+                  acima do botão já diz a mesma coisa. */}
 
               {/* Restaurar Compras — apenas no app iOS nativo (exigência da Apple) */}
               {isIOSNativeApp() && (
@@ -579,8 +562,11 @@ export default function Upgrade() {
           </Card>
         </div>
 
-        {/* Benefits Section */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
+        {/* Benefits Section — some no app (mobile). De "Aprendizado
+            Estruturado" para baixo a página virava peça de site: três cards
+            institucionais e um FAQ, tudo depois do botão de compra. Na web
+            continua. */}
+        <div className="hidden md:grid md:grid-cols-3 gap-6 mb-12">
           <Card className="border-none shadow-lg">
             <CardContent className="p-8 text-center">
               <div className="w-16 h-16 bg-[#0D3B66] rounded-full flex items-center justify-center mx-auto mb-4">
@@ -624,8 +610,8 @@ export default function Upgrade() {
           </Card>
         </div>
 
-        {/* FAQ Section */}
-        <Card className="border-none shadow-lg">
+        {/* FAQ Section — idem: só na web */}
+        <Card className="hidden md:block border-none shadow-lg">
           <CardHeader>
             <CardTitle className="text-center text-2xl">Perguntas Frequentes</CardTitle>
           </CardHeader>
@@ -643,8 +629,8 @@ export default function Upgrade() {
                 Qual a diferença para a versão gratuita?
               </h4>
               <p className="text-gray-600">
-                A versão gratuita oferece apenas quizzes aleatórios. A Premium inclui trilha estruturada,
-                explicações detalhadas, gamificação completa e muito mais.
+                A versão gratuita oferece apenas quizzes aleatórios. A Premium inclui os módulos
+                estruturados, com acesso à teoria antes de cada fase, e casos ilimitados.
               </p>
             </div>
             <div>
