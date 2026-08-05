@@ -60,6 +60,12 @@ export default function ModuleDetail() {
   const [totalPhaseCases, setTotalPhaseCases] = useState(0);
   const [sessionCompletedCases, setSessionCompletedCases] = useState([]);
 
+  // Modo revisão: a fase já foi concluída antes e o usuário voltou para
+  // praticar. O baralho passa a aceitar casos repetidos e o UserProgress
+  // não é mais tocado — quem já completou a fase não tem o que progredir.
+  const [isReview, setIsReview] = useState(false);
+  const [reviewAnswered, setReviewAnswered] = useState(0);
+
   // Zoom states
   const [showZoom, setShowZoom] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -94,10 +100,14 @@ export default function ModuleDetail() {
   }, [showResult]);
 
   useEffect(() => {
-    if (showPhaseCompletion && module && phase) {
+    // Só faz sentido buscar a próxima fase quando esta acabou de ser concluída.
+    // Em revisão a trilha já está liberada; numa sessão encerrada sem atingir a
+    // meta ainda não há próxima fase a oferecer.
+    const goalReached = totalPhaseCases > 0 && completedCasesCount >= totalPhaseCases;
+    if (showPhaseCompletion && !isReview && goalReached && module && phase) {
       findNextPhase();
     }
-  }, [showPhaseCompletion, module, phase]);
+  }, [showPhaseCompletion, isReview, completedCasesCount, totalPhaseCases, module, phase]);
 
   const findNextPhase = async () => {
     const phasesData = await base44.entities.Phase.list();
@@ -111,7 +121,7 @@ export default function ModuleDetail() {
     }
   };
 
-  const loadData = async () => {
+  const loadData = async ({ skipReturnCase = false } = {}) => {
     const urlParams = new URLSearchParams(window.location.search);
     const moduleId = urlParams.get('module_id');
     const phaseId = urlParams.get('phase_id');
@@ -167,10 +177,20 @@ export default function ModuleDetail() {
     setTotalPhaseCases(totalCases);
     setCompletedCasesCount(Math.min(completedCaseIds.length, totalCases));
 
+    // Fase já concluída => sessão de revisão. Além do status, aceitamos o
+    // contador no teto: se o usuário já fez tantos casos quanto a meta, não há
+    // progresso a fazer e insistir no modo normal encerraria a fase na primeira
+    // resposta (o `newCompletedCount >= totalPhaseCases` já seria verdadeiro).
+    const review =
+      progressRecord?.status === 'completed' ||
+      (totalCases > 0 && completedCaseIds.length >= totalCases);
+    setIsReview(review);
+    setReviewAnswered(0);
+
     // Selecionar casos e buscar conteúdo da fase em paralelo (não dependem entre si)
     const [combinedCasesRaw, phaseContentData] = await Promise.all([
       // Selecionar e combinar casos (80% fase atual + 20% fases anteriores)
-      selectAndCombineCases(moduleId, phaseId, foundPhase, phaseData, completedCaseIds),
+      selectAndCombineCases(moduleId, phaseId, foundPhase, phaseData, completedCaseIds, review),
       base44.entities.Content
         .filter({ module_id: moduleId, phase_id: phaseId })
         .then(r => r?.[0] || null),
@@ -178,8 +198,10 @@ export default function ModuleDetail() {
 
     let combinedCases = combinedCasesRaw;
 
-    // Restaurar caso se veio do ConteudoECG (botão "Tem dúvidas?")
-    const returnCaseId = urlParams.get('case_id');
+    // Restaurar caso se veio do ConteudoECG (botão "Tem dúvidas?").
+    // Numa nova rodada de revisão ignoramos o parâmetro, senão toda rodada
+    // começaria fixada no mesmo caso que sobrou na URL.
+    const returnCaseId = skipReturnCase ? null : urlParams.get('case_id');
     if (returnCaseId) {
       let idx = combinedCases.findIndex(c => c.id === returnCaseId);
       // Se o caso não está no conjunto reembaralhado, buscá-lo e inseri-lo no início
@@ -209,7 +231,19 @@ export default function ModuleDetail() {
     setLoading(false);
   };
 
-  const selectAndCombineCases = async (moduleId, phaseId, currentPhase, allPhases, completedCaseIds) => {
+  // Tira até `n` casos do pool priorizando os que o usuário ainda não fez.
+  // Quando não há inéditos suficientes, completa com os já feitos — mas só se
+  // `allowSeen`. É essa condição que separa os dois modos: numa fase em
+  // andamento repetir caso falsearia o progresso; numa fase já concluída,
+  // repetir é exatamente o que o usuário veio fazer.
+  const takePreferringUnseen = (pool, completedIds, n, allowSeen) => {
+    const unseen = shuffleArray(pool.filter(c => !completedIds.includes(c.id)));
+    if (unseen.length >= n || !allowSeen) return unseen.slice(0, n);
+    const seen = shuffleArray(pool.filter(c => completedIds.includes(c.id)));
+    return [...unseen, ...seen.slice(0, n - unseen.length)];
+  };
+
+  const selectAndCombineCases = async (moduleId, phaseId, currentPhase, allPhases, completedCaseIds, allowRepeats = false) => {
     // Identificar fases anteriores
     const modulePhasesOrdered = allPhases
       .filter(p => p.module_id === moduleId)
@@ -233,18 +267,14 @@ export default function ModuleDetail() {
 
     const previousPhasesCases = previousResults.flat();
 
-    // Filtrar apenas casos não completados (sem repetição)
-    const uniqueCurrentCases = shuffleArray(
-      currentPhaseCases.filter(c => !completedCaseIds.includes(c.id))
+    // Até 8 da fase atual e até 2 de fases anteriores, inéditos na frente.
+    const selectedCurrentCases = takePreferringUnseen(
+      currentPhaseCases, completedCaseIds, 8, allowRepeats
     ).map(c => ({ ...c, caseSource: 'current_phase' }));
 
-    const uniquePreviousCases = shuffleArray(
-      previousPhasesCases.filter(c => !completedCaseIds.includes(c.id))
+    const selectedPreviousCases = takePreferringUnseen(
+      previousPhasesCases, completedCaseIds, 2, allowRepeats
     ).map(c => ({ ...c, caseSource: 'previous_phase' }));
-
-    // Selecionar até 8 da fase atual e até 2 de fases anteriores (sem forçar repetições)
-    const selectedCurrentCases = uniqueCurrentCases.slice(0, 8);
-    const selectedPreviousCases = uniquePreviousCases.slice(0, 2);
 
     // Combinar e embaralhar
     return shuffleArray([...selectedCurrentCases, ...selectedPreviousCases]);
@@ -326,7 +356,19 @@ export default function ModuleDetail() {
 
       // Apenas casos da fase atual contam para o progresso
       const isCaseFromCurrentPhase = currentCase.caseSource === 'current_phase' || !currentCase.caseSource;
-      if (isCaseFromCurrentPhase && !sessionCompletedCases.includes(currentCase.id)) {
+
+      if (isReview) {
+        // Revisão não mexe no UserProgress: a fase já está concluída e não há
+        // progresso a somar. O histórico da prática fica na QuizAttempt, criada
+        // logo acima por recordQuizAttempt — que já pontua revisão a menos que
+        // acerto de primeira e ignora repetições no cálculo da taxa de acerto.
+        // Sem isso, a fase se encerrava na primeira resposta, porque o contador
+        // já entrava na sessão com o valor da meta.
+        if (!sessionCompletedCases.includes(currentCase.id)) {
+          setSessionCompletedCases([...sessionCompletedCases, currentCase.id]);
+          setReviewAnswered(prev => prev + 1);
+        }
+      } else if (isCaseFromCurrentPhase && !sessionCompletedCases.includes(currentCase.id)) {
         const updatedSessionCompleted = [...sessionCompletedCases, currentCase.id];
         setSessionCompletedCases(updatedSessionCompleted);
 
@@ -342,10 +384,13 @@ export default function ModuleDetail() {
           case_id: currentCase.id
         });
 
-        // Se atingiu o total de casos da fase, encerrar fase
-        if (newCompletedCount >= totalPhaseCases && totalPhaseCases > 0) {
-          setTimeout(() => setShowPhaseCompletion(true), 800);
-        }
+        // Atingir a meta NÃO encerra mais a sessão aqui. A fase já foi marcada
+        // como concluída no banco, na linha acima — o que faltava era só a tela,
+        // e ela agora espera o baralho acabar (handleNextCase).
+        //
+        // Encerrar neste ponto cortava a sessão no meio: as cartas restantes,
+        // incluindo os casos de revisão de fases anteriores, sumiam sem serem
+        // vistas sempre que o embaralhamento as deixava para o fim.
       }
     }
   };
@@ -363,9 +408,28 @@ export default function ModuleDetail() {
       setAttemptCount(0);
       setShowCorrectAnswer(false);
     } else {
-      // Ao finalizar as 10 questões, mostrar tela de conclusão
+      // Acabaram os casos do baralho — tela de conclusão (ou de revisão)
       setShowPhaseCompletion(true);
     }
+  };
+
+  // Monta um baralho novo sem sair da página. Serve aos dois botões da tela
+  // final: "Continuar praticando" (fase ainda incompleta) e "Revisar novamente"
+  // (fase concluída). Recarrega o progresso do zero de propósito, para partir do
+  // que acabou de ser gravado nesta sessão.
+  const startNewRound = async () => {
+    setShowPhaseCompletion(false);
+    setNextPhase(null);
+    setCurrentCaseIndex(0);
+    setSelectedAnswers([]);
+    setShowResult(false);
+    setIsCorrect(false);
+    setAttemptCount(0);
+    setShowCorrectAnswer(false);
+    setSessionCompletedCases([]);
+    setCases([]);
+    setLoading(true);
+    await loadData({ skipReturnCase: true });
   };
 
   // Zoom functions
@@ -532,6 +596,12 @@ export default function ModuleDetail() {
     );
   }
 
+  // A tela final agora aparece num momento só (baralho acabou) e consulta estes
+  // dois valores para decidir o que dizer — em vez de assumir que acabar as
+  // questões é o mesmo que concluir a fase.
+  const phaseGoalReached = totalPhaseCases > 0 && completedCasesCount >= totalPhaseCases;
+  const casesRemaining = Math.max(0, totalPhaseCases - completedCasesCount);
+
   // Tela de conclusão da fase
   if (showPhaseCompletion) {
     return (
@@ -543,37 +613,93 @@ export default function ModuleDetail() {
               animate={{ scale: 1 }}
               transition={{ type: "spring", duration: 0.6 }}
             >
-              <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-                <Trophy className="w-12 h-12 text-white" />
+              <div className={`w-24 h-24 bg-gradient-to-br rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg ${
+                isReview
+                  ? "from-emerald-400 to-teal-500"
+                  : phaseGoalReached
+                    ? "from-green-400 to-emerald-500"
+                    : "from-blue-400 to-indigo-500"
+              }`}>
+                {isReview
+                  ? <RefreshCw className="w-12 h-12 text-white" />
+                  : phaseGoalReached
+                    ? <Trophy className="w-12 h-12 text-white" />
+                    : <BookOpen className="w-12 h-12 text-white" />}
               </div>
             </motion.div>
-            
+
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
             >
               <h2 className="text-4xl font-bold mb-4 text-gray-900">
-                🎉 Parabéns!
+                {isReview ? "👏 Boa revisão!" : phaseGoalReached ? "🎉 Parabéns!" : "💪 Boa sessão!"}
               </h2>
               <h3 className="text-2xl font-semibold mb-2 text-gray-800">
-                Fase Concluída!
+                {isReview
+                  ? "Rodada de revisão concluída"
+                  : phaseGoalReached
+                    ? "Fase Concluída!"
+                    : "Sessão encerrada"}
               </h3>
               <p className="text-xl text-gray-600 mb-6">
-                Você completou a fase <span className="font-bold text-[#22C55E]">{phase?.name}</span> do módulo <span className="font-bold text-[#1976D2]">{module?.name}</span>
+                {isReview ? "Você revisou" : phaseGoalReached ? "Você completou" : "Você praticou"}
+                {" "}a fase <span className="font-bold text-[#22C55E]">{phase?.name}</span> do módulo <span className="font-bold text-[#1976D2]">{module?.name}</span>
               </p>
-              
+
               <div className="bg-blue-50 rounded-xl p-6 mb-8">
-                <p className="text-lg text-gray-700 mb-2">
-                  <span className="font-bold text-2xl text-green-600">10</span> casos completados
-                </p>
-                <p className="text-sm text-gray-600">
-                  Continue sua jornada nas próximas fases!
-                </p>
+                {isReview ? (
+                  <>
+                    <p className="text-lg text-gray-700 mb-2">
+                      <span className="font-bold text-2xl text-green-600">{reviewAnswered}</span> casos revisados
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Quantas rodadas você quiser — a fase continua concluída.
+                    </p>
+                  </>
+                ) : phaseGoalReached ? (
+                  <>
+                    <p className="text-lg text-gray-700 mb-2">
+                      <span className="font-bold text-2xl text-green-600">{Math.min(completedCasesCount, totalPhaseCases)}</span> casos completados
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Continue sua jornada nas próximas fases!
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg text-gray-700 mb-2">
+                      Faltam <span className="font-bold text-2xl text-blue-600">{casesRemaining}</span> {casesRemaining === 1 ? "caso" : "casos"} para concluir esta fase
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Você já fez {completedCasesCount} de {totalPhaseCases}. Continue praticando para liberar a próxima fase.
+                    </p>
+                  </>
+                )}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                {nextPhase ? (
+                {isReview || !phaseGoalReached ? (
+                  <>
+                    <Button
+                      onClick={startNewRound}
+                      className="bg-[#22C55E] hover:bg-green-600 text-white px-8 py-6 text-lg font-semibold gap-2"
+                      size="lg"
+                    >
+                      <RefreshCw className="w-5 h-5" />
+                      {isReview ? "Revisar novamente" : "Continuar praticando"}
+                    </Button>
+                    <Button
+                      onClick={() => navigate(createPageUrl("Modules"))}
+                      variant="outline"
+                      className="border-blue-300 hover:bg-blue-50 px-8 py-6 text-lg font-semibold"
+                      size="lg"
+                    >
+                      Voltar aos Módulos
+                    </Button>
+                  </>
+                ) : nextPhase ? (
                   <>
                     <Button
                       onClick={() => navigate(`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${nextPhase.id}&from=phase_transition`)}
@@ -685,17 +811,37 @@ export default function ModuleDetail() {
           </CardContent>
         </Card>
 
-        {/* Progress Bar - hidden on mobile */}
-        <div className="hidden md:block h-3 bg-gray-200 rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${completionPercentage}%` }}
-            className="h-full bg-[#1976D2]"
-          />
-        </div>
+        {/* Progress Bar - hidden on mobile. Em revisão não há o que progredir. */}
+        {!isReview && (
+          <div className="hidden md:block h-3 bg-gray-200 rounded-full overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${completionPercentage}%` }}
+              className="h-full bg-[#1976D2]"
+            />
+          </div>
+        )}
+
+        {/* Revisão: contador da rodada, não progresso da fase */}
+        {isReview && (
+          <div className="mx-3 md:mx-0 mt-3 md:mt-0 bg-green-50 border border-green-200 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 text-green-600" />
+                Revisando <span className="text-green-700">{phase?.name}</span>
+              </span>
+              <span className="text-sm font-bold text-green-700">
+                {currentCaseIndex + 1}/{cases.length}
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1.5">
+              Fase já concluída — estes casos não alteram seu progresso.
+            </p>
+          </div>
+        )}
 
         {/* Indicador de progresso da fase - visível em mobile e desktop */}
-        {totalPhaseCases > 0 && (
+        {!isReview && totalPhaseCases > 0 && (
           <div className="mx-3 md:mx-0 mt-3 md:mt-0 bg-white border border-blue-100 rounded-xl p-4 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-semibold text-gray-700">Progresso na fase <span className="text-blue-700">{phase?.name}</span></span>
