@@ -276,7 +276,17 @@ export default function Layout({ children, currentPageName }) {
       </div>
 
       {/* ── MOBILE: content + bottom nav ── */}
-      <div className="md:hidden flex flex-col w-full bg-ecg-gray" style={{ minHeight: '100dvh' }}>
+      {/* ALTURA definida, nao minima. Com `min-height` a altura deste div fica
+          `auto`, e ai o `height: 100%` do <main> abaixo resolve para `auto`
+          tambem -- porcentagem contra pai de altura automatica nao resolve. O
+          <main> passa a crescer ate o tamanho do conteudo em vez de parar na
+          viewport, e o `overflow-y: auto` dele fica sem nada para rolar: o
+          conteudo transborda o #root/body/html, que estao travados em
+          `height: 100%` pelo <style> injetado acima.
+          Medido numa viewport de 819px: o <main> ficava com 1237px e ZERO de
+          rolagem disponivel. Com altura definida ele volta a ser container de
+          rolagem de verdade (3900px de rolagem na tela de Modulos). */}
+      <div className="md:hidden flex flex-col w-full bg-ecg-gray" style={{ height: '100dvh' }}>
         {isAdminSubPage && (
           <div className="flex items-center gap-2 px-4 py-3 bg-white border-b border-gray-200" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>
             <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-gray-600">
