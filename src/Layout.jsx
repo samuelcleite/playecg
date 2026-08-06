@@ -286,16 +286,30 @@ export default function Layout({ children, currentPageName }) {
           Medido numa viewport de 819px: o <main> ficava com 1237px e ZERO de
           rolagem disponivel. Com altura definida ele volta a ser container de
           rolagem de verdade (3900px de rolagem na tela de Modulos). */}
-      <div className="md:hidden flex flex-col w-full bg-ecg-gray" style={{ height: '100dvh' }}>
+      {/* A safe-area do topo (relogio, camera, notch) fica reservada AQUI, fora
+          da area que rola. Ela ja esteve como padding-top do <main>, e padding
+          dentro de um container de rolagem rola junto com o conteudo: bastava
+          descer a tela para o texto passar por baixo do relogio. Medido na tela
+          de Modulos: com a faixa no <main> o conteudo era pintado ate y=0,
+          invadindo os 47px do topo; aqui no wrapper ele nunca passa de y=47.
+          O <main> recorta no proprio limite, entao a garantia e estrutural. */}
+      <div
+        className="md:hidden flex flex-col w-full bg-ecg-gray"
+        style={{ height: '100dvh', paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
         {isAdminSubPage && (
-          <div className="flex items-center gap-2 px-4 py-3 bg-white border-b border-gray-200" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>
+          <div className="flex items-center gap-2 px-4 py-3 bg-white border-b border-gray-200">
             <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-gray-600">
               <ArrowLeft className="w-4 h-4" />
               Voltar
             </Button>
           </div>
         )}
-        <main className="flex-1 overflow-y-auto pb-32" style={{ height: '100%', paddingTop: 'env(safe-area-inset-top, 0px)', overscrollBehavior: 'none' }}>
+        {/* `minHeight: 0` e a forma correta de deixar um flex item encolher
+            abaixo do conteudo -- e o que permite o overflow-y virar rolagem.
+            O `height: 100%` que morava aqui resolvia para `auto` e era
+            justamente a origem do bug de rolagem. */}
+        <main className="flex-1 overflow-y-auto pb-32" style={{ minHeight: 0, overscrollBehavior: 'none' }}>
           {children}
         </main>
 
