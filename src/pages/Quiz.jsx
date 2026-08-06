@@ -591,7 +591,6 @@ export default function Quiz() {
                 <ul className="list-disc list-inside mt-2 text-left space-y-1">
                   <li>Quizzes ilimitados por dia</li>
                   <li>Módulos estruturados</li>
-                  <li>Explicações detalhadas</li>
                 </ul>
               </AlertDescription>
             </Alert>

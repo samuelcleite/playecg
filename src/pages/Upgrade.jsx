@@ -15,9 +15,6 @@ import {
   Crown,
   Check,
   Zap,
-  BookOpen,
-  Trophy,
-  Target,
   Sparkles,
   Loader2,
   Tag,
@@ -282,7 +279,6 @@ export default function Upgrade() {
   const premiumFeatures = [
     "Aprenda do básico ao avançado em módulos estruturados",
     "Acesso à teoria antes de cada fase",
-    "Análise de desempenho detalhada",
     "Acesso ilimitado a todos os casos",
     "Conteúdo atualizado regularmente",
     "Suporte prioritário"
@@ -562,98 +558,11 @@ export default function Upgrade() {
           </Card>
         </div>
 
-        {/* Benefits Section — some no app (mobile). De "Aprendizado
-            Estruturado" para baixo a página virava peça de site: três cards
-            institucionais e um FAQ, tudo depois do botão de compra. Na web
-            continua. */}
-        <div className="hidden md:grid md:grid-cols-3 gap-6 mb-12">
-          <Card className="border-none shadow-lg">
-            <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-[#0D3B66] rounded-full flex items-center justify-center mx-auto mb-4">
-                <BookOpen className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Aprendizado Estruturado
-              </h3>
-              <p className="text-gray-600">
-                Siga uma trilha progressiva do básico ao avançado
-              </p>
-            </CardContent>
-          </Card>
+        {/* Cards de benefício e FAQ removidos de vez — app e web. De
+            "Aprendizado Estruturado" para baixo a página virava peça de site:
+            três cards institucionais e um FAQ inteiro depois do botão de
+            compra. */}
 
-          <Card className="border-none shadow-lg">
-            <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-[#1976D2] rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trophy className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Gamificação Completa
-              </h3>
-              <p className="text-gray-600">
-                Conquiste badges, níveis e mantenha sua motivação
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-lg">
-            <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-[#22C55E] rounded-full flex items-center justify-center mx-auto mb-4">
-                <Target className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Feedback Detalhado
-              </h3>
-              <p className="text-gray-600">
-                Explicações completas e análise de cada caso
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* FAQ Section — idem: só na web */}
-        <Card className="hidden md:block border-none shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-center text-2xl">Perguntas Frequentes</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-2">
-                Posso cancelar a qualquer momento?
-              </h4>
-              <p className="text-gray-600">
-                Sim! Você pode cancelar sua assinatura quando quiser, sem multas ou taxas de cancelamento.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-2">
-                Qual a diferença para a versão gratuita?
-              </h4>
-              <p className="text-gray-600">
-                A versão gratuita oferece apenas quizzes aleatórios. A Premium inclui os módulos
-                estruturados, com acesso à teoria antes de cada fase, e casos ilimitados.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-2">
-                Os casos são baseados em situações reais?
-              </h4>
-              <p className="text-gray-600">
-                Sim! Todos os casos são baseados em ECGs reais e situações clínicas autênticas,
-                cuidadosamente selecionados para seu aprendizado.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-2">
-                O pagamento é seguro?
-              </h4>
-              <p className="text-gray-600">
-                {isIOS
-                  ? "Completamente! Utilizamos o sistema de pagamentos da App Store. Seus dados de pagamento são processados diretamente pela Apple e nunca passam pelos nossos servidores."
-                  : "Completamente! Utilizamos o Stripe, uma das maiores plataformas de pagamento do mundo. Seus dados de pagamento são processados diretamente pelo Stripe e nunca passam pelos nossos servidores."}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Error Dialog */}

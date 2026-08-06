@@ -19,7 +19,7 @@ export default function PremiumUpsellCard() {
             Módulos estruturados e material teórico para um aprendizado completo de ECG
           </p>
           <Button size="sm" className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white">
-            Ver Planos
+            Assine Agora
             <ChevronRight className="w-3 h-3 ml-1" />
           </Button>
         </CardContent>
