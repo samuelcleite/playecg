@@ -335,6 +335,29 @@ export default function Layout({ children, currentPageName }) {
           {children}
         </main>
 
+        {/* TEMPORARIO: acesso a /Diag. O app Android nao tem barra de endereco,
+            e um link no fim de uma pagina seria inalcancavel justamente quando
+            a rolagem esta quebrada -- que e quando o diagnostico importa. Por
+            isso e `fixed`, e fica a ESQUERDA para nao colidir com o botao do
+            Fale Conosco, que ocupa o canto direito na mesma altura.
+            So aparece no Android: o iOS esta publicado na App Store e usuario
+            real nao deve ver isto. Sai junto com src/pages/Diag.jsx. */}
+        {rolagemDoDocumento && (
+          <Link
+            to={createPageUrl("Diag")}
+            style={{
+              position: 'fixed', left: 12, zIndex: 10000,
+              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px)',
+              backgroundColor: '#0D3B66', color: '#FFFFFF',
+              padding: '8px 12px', borderRadius: 10,
+              fontSize: 12, fontWeight: 700, opacity: 0.9,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+            }}
+          >
+            Diag
+          </Link>
+        )}
+
         <nav className="select-none" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, backgroundColor: '#FFFFFF', borderTop: '1px solid #E0E0E0', boxShadow: '0 -2px 12px rgba(0,0,0,0.08)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           <div className="flex items-center justify-around px-2 py-3">
             {navigationItems.map((item) => {
