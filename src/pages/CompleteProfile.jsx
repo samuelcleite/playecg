@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { base44 } from "@/api/base44Client";
 import { getCurrentUser, refreshCurrentUser } from '@/lib/currentUser';
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Activity, User as UserIcon, MapPin, Stethoscope } from "lucide-react";
+import { Activity, User as UserIcon, MapPin, Stethoscope, AlertCircle, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { notifyAdminNewUser } from "@/functions/notifyAdminNewUser";
 
@@ -21,6 +22,8 @@ export default function CompleteProfile() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState(null);
   const [formData, setFormData] = useState({
     full_name: "",
     specialty: "",
@@ -66,28 +69,49 @@ export default function CompleteProfile() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // updateMyProfile grava na Account. subscription_type NÃO vai junto: a
-    // function ignora o campo de propósito, porque aceitá-lo do cliente
-    // permitiria um POST com subscription_type: "premium". O default do schema
-    // já cuida disso na criação da Account.
-    await base44.functions.invoke('updateMyProfile', {
-      full_name: formData.full_name,
-      specialty: formData.specialty,
-      country: formData.country,
-      state: formData.state,
-      city: formData.city,
-      profile_completed: true
-    });
 
-    // Sem isso o Dashboard leria o cache anterior, com profile_completed false,
-    // e mandaria o usuário de volta para esta mesma tela.
-    await refreshCurrentUser();
+    // O try/catch não é decorativo: esta tela é a única saída do cadastro, e o
+    // Dashboard devolve para cá enquanto profile_completed for falso. Uma falha
+    // silenciosa aqui não é "o salvamento não funcionou" — é o usuário preso no
+    // app sem nada escrito na tela explicando por quê. Foi exatamente o que
+    // aconteceu enquanto o `base44` deste arquivo estava sem import.
+    setErro(null);
+    setSalvando(true);
 
-    // Notifica o admin sobre o novo usuário (em background, sem bloquear a navegação)
-    notifyAdminNewUser({}).catch((err) => console.error("Falha ao notificar admin:", err));
+    try {
+      // updateMyProfile grava na Account. subscription_type NÃO vai junto: a
+      // function ignora o campo de propósito, porque aceitá-lo do cliente
+      // permitiria um POST com subscription_type: "premium". O default do schema
+      // já cuida disso na criação da Account.
+      await base44.functions.invoke('updateMyProfile', {
+        full_name: formData.full_name,
+        specialty: formData.specialty,
+        country: formData.country,
+        state: formData.state,
+        city: formData.city,
+        profile_completed: true
+      });
 
-    navigate(createPageUrl("Dashboard"));
+      // Sem isso o Dashboard leria o cache anterior, com profile_completed false,
+      // e mandaria o usuário de volta para esta mesma tela.
+      await refreshCurrentUser();
+
+      // Notifica o admin sobre o novo usuário (em background, sem bloquear a navegação)
+      notifyAdminNewUser({}).catch((err) => console.error("Falha ao notificar admin:", err));
+
+      navigate(createPageUrl("Dashboard"));
+    } catch (err) {
+      console.error("Falha ao salvar o perfil:", err);
+      // O invoke embrulha o corpo da resposta em `.data`, então a mensagem do
+      // backend (ex.: "Conta não encontrada para este usuário") vem daí.
+      setErro(
+        err?.response?.data?.error ||
+        err?.data?.error ||
+        err?.message ||
+        "Não foi possível salvar seu perfil. Verifique sua conexão e tente novamente."
+      );
+      setSalvando(false);
+    }
   };
 
   const especialidades = [
@@ -307,11 +331,29 @@ export default function CompleteProfile() {
                 </p>
               </div>
 
+              {erro && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-4"
+                >
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-900">{erro}</p>
+                </div>
+              )}
+
               <Button
                 type="submit"
+                disabled={salvando}
                 className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg font-semibold shadow-lg"
               >
-                Criar Conta
+                {salvando ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Criando conta...
+                  </>
+                ) : (
+                  "Criar Conta"
+                )}
               </Button>
             </form>
           </CardContent>
