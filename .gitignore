@@ -29,3 +29,8 @@ dist-ssr
 
 .env
 base44/.app.jsonc
+
+# Assinatura Android — chave e senha NUNCA entram no git
+*.jks
+*.keystore
+keystore.properties

@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { signInWithGoogle, getToken, clearToken } from "@/lib/customAuth";
 import { withNativeReturnMarker } from "@/utils/nativeOAuth";
 import { signInWithApple } from "@/lib/appleAuth";
-import { isAppleDevice } from "@/utils/platform";
+import { isAppleDevice, isAndroidNativeApp } from "@/utils/platform";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -235,15 +235,22 @@ export default function Home() {
               >
                 {entrando === 'google' ? 'Abrindo...' : 'Continuar com Google'}
               </Button>
-              <Button
-                onClick={entrarComApple}
-                disabled={!!entrando}
-                size="lg"
-                variant="outline"
-                className="bg-white text-[#0D3B66] border-white hover:bg-gray-100 text-lg px-10 py-6 shadow-xl font-semibold w-full max-w-xs"
-              >
-                {entrando === 'apple' ? 'Abrindo...' : 'Continuar com Apple'}
-              </Button>
+              {/* Apple não é oferecido no Android: o appleAuth.js usa o SDK JS
+                  da Apple, que cobre iOS e web, e nunca ganhou ponte Android.
+                  Mostrar o botão seria oferecer um login que não funciona. A
+                  exigência de ter Apple ao lado do Google é da Apple, não do
+                  Google, então a loja Android não pede nada aqui. */}
+              {!isAndroidNativeApp() && (
+                <Button
+                  onClick={entrarComApple}
+                  disabled={!!entrando}
+                  size="lg"
+                  variant="outline"
+                  className="bg-white text-[#0D3B66] border-white hover:bg-gray-100 text-lg px-10 py-6 shadow-xl font-semibold w-full max-w-xs"
+                >
+                  {entrando === 'apple' ? 'Abrindo...' : 'Continuar com Apple'}
+                </Button>
+              )}
               {erroLogin && (
                 <p className="text-sm text-red-300 max-w-xs text-center mt-1">{erroLogin}</p>
               )}

@@ -1,10 +1,17 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { getCurrentUser, refreshCurrentUser } from '@/lib/currentUser';
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { isIOSNativeApp } from "@/utils/platform";
+import { isIOSNativeApp, isAndroidNativeApp } from "@/utils/platform";
 import { startIOSPurchase, restoreIOSPurchases } from "@/utils/purchase";
+import {
+  purchaseAndroidPlan,
+  restoreAndroidPurchases,
+  PURCHASE_SUCCESS,
+  PURCHASE_CANCELLED,
+  PURCHASE_PENDING,
+} from "@/utils/purchasesAndroid";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -184,6 +191,44 @@ export default function Upgrade() {
       return;
     }
 
+    // Android nativo (Capacitor): compra via RevenueCat usando Offerings.
+    if (isAndroidNativeApp()) {
+      setProcessing(true);
+      try {
+        const result = await purchaseAndroidPlan(selectedPlan, user?.id);
+        if (result === PURCHASE_SUCCESS) {
+          // Reaproveita o polling já usado no iOS: aguarda o revenuecatWebhook
+          // marcar subscription_type === "premium" e recarrega a rota.
+          await window.iapSuccess();
+          return;
+        }
+        if (result === PURCHASE_CANCELLED) return; // usuário desistiu: sem diálogo
+        setErrorDialog({
+          open: true,
+          title: result === PURCHASE_PENDING ? 'Confirmando seu pagamento' : 'Assinatura Indisponível',
+          message: result === PURCHASE_PENDING
+            ? 'Recebemos sua compra e ela está sendo processada. Aguarde alguns instantes e atualize a tela. Se o acesso não liberar, use a opção "Restaurar Compras".'
+            : 'A assinatura não está disponível no momento. Tente novamente em alguns instantes.',
+          details: ''
+        });
+      } catch (error) {
+        console.error("Erro ao iniciar compra Android:", error);
+        setErrorDialog({
+          open: true,
+          title: 'Erro ao Iniciar Compra',
+          message: "Não foi possível iniciar a compra. Tente novamente.",
+          // A mensagem crua vai para details de propósito: sem acesso ao console
+          // do aparelho, esta é a única forma de diagnosticar em campo.
+          details: error?.message || String(error)
+        });
+      } finally {
+        // Sem este finally, qualquer caminho que não passe pelos returns acima
+        // deixa os dois botões desabilitados para sempre.
+        setProcessing(false);
+      }
+      return;
+    }
+
     // --- Fluxo Stripe (web) — inalterado ---
     // Stripe Checkout não funciona dentro de iframe (preview)
     if (window.self !== window.top) {
@@ -228,6 +273,37 @@ export default function Upgrade() {
   };
 
   const handleRestore = async () => {
+    // Android nativo (Capacitor): restore via RevenueCat.
+    if (isAndroidNativeApp()) {
+      setProcessing(true);
+      try {
+        const restored = await restoreAndroidPurchases(user?.id);
+        if (restored) {
+          // Mesmo polling da compra: aguarda o webhook refletir o premium.
+          await window.iapSuccess();
+          return;
+        }
+        setErrorDialog({
+          open: true,
+          title: 'Nenhuma Compra Encontrada',
+          message: 'Não encontramos nenhuma assinatura ativa para restaurar nesta conta do Google Play. Verifique se está logado com a mesma conta usada na compra.',
+          details: ''
+        });
+      } catch (error) {
+        console.error("Erro ao restaurar compras Android:", error);
+        setErrorDialog({
+          open: true,
+          title: 'Erro ao Restaurar Compras',
+          message: "Não foi possível restaurar suas compras. Tente novamente.",
+          // Mensagem crua para diagnóstico em campo — ver o mesmo em handleUpgrade.
+          details: error?.message || String(error)
+        });
+      } finally {
+        setProcessing(false);
+      }
+      return;
+    }
+
     // Restaura compras via RevenueCat (iOS). getpurchasehistory:// retorna os
     // dados; restoreIOSPurchases resolve true se houver premium ativo.
     setProcessing(true);
@@ -261,9 +337,15 @@ export default function Upgrade() {
     }
   };
 
-  // No app iOS a compra é processada pela App Store (StoreKit/RevenueCat),
-  // não pelo Stripe — os textos de pagamento variam por plataforma.
+  // Em app nativo a compra é processada pela loja (RevenueCat sobre StoreKit no
+  // iOS, sobre Play Billing no Android), não pelo Stripe. Os textos precisam
+  // acompanhar: dizer "Stripe" dentro do app Android não é só impreciso — a
+  // política de pagamentos do Google proíbe indicar pagamento externo para bens
+  // digitais, do mesmo jeito que a da Apple. `loja` é null só na web.
   const isIOS = isIOSNativeApp();
+  const isAndroid = isAndroidNativeApp();
+  const loja = isIOS ? "App Store" : isAndroid ? "Google Play" : null;
+  // `donoDaLoja` (Apple / Google) saiu junto com o FAQ, que era seu único uso.
 
   const originalPrice = selectedPlan === "annual" ? 499 : 59;
   const finalPrice = appliedCoupon?.pricing?.final_price || originalPrice;
@@ -388,10 +470,13 @@ export default function Upgrade() {
                 </button>
               </div>
 
-              {/* Coupon Section — oculto no app iOS nativo: o desconto é
-                  concedido fora do IAP (exigência da Apple, Guideline 3.1.1).
-                  Na web (Stripe) permanece inalterado. */}
-              {!isIOSNativeApp() && (
+              {/* Coupon Section — oculto nos DOIS apps nativos: o desconto é
+                  concedido fora da compra da loja, o que a Apple proíbe
+                  (Guideline 3.1.1) e o Google também, pela política de
+                  pagamentos para bens digitais. No Android o cupom nem chegava a
+                  funcionar: ele desconta no checkout do Stripe, e o app Android
+                  não passa por lá. Na web permanece inalterado. */}
+              {!isIOSNativeApp() && !isAndroid && (
                 <div className="mb-6 p-4 bg-white rounded-lg border-2 border-blue-200">
                   <div className="flex items-center gap-2 mb-3">
                     <Tag className="w-5 h-5 text-amber-600" />
@@ -474,17 +559,18 @@ export default function Upgrade() {
                   <div className="space-y-2">
                     <p className="font-semibold flex items-center gap-2">
                       <CreditCard className="w-4 h-4" />
-                      {isIOS
-                        ? "Pagamento Seguro pela App Store"
+                      {loja
+                        ? `Pagamento Seguro pela ${loja}`
                         : "Pagamento Seguro com Stripe"}
                     </p>
                     <p className="text-sm">
-                      {isIOS
-                        ? "A compra será processada com segurança pela App Store."
+                      {loja
+                        ? `A compra será processada com segurança pela ${loja}.`
                         : "Você será redirecionado para a página segura do Stripe. Aceita os principais cartões de crédito e débito."}
                     </p>
                     {/* Terceira linha removida: repetia o título do próprio
-                        bloco, duas linhas acima. */}
+                        bloco, duas linhas acima. As duas que sobraram já usam
+                        o nome da loja certa (App Store / Google Play). */}
                   </div>
                 </AlertDescription>
               </Alert>
@@ -509,8 +595,9 @@ export default function Upgrade() {
               {/* Aviso de pagamento seguro removido daqui: o bloco azul logo
                   acima do botão já diz a mesma coisa. */}
 
-              {/* Restaurar Compras — apenas no app iOS nativo (exigência da Apple) */}
-              {isIOSNativeApp() && (
+              {/* Restaurar Compras — apps nativos. Exigência da Apple no iOS;
+                  no Android a compra também é do RevenueCat e precisa do restore. */}
+              {(isIOSNativeApp() || isAndroidNativeApp()) && (
                 <Button
                   variant="outline"
                   className="w-full mt-4 border-[#1976D2] text-[#0D3B66] font-semibold"
@@ -575,6 +662,15 @@ export default function Upgrade() {
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-4">
               <p className="text-base text-gray-900">{errorDialog.message}</p>
+              {/* Detalhe técnico. Existe porque em app nativo não há console
+                  acessível: sem isto, uma falha de compra no aparelho de outra
+                  pessoa é indiagnosticável. Discreto de propósito — serve para
+                  ser lido em voz alta ou fotografado, não para assustar. */}
+              {errorDialog.details && (
+                <p className="text-xs text-gray-500 font-mono break-words border-t border-gray-200 pt-3">
+                  {errorDialog.details}
+                </p>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

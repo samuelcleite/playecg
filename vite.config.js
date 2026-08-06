@@ -8,7 +8,10 @@ export default defineConfig({
     base44({
       // Support for legacy code that imports the base44 SDK with @/integrations, @/entities, etc.
       // can be removed if the code has been updated to use the new SDK imports from @base44/sdk
-      legacySDKImports: process.env.BASE44_LEGACY_SDK_IMPORTS === 'true'
+      // Default on: o app usa @/functions/* e @/entities/* (resolvidos pelo compat shim do
+      // Base44). O build Linux do Base44 seta BASE44_LEGACY_SDK_IMPORTS=true; local no Windows
+      // não seta, então ligamos por padrão. Setar '=false' ainda desliga.
+      legacySDKImports: process.env.BASE44_LEGACY_SDK_IMPORTS !== 'false'
     }),
     react(),
   ]
