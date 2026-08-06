@@ -52,24 +52,28 @@ export default function Layout({ children, currentPageName }) {
   const navigate = useNavigate();
   const [user, setUser] = React.useState(null);
 
-  // Android e iOS precisam de tratamentos OPOSTOS na rolagem do mobile.
+  // No Android o LAYOUT SAI DA FRENTE e quem rola e o documento.
   //
-  // No Despia (iOS) o wrapper nativo ja resolve rolagem e safe-area ENQUANTO
-  // quem rola for o documento. Foi exatamente forcar um container de rolagem
-  // interno que quebrou o topo do iPhone: o conteudo passou a subir por baixo
-  // do relogio e da camera. Por isso, fora do Android, nada muda.
+  // A evidencia que define isto veio do aparelho: a Home rola normalmente no
+  // Android -- e a Home e a unica pagina que NAO passa por este Layout (ver a
+  // saida antecipada logo abaixo). Ou seja, o Android sabe rolar; o que impede
+  // e o que este componente acrescenta.
   //
-  // No Capacitor (Android) esse tratamento nao existe. Sem altura definida no
-  // wrapper, o `height: 100%` do <main> resolve para `auto` -- porcentagem
-  // contra pai de altura automatica nao resolve --, o <main> cresce ate o
-  // tamanho do conteudo, o `overflow-y: auto` fica sem nada para rolar e a
-  // tela trava. Medido: numa viewport de 819px o <main> ficava com 1237px e
-  // ZERO de rolagem disponivel.
+  // Sao duas coisas, e as duas so existem aqui:
+  //   1. o <style> que trava html/body/#root em `height: 100%`. Com overflow
+  //      visible, tudo que passa da altura da tela e pintado fora e fica
+  //      inalcancavel.
+  //   2. o <main> com `overflow-y: auto` + `overscroll-behavior: none`. Um
+  //      container de rolagem sem nada para rolar, com encadeamento desligado,
+  //      engole o gesto e nao repassa para o documento.
   //
-  // Quando a rolagem passa para dentro do <main>, a safe-area do topo NAO pode
-  // ficar como padding dele: padding dentro de um container de rolagem rola
-  // junto com o conteudo. Por isso ela sobe para o wrapper, que nao rola.
-  const rolagemInterna = isAndroidNativeApp();
+  // Duas tentativas anteriores (4dbeba7 e 7d7498d, revertidas) foram na direcao
+  // oposta -- forcar o <main> a rolar. Alem de nao resolver no Android, aquilo
+  // quebrou o topo do iPhone, porque no Despia o wrapper nativo so cuida da
+  // safe-area enquanto quem rola for o documento.
+  //
+  // Fora do Android nada muda: mesmo <style>, mesmas classes, mesmo style.
+  const rolagemDoDocumento = isAndroidNativeApp();
 
   const adminSubPages = [
     "AdminModules", "AdminPhases", "AdminCases", "AdminContent", "AdminImages",
@@ -136,11 +140,16 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <>
-      <style>{`
-        html, body, #root {
-          height: 100%;
-        }
-      `}</style>
+      {/* A trava de altura e o que impede o documento de rolar no Android.
+          Ela nao e injetada la -- exatamente como acontece na Home, que rola
+          normalmente. Fora do Android continua igual. */}
+      {!rolagemDoDocumento && (
+        <style>{`
+          html, body, #root {
+            height: 100%;
+          }
+        `}</style>
+      )}
 
       {/* ── DESKTOP: sidebar + content ── */}
       <div className="hidden md:flex min-h-screen w-full bg-ecg-gray">
@@ -298,18 +307,15 @@ export default function Layout({ children, currentPageName }) {
       {/* ── MOBILE: content + bottom nav ── */}
       <div
         className="md:hidden flex flex-col w-full bg-ecg-gray"
-        style={rolagemInterna
-          ? { height: '100dvh', paddingTop: 'env(safe-area-inset-top, 0px)' }
-          : { minHeight: '100dvh' }}
+        // `100vh` no Android em vez de `100dvh`: num app Capacitor nao existe
+        // barra de endereco que aparece e some, entao os dois valem o mesmo --
+        // e `dvh` exige Chrome 108+. Risco de compatibilidade sem contrapartida.
+        style={rolagemDoDocumento ? { minHeight: '100vh' } : { minHeight: '100dvh' }}
       >
         {isAdminSubPage && (
           <div
             className="flex items-center gap-2 px-4 py-3 bg-white border-b border-gray-200"
-            // No Android a faixa do topo ja esta reservada no wrapper; repetir
-            // aqui somaria a safe-area duas vezes. O py-3 da classe cobre o resto.
-            style={rolagemInterna
-              ? undefined
-              : { paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
+            style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
           >
             <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-gray-600">
               <ArrowLeft className="w-4 h-4" />
@@ -317,10 +323,13 @@ export default function Layout({ children, currentPageName }) {
             </Button>
           </div>
         )}
+        {/* No Android o <main> vira um bloco comum: sem `overflow-y-auto` e sem
+            `overscroll-behavior`, para o gesto do dedo chegar ao documento em
+            vez de morrer num container de rolagem que nao tem o que rolar. */}
         <main
-          className="flex-1 overflow-y-auto pb-32"
-          style={rolagemInterna
-            ? { minHeight: 0, overscrollBehavior: 'none' }
+          className={`flex-1 pb-32 ${rolagemDoDocumento ? '' : 'overflow-y-auto'}`}
+          style={rolagemDoDocumento
+            ? { paddingTop: 'env(safe-area-inset-top, 0px)' }
             : { height: '100%', paddingTop: 'env(safe-area-inset-top, 0px)', overscrollBehavior: 'none' }}
         >
           {children}

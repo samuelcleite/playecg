@@ -18,6 +18,11 @@ import CompleteProfile from './pages/CompleteProfile';
 import ConteudoECG from './pages/ConteudoECG';
 import DailyCase from './pages/DailyCase';
 import Dashboard from './pages/Dashboard';
+// TEMPORARIO: pagina de diagnostico da rolagem mobile. Registrada aqui, e nao
+// como rota solta no App.jsx, porque precisa passar pelo Layout para conseguir
+// medir o wrapper e o <main>. Nao e linkada de lugar nenhum. Apagar junto com
+// src/pages/Diag.jsx quando o assunto fechar.
+import Diag from './pages/Diag';
 import Home from './pages/Home';
 import ModuleDetail from './pages/ModuleDetail';
 import Modules from './pages/Modules';
@@ -47,6 +52,7 @@ export const PAGES = {
     "ConteudoECG": ConteudoECG,
     "DailyCase": DailyCase,
     "Dashboard": Dashboard,
+    "Diag": Diag,
     "Home": Home,
     "ModuleDetail": ModuleDetail,
     "Modules": Modules,
