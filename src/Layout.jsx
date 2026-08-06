@@ -4,6 +4,7 @@ import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { getCurrentUser } from '@/lib/currentUser';
 import { clearToken } from '@/lib/customAuth';
+import { isAndroidNativeApp } from '@/utils/platform';
 import {
   Activity,
   Bell,
@@ -50,6 +51,25 @@ export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [user, setUser] = React.useState(null);
+
+  // Android e iOS precisam de tratamentos OPOSTOS na rolagem do mobile.
+  //
+  // No Despia (iOS) o wrapper nativo ja resolve rolagem e safe-area ENQUANTO
+  // quem rola for o documento. Foi exatamente forcar um container de rolagem
+  // interno que quebrou o topo do iPhone: o conteudo passou a subir por baixo
+  // do relogio e da camera. Por isso, fora do Android, nada muda.
+  //
+  // No Capacitor (Android) esse tratamento nao existe. Sem altura definida no
+  // wrapper, o `height: 100%` do <main> resolve para `auto` -- porcentagem
+  // contra pai de altura automatica nao resolve --, o <main> cresce ate o
+  // tamanho do conteudo, o `overflow-y: auto` fica sem nada para rolar e a
+  // tela trava. Medido: numa viewport de 819px o <main> ficava com 1237px e
+  // ZERO de rolagem disponivel.
+  //
+  // Quando a rolagem passa para dentro do <main>, a safe-area do topo NAO pode
+  // ficar como padding dele: padding dentro de um container de rolagem rola
+  // junto com o conteudo. Por isso ela sobe para o wrapper, que nao rola.
+  const rolagemInterna = isAndroidNativeApp();
 
   const adminSubPages = [
     "AdminModules", "AdminPhases", "AdminCases", "AdminContent", "AdminImages",
@@ -276,16 +296,33 @@ export default function Layout({ children, currentPageName }) {
       </div>
 
       {/* ── MOBILE: content + bottom nav ── */}
-      <div className="md:hidden flex flex-col w-full bg-ecg-gray" style={{ minHeight: '100dvh' }}>
+      <div
+        className="md:hidden flex flex-col w-full bg-ecg-gray"
+        style={rolagemInterna
+          ? { height: '100dvh', paddingTop: 'env(safe-area-inset-top, 0px)' }
+          : { minHeight: '100dvh' }}
+      >
         {isAdminSubPage && (
-          <div className="flex items-center gap-2 px-4 py-3 bg-white border-b border-gray-200" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>
+          <div
+            className="flex items-center gap-2 px-4 py-3 bg-white border-b border-gray-200"
+            // No Android a faixa do topo ja esta reservada no wrapper; repetir
+            // aqui somaria a safe-area duas vezes. O py-3 da classe cobre o resto.
+            style={rolagemInterna
+              ? undefined
+              : { paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
+          >
             <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-gray-600">
               <ArrowLeft className="w-4 h-4" />
               Voltar
             </Button>
           </div>
         )}
-        <main className="flex-1 overflow-y-auto pb-32" style={{ height: '100%', paddingTop: 'env(safe-area-inset-top, 0px)', overscrollBehavior: 'none' }}>
+        <main
+          className="flex-1 overflow-y-auto pb-32"
+          style={rolagemInterna
+            ? { minHeight: 0, overscrollBehavior: 'none' }
+            : { height: '100%', paddingTop: 'env(safe-area-inset-top, 0px)', overscrollBehavior: 'none' }}
+        >
           {children}
         </main>
 
