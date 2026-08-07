@@ -24,6 +24,30 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 
+// Esta tela é um índice: ela nunca mostra o corpo de um conteúdo. Usa os
+// registros só para saber se o conteúdo existe (o `&&` no card, o `.length`, o
+// `.find` por phase_id) e montar os links para ConteudoECG, que aí sim busca o
+// corpo do item escolhido. Mesmo assim ela baixava o HTML de todos os
+// conteúdos do app e jogava fora — e isso dentro do Promise.all que segura a
+// tela, então a página inteira esperava por esse payload.
+//
+// O `fields` é o 4º parâmetro de list(sort, limit, skip, fields) no SDK e
+// projeta as colunas no servidor. Não deu para confirmar daqui se o backend do
+// Base44 honra o parâmetro: falta o app_id e a URL, que vêm de env vars fora do
+// repo. Por isso a queda: se o servidor recusar, cai no list() completo e a
+// tela funciona igual, só sem a economia. O console diz qual dos dois rolou —
+// é por ali que se descobre se o `fields` vale para as outras telas.
+const CAMPOS_DO_INDICE = ["id", "module_id", "phase_id"];
+
+async function listarIndiceDeConteudos() {
+  try {
+    return await base44.entities.Content.list(null, null, null, CAMPOS_DO_INDICE);
+  } catch (err) {
+    console.warn("Content.list com fields falhou, caindo para a lista completa:", err);
+    return base44.entities.Content.list();
+  }
+}
+
 export default function AprendaECG() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -44,7 +68,7 @@ export default function AprendaECG() {
     setUser(userData);
 
     const [contentsData, modulesData, phasesData, progressRes] = await Promise.all([
-      base44.entities.Content.list(),
+      listarIndiceDeConteudos(),
       base44.entities.Module.list("order"),
       base44.entities.Phase.list("order"),
       base44.functions.invoke("getUserProgress", {})
