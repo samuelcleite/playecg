@@ -116,7 +116,11 @@ export default function Layout({ children, currentPageName }) {
 
   const navigationItems = [
     { title: "Dashboard", url: createPageUrl("Dashboard"), icon: Home },
-    ...(isPremium ? [{ title: "Módulos", url: createPageUrl("Modules"), icon: ListOrdered }] : []),
+    // Módulos aparece para todo mundo. Escondê-lo de quem é gratuito fazia o
+    // usuário nem saber que o modo existe — e é justamente o que a assinatura
+    // vende. Sem premium o item leva para os planos (a própria tela de Módulos
+    // já redireciona para lá).
+    { title: "Módulos", url: createPageUrl(isPremium ? "Modules" : "Upgrade"), icon: ListOrdered },
     { title: "Quiz", url: createPageUrl("Quiz"), icon: Shuffle },
     { title: "Troféus", url: createPageUrl("Achievements"), icon: Award },
     { title: "Aprenda ECG", url: createPageUrl("AprendaECG"), icon: BookOpen },
@@ -264,10 +268,10 @@ export default function Layout({ children, currentPageName }) {
                     <div className="bg-ecg-green rounded-2xl p-4 text-ecg-midnight shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer">
                       <div className="flex items-center gap-2 mb-1">
                         <Crown className="w-5 h-5" />
-                        <span className="font-nunito font-black text-sm">Upgrade Premium</span>
+                        <span className="font-nunito font-black text-sm">Plano Premium</span>
                       </div>
                       <p className="text-xs font-semibold opacity-80">
-                        Desbloqueie módulos e gamificação completa
+                        Módulos estruturados e material teórico para um aprendizado completo de ECG
                       </p>
                     </div>
                   </Link>

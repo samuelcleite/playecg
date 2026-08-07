@@ -4,10 +4,11 @@ import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Flame, Target, Brain, Award, ChevronRight, Crown } from "lucide-react";
+import { Flame, Award, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
+import PremiumUpsellCard from "@/components/home/PremiumUpsellCard";
 
-export default function StatsPanel({ stats, streakDays, earnedAchievements, isPremium }) {
+export default function StatsPanel({ streakDays, earnedAchievements, isPremium }) {
   return (
     <div className="space-y-4">
       {/* Streak Card */}
@@ -34,37 +35,9 @@ export default function StatsPanel({ stats, streakDays, earnedAchievements, isPr
         </Card>
       </motion.div>
 
-      {/* Stats Card */}
-      <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }}>
-        <Card className="border border-gray-200 bg-white">
-          <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-sm font-bold text-gray-700 flex items-center gap-2">
-              <Brain className="w-4 h-4 text-blue-600" />
-              Suas Estatísticas
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="text-center p-3 bg-blue-50 rounded-xl">
-                <p className="text-2xl font-black text-blue-600">{stats.total}</p>
-                <p className="text-xs text-gray-600 mt-0.5">Tentativas</p>
-              </div>
-              <div className="text-center p-3 bg-green-50 rounded-xl">
-                <p className="text-2xl font-black text-green-600">{stats.accuracy}%</p>
-                <p className="text-xs text-gray-600 mt-0.5">Acurácia</p>
-              </div>
-              <div className="text-center p-3 bg-purple-50 rounded-xl">
-                <p className="text-2xl font-black text-purple-600">{stats.correct}</p>
-                <p className="text-xs text-gray-600 mt-0.5">Acertos</p>
-              </div>
-              <div className="text-center p-3 bg-orange-50 rounded-xl">
-                <p className="text-2xl font-black text-orange-600">{streakDays}</p>
-                <p className="text-xs text-gray-600 mt-0.5">Dias em sequência</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+      {/* Card "Suas Estatísticas" removido: os números vinham errados e
+          exibir métrica furada é pior do que não exibir nenhuma. O streak
+          continua acima, que é a única informação confiável hoje. */}
 
       {/* Achievements Card */}
       <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
@@ -114,19 +87,7 @@ export default function StatsPanel({ stats, streakDays, earnedAchievements, isPr
       {/* Upgrade CTA if not premium */}
       {!isPremium && (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }}>
-          <Link to={createPageUrl("Upgrade")}>
-            <Card className="border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 cursor-pointer hover:shadow-lg transition-all">
-              <CardContent className="p-4 text-center">
-                <Crown className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                <p className="font-bold text-amber-900 text-sm mb-1">Unlock Premium</p>
-                <p className="text-xs text-amber-700 mb-3">Acesse toda a trilha de módulos e gamificação completa</p>
-                <Button size="sm" className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white">
-                  Ver Planos
-                  <ChevronRight className="w-3 h-3 ml-1" />
-                </Button>
-              </CardContent>
-            </Card>
-          </Link>
+          <PremiumUpsellCard />
         </motion.div>
       )}
     </div>

@@ -8,6 +8,7 @@ import { getCurrentUser } from '@/lib/currentUser';
 import { loadUserAchievements } from "@/components/AchievementChecker";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import StatsPanel from "@/components/home/StatsPanel";
+import PremiumUpsellCard from "@/components/home/PremiumUpsellCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,9 +20,10 @@ import {
   Crown,
   Loader2,
   BookOpen,
+  ListOrdered,
   ChevronRight
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import NotificationBanner from "@/components/NotificationBanner";
 
 export default function Dashboard() {
@@ -30,8 +32,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [streakDays, setStreakDays] = useState(0);
   const [achievements, setAchievements] = useState([]);
-  const [dailyCaseAvailable, setDailyCaseAvailable] = useState(false);
-  const [dailyCaseCompleted, setDailyCaseCompleted] = useState(false);
   const [stats, setStats] = useState({ total: 0, correct: 0, accuracy: 0 });
   const containerRef = useRef(null);
 
@@ -65,13 +65,8 @@ export default function Dashboard() {
         setAchievements(userAchievements);
       } catch (_) {}
 
-      try {
-        const res = await base44.functions.invoke("getDailyCase", {});
-        if (res.data.success) {
-          setDailyCaseAvailable(true);
-          setDailyCaseCompleted(res.data.already_answered);
-        }
-      } catch (_) {}
+      // A consulta a getDailyCase saiu junto com o card do Caso do Dia: era o
+      // único lugar que usava esse resultado.
 
     } catch (err) {
       console.error("Erro ao carregar Dashboard:", err);
@@ -144,42 +139,106 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-gray-900">
             Olá, {user?.full_name?.split(" ")[0] || "Jogador"}! 👋
           </h1>
-          <p className="text-gray-500 text-sm mt-1">
+          {/* No mobile a sequência ganhou card próprio logo abaixo das opções;
+              repetir aqui seria a terceira vez na mesma tela. */}
+          <p className="hidden md:block text-gray-500 text-sm mt-1">
             {streakDays > 0
               ? `🔥 ${streakDays} dia${streakDays > 1 ? "s" : ""} em sequência! Continue assim!`
               : "Comece a praticar para iniciar sua sequência!"}
           </p>
         </motion.div>
 
-        {/* Daily Challenge + Quick Actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          <AnimatePresence>
-            {dailyCaseAvailable && (
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
-                <Link to={createPageUrl("DailyCase")}>
-                  <Card className={`border-2 cursor-pointer hover:shadow-lg transition-all h-full ${dailyCaseCompleted ? "border-gray-200 bg-gray-50" : "border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50"}`}>
-                    <CardContent className="p-4 flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 ${dailyCaseCompleted ? "bg-gray-200" : "bg-gradient-to-br from-amber-400 to-orange-500 shadow-md"}`}>
-                        ⭐
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-gray-900 text-sm">Caso do Dia</p>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {dailyCaseCompleted ? "Concluído hoje ✓" : "Desafio diário disponível!"}
-                        </p>
-                      </div>
-                      {!dailyCaseCompleted && (
-                        <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white flex-shrink-0">
-                          Fazer
-                        </Button>
-                      )}
-                    </CardContent>
-                  </Card>
-                </Link>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        {/* ══════════ MOBILE: 3 opções + 1 informação ══════════
+            Ordem proposital: Módulos e Aprenda ECG (o que a assinatura vende)
+            antes do Quiz (o que já é gratuito). Os dois primeiros aparecem
+            para quem é gratuito com selo Premium — é assim que ele descobre o
+            que está perdendo; sem assinatura o toque leva à tela de planos.
+            Aprenda ECG é bloqueado por inteiro para quem não assina, então o
+            selo diz a verdade. */}
+        <div className="md:hidden space-y-3 mb-6">
+          <Link to={createPageUrl(isPremium ? "Modules" : "Upgrade")} className="block">
+            <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 active:scale-[0.99] transition-transform">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#22C55E] to-[#16a34a] flex items-center justify-center shadow-md flex-shrink-0">
+                  <ListOrdered className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-gray-900 text-base">Módulos</p>
+                    {!isPremium && (
+                      <Badge className="bg-amber-100 text-amber-800 border border-amber-300 text-[10px] px-1.5 py-0">
+                        <Crown className="w-2.5 h-2.5 mr-0.5" />
+                        Premium
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-600 mt-0.5">Siga uma trilha de aprendizado treinando desde o básico até casos mais avançados</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-green-400 flex-shrink-0" />
+              </CardContent>
+            </Card>
+          </Link>
 
+          <Link to={createPageUrl("AprendaECG")} className="block">
+            <Card className="border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-violet-50 active:scale-[0.99] transition-transform">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#1976D2] to-indigo-700 flex items-center justify-center shadow-md flex-shrink-0">
+                  <BookOpen className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-gray-900 text-base">Aprenda ECG</p>
+                    {!isPremium && (
+                      <Badge className="bg-amber-100 text-amber-800 border border-amber-300 text-[10px] px-1.5 py-0">
+                        <Crown className="w-2.5 h-2.5 mr-0.5" />
+                        Premium
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-600 mt-0.5">Ficou na dúvida ao resolver as questões? Aprenda a teoria aqui</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-indigo-400 flex-shrink-0" />
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link to={createPageUrl("Quiz")} className="block">
+            <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 active:scale-[0.99] transition-transform">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#1976D2] to-[#0D3B66] flex items-center justify-center shadow-md flex-shrink-0">
+                  <Brain className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-gray-900 text-base">Quiz</p>
+                  <p className="text-xs text-gray-600 mt-0.5">Pratique ECG com casos variados e aleatórios</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-blue-400 flex-shrink-0" />
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* A informação */}
+          <Card className="border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl flex items-center justify-center shadow-md flex-shrink-0">
+                <Flame className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-2xl font-black text-orange-600 leading-none">{streakDays}</p>
+                <p className="text-sm text-orange-700 font-medium mt-0.5">
+                  {streakDays === 1 ? "dia em sequência" : "dias em sequência"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {!isPremium && <PremiumUpsellCard />}
+        </div>
+
+        {/* ══════════ DESKTOP (web): layout original ══════════ */}
+        <div className="hidden md:block">
+        {/* Quick Actions — o card "Caso do Dia" saiu daqui também. */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }}>
             <Link to={createPageUrl("Quiz")}>
               <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 cursor-pointer hover:shadow-lg transition-all h-full">
@@ -209,7 +268,7 @@ export default function Dashboard() {
                   <BookOpen className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-gray-900 text-sm">Trilha de Aprendizado</p>
+                  <p className="font-bold text-gray-900 text-sm">Módulos</p>
                   <p className="text-xs text-gray-500 mt-0.5">Continue seu aprendizado de onde parou!</p>
                 </div>
                 <ChevronRight className="w-5 h-5 text-green-400 flex-shrink-0" />
@@ -220,11 +279,11 @@ export default function Dashboard() {
 
         {/* Stats */}
         <StatsPanel
-          stats={stats}
           streakDays={streakDays}
           earnedAchievements={earnedAchievements}
           isPremium={isPremium}
         />
+        </div>
       </div>
 
       <FaleConoscoButton />

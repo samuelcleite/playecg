@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { getCurrentUser, refreshCurrentUser } from '@/lib/currentUser';
 import { useNavigate } from "react-router-dom";
@@ -22,9 +22,6 @@ import {
   Crown,
   Check,
   Zap,
-  BookOpen,
-  Trophy,
-  Target,
   Sparkles,
   Loader2,
   Tag,
@@ -32,7 +29,6 @@ import {
   CreditCard,
   XCircle,
   ShieldCheck,
-  CheckCircle2,
   RotateCcw
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -349,7 +345,7 @@ export default function Upgrade() {
   const isIOS = isIOSNativeApp();
   const isAndroid = isAndroidNativeApp();
   const loja = isIOS ? "App Store" : isAndroid ? "Google Play" : null;
-  const donoDaLoja = isIOS ? "Apple" : "Google";
+  // `donoDaLoja` (Apple / Google) saiu junto com o FAQ, que era seu único uso.
 
   const originalPrice = selectedPlan === "annual" ? 499 : 59;
   const finalPrice = appliedCoupon?.pricing?.final_price || originalPrice;
@@ -363,12 +359,8 @@ export default function Upgrade() {
   ];
 
   const premiumFeatures = [
-    "Trilha de aprendizado estruturada",
-    "Todos os módulos e fases desbloqueados",
-    "Explicações detalhadas de cada caso",
-    "Sistema completo de gamificação",
-    "Badges e troféus exclusivos",
-    "Análise de desempenho detalhada",
+    "Aprenda do básico ao avançado em módulos estruturados",
+    "Acesso à teoria antes de cada fase",
     "Acesso ilimitado a todos os casos",
     "Conteúdo atualizado regularmente",
     "Suporte prioritário"
@@ -404,9 +396,6 @@ export default function Upgrade() {
                 <Zap className="w-8 h-8 text-gray-600" />
               </div>
               <CardTitle className="text-2xl">Versão Gratuita</CardTitle>
-              <div className="mt-4">
-                <span className="text-2xl font-bold text-gray-500">Gratuito</span>
-              </div>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3">
@@ -429,9 +418,6 @@ export default function Upgrade() {
 
           {/* Premium Plan */}
           <Card className="border-none shadow-2xl bg-blue-50 relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-[#22C55E] text-white px-4 py-1 text-sm font-semibold">
-              Mais Popular
-            </div>
             <CardHeader className="text-center pb-4">
               <div className="w-16 h-16 bg-[#0D3B66] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <Crown className="w-8 h-8 text-white" />
@@ -582,11 +568,9 @@ export default function Upgrade() {
                         ? `A compra será processada com segurança pela ${loja}.`
                         : "Você será redirecionado para a página segura do Stripe. Aceita os principais cartões de crédito e débito."}
                     </p>
-                    <p className="text-xs font-semibold text-blue-700">
-                      {loja
-                        ? `🔒 Pagamento seguro via ${loja}`
-                        : "🔒 Pagamento seguro via Stripe"}
-                    </p>
+                    {/* Terceira linha removida: repetia o título do próprio
+                        bloco, duas linhas acima. As duas que sobraram já usam
+                        o nome da loja certa (App Store / Google Play). */}
                   </div>
                 </AlertDescription>
               </Alert>
@@ -604,16 +588,12 @@ export default function Upgrade() {
                 ) : (
                   <>
                     <CreditCard className="w-5 h-5 mr-2" />
-                    Ir para Checkout Seguro
+                    Adquirir Premium
                   </>
                 )}
               </Button>
-              <p className="text-center text-sm text-gray-600 mt-4 flex items-center justify-center gap-2">
-                <CheckCircle2 className="w-4 h-4" />
-                {loja
-                  ? `Compra processada com segurança pela ${loja}`
-                  : "Checkout 100% seguro processado pelo Stripe"}
-              </p>
+              {/* Aviso de pagamento seguro removido daqui: o bloco azul logo
+                  acima do botão já diz a mesma coisa. */}
 
               {/* Restaurar Compras — apps nativos. Exigência da Apple no iOS;
                   no Android a compra também é do RevenueCat e precisa do restore. */}
@@ -665,95 +645,11 @@ export default function Upgrade() {
           </Card>
         </div>
 
-        {/* Benefits Section */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
-          <Card className="border-none shadow-lg">
-            <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-[#0D3B66] rounded-full flex items-center justify-center mx-auto mb-4">
-                <BookOpen className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Aprendizado Estruturado
-              </h3>
-              <p className="text-gray-600">
-                Siga uma trilha progressiva do básico ao avançado
-              </p>
-            </CardContent>
-          </Card>
+        {/* Cards de benefício e FAQ removidos de vez — app e web. De
+            "Aprendizado Estruturado" para baixo a página virava peça de site:
+            três cards institucionais e um FAQ inteiro depois do botão de
+            compra. */}
 
-          <Card className="border-none shadow-lg">
-            <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-[#1976D2] rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trophy className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Gamificação Completa
-              </h3>
-              <p className="text-gray-600">
-                Conquiste badges, níveis e mantenha sua motivação
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-lg">
-            <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-[#22C55E] rounded-full flex items-center justify-center mx-auto mb-4">
-                <Target className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Feedback Detalhado
-              </h3>
-              <p className="text-gray-600">
-                Explicações completas e análise de cada caso
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* FAQ Section */}
-        <Card className="border-none shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-center text-2xl">Perguntas Frequentes</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-2">
-                Posso cancelar a qualquer momento?
-              </h4>
-              <p className="text-gray-600">
-                Sim! Você pode cancelar sua assinatura quando quiser, sem multas ou taxas de cancelamento.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-2">
-                Qual a diferença para a versão gratuita?
-              </h4>
-              <p className="text-gray-600">
-                A versão gratuita oferece apenas quizzes aleatórios. A Premium inclui trilha estruturada,
-                explicações detalhadas, gamificação completa e muito mais.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-2">
-                Os casos são baseados em situações reais?
-              </h4>
-              <p className="text-gray-600">
-                Sim! Todos os casos são baseados em ECGs reais e situações clínicas autênticas,
-                cuidadosamente selecionados para seu aprendizado.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-2">
-                O pagamento é seguro?
-              </h4>
-              <p className="text-gray-600">
-                {loja
-                  ? `Completamente! Utilizamos o sistema de pagamentos da ${loja}. Seus dados de pagamento são processados diretamente pela ${donoDaLoja} e nunca passam pelos nossos servidores.`
-                  : "Completamente! Utilizamos o Stripe, uma das maiores plataformas de pagamento do mundo. Seus dados de pagamento são processados diretamente pelo Stripe e nunca passam pelos nossos servidores."}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Error Dialog */}

@@ -577,7 +577,8 @@ export default function Quiz() {
             )}
 
             <p className="text-gray-500 text-sm mb-6">
-              Você usou <strong>{dailyQuizCount}</strong> questão{dailyQuizCount !== 1 ? 'ões' : ''} hoje. 
+              {/* Era `questão` + sufixo `ões`, o que produzia "questãoões". */}
+              Você realizou <strong>{dailyQuizCount}</strong> {dailyQuizCount === 1 ? 'questão' : 'questões'} hoje.
               {isHourlyPhase
                 ? " Continue aguardando ou faça upgrade para ter acesso ilimitado."
                 : " Volte amanhã ou faça upgrade para acesso ilimitado."}
@@ -590,8 +591,6 @@ export default function Quiz() {
                 <ul className="list-disc list-inside mt-2 text-left space-y-1">
                   <li>Quizzes ilimitados por dia</li>
                   <li>Módulos estruturados</li>
-                  <li>Explicações detalhadas</li>
-                  <li>Gamificação completa</li>
                 </ul>
               </AlertDescription>
             </Alert>
@@ -931,7 +930,7 @@ export default function Quiz() {
                       {!isPremium && (
                         <Alert className="mt-4 bg-amber-50 border-amber-200">
                           <AlertDescription className="text-amber-900">
-                            <strong>💎 Versão Premium:</strong> Desbloqueie explicações detalhadas e análise completa de cada caso.
+                            <strong>Versão Premium:</strong> aprenda a teoria junto com a prática nos módulos estruturados.
                           </AlertDescription>
                         </Alert>
                       )}
@@ -1019,7 +1018,7 @@ export default function Quiz() {
                       {!isPremium && (
                         <Alert className="mt-4 bg-amber-50 border-amber-200">
                           <AlertDescription className="text-amber-900">
-                            <strong>💎 Versão Premium:</strong> Desbloqueie explicações detalhadas e análise completa de cada caso.
+                            <strong>Versão Premium:</strong> aprenda a teoria junto com a prática nos módulos estruturados.
                           </AlertDescription>
                         </Alert>
                       )}

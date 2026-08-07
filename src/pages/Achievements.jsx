@@ -7,7 +7,7 @@ import { loadUserAchievements } from "@/components/AchievementChecker";
 
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import { Progress } from "@/components/ui/progress";
-import { Trophy, Loader2, Flame, Target, CheckCircle2, Star, BookOpen } from "lucide-react";
+import { Trophy, Loader2, Flame, Star } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Achievements() {
@@ -96,31 +96,14 @@ export default function Achievements() {
           <p className="text-gray-500 text-sm">{earnedCount} de {totalCount} conquistados</p>
         </div>
 
-        {/* Stats Grid */}
-        {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100 rounded-2xl p-4 text-center">
-              <Flame className="w-6 h-6 text-orange-500 mx-auto mb-1" />
-              <p className="text-2xl font-bold text-orange-600">{streak}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Dias seguidos</p>
-            </div>
-            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-center">
-              <Target className="w-6 h-6 text-blue-500 mx-auto mb-1" />
-              <p className="text-2xl font-bold text-blue-600">{stats.totalAttempts}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Questões respondidas</p>
-            </div>
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100 rounded-2xl p-4 text-center">
-              <CheckCircle2 className="w-6 h-6 text-green-500 mx-auto mb-1" />
-              <p className="text-2xl font-bold text-green-600">{stats.accuracy}%</p>
-              <p className="text-xs text-gray-500 mt-0.5">Taxa de acerto</p>
-            </div>
-            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-center">
-              <BookOpen className="w-6 h-6 text-[#1976D2] mx-auto mb-1" />
-              <p className="text-2xl font-bold text-[#1976D2]">{stats.completedModules}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Fases concluídas</p>
-            </div>
-          </div>
-        )}
+        {/* Grade de estatísticas removida (mesmo motivo dos outros blocos:
+            números não confiáveis). Sobra a sequência de dias, que é a métrica
+            que fecha — e continua no topo desta tela e na inicial. */}
+        <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100 rounded-2xl p-4 text-center max-w-[200px] mx-auto">
+          <Flame className="w-6 h-6 text-orange-500 mx-auto mb-1" />
+          <p className="text-2xl font-bold text-orange-600">{streak}</p>
+          <p className="text-xs text-gray-500 mt-0.5">Dias seguidos</p>
+        </div>
 
         {/* Progress bar */}
         <div className="space-y-2">
