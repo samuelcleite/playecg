@@ -49,25 +49,32 @@ export default function ConteudoECG() {
       setContent(introContent);
     } else if (type === 'module' && moduleId) {
       // Buscar conteúdo do módulo
+      // filter em vez de list: antes vinha o corpo em HTML de TODOS os
+      // conteúdos do app para escolher um por find. Agora voltam só os deste
+      // módulo — o geral mais os das fases — e o find local separa o geral,
+      // que é justamente o que não tem phase_id.
       const [contents, modules] = await Promise.all([
-        base44.entities.Content.list(),
+        base44.entities.Content.filter({ module_id: moduleId }),
         base44.entities.Module.list()
       ]);
-      
-      const moduleContent = contents.find(c => c.module_id === moduleId && !c.phase_id);
+
+      const moduleContent = contents.find(c => !c.phase_id);
       const moduleData = modules.find(m => m.id === moduleId);
       
       setContent(moduleContent);
       setModule(moduleData);
     } else if (type === 'phase' && moduleId && phaseId) {
       // Buscar conteúdo da fase
+      // Mesmo motivo do ramo acima, e aqui o filtro é exato: os dois campos
+      // são conhecidos, então volta só o conteúdo desta fase. É o mesmo
+      // Content.filter que o Quiz já usa para carregar o conteúdo de um caso.
       const [contents, modules, phases] = await Promise.all([
-        base44.entities.Content.list(),
+        base44.entities.Content.filter({ module_id: moduleId, phase_id: phaseId }),
         base44.entities.Module.list(),
         base44.entities.Phase.list()
       ]);
-      
-      const phaseContent = contents.find(c => c.module_id === moduleId && c.phase_id === phaseId);
+
+      const phaseContent = contents?.[0] || null;
       const moduleData = modules.find(m => m.id === moduleId);
       const phaseData = phases.find(p => p.id === phaseId);
       
