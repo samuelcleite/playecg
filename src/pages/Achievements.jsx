@@ -13,7 +13,6 @@ import { motion } from "framer-motion";
 export default function Achievements() {
   const [user, setUser] = useState(null);
   const [achievements, setAchievements] = useState([]);
-  const [stats, setStats] = useState(null);
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const [tooltip, setTooltip] = useState(null); // { id, name, description, earned }
@@ -29,7 +28,12 @@ export default function Achievements() {
     const userData = await getCurrentUser();
     setUser(userData);
 
-    const resAttempts = await base44.functions.invoke('getMyQuizAttempts', { sort: '-created_date', limit: 500 });
+    // As duas chamadas não dependem uma da outra — em sequência, a tela
+    // esperava dois round-trips antes de mostrar qualquer troféu.
+    const [resAttempts, userAchievements] = await Promise.all([
+      base44.functions.invoke('getMyQuizAttempts', { sort: '-created_date', limit: 500 }),
+      loadUserAchievements(userData),
+    ]);
     const attempts = resAttempts?.data?.attempts || [];
 
     // Calcular streak localmente, sem chamada extra
@@ -47,18 +51,11 @@ export default function Achievements() {
       }
     }
     setStreak(streakDays);
-    const correctCount = attempts.filter(a => a.correct).length;
 
-    const statsData = {
-      totalAttempts: attempts?.length || 0,
-      correctAnswers: correctCount || 0,
-      accuracy: attempts?.length > 0 ? Math.round((correctCount / attempts.length) * 100) : 0,
-      totalPoints: userData.points || 0,
-    };
+    // O cálculo de statsData saiu com o painel de estatísticas: nada na tela
+    // lia esses números. O getMyQuizAttempts acima segue necessário — é dele
+    // que sai o streak.
 
-    setStats(statsData);
-
-    const userAchievements = await loadUserAchievements(userData);
     setAchievements(userAchievements);
     setLoading(false);
   };

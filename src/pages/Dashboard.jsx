@@ -32,7 +32,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [streakDays, setStreakDays] = useState(0);
   const [achievements, setAchievements] = useState([]);
-  const [stats, setStats] = useState({ total: 0, correct: 0, accuracy: 0 });
+  // O estado `stats` saiu junto com o painel de estatísticas: ninguém lia mais
+  // total/correct/accuracy. De getUserStats sobrou só o streakDays.
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -49,21 +50,22 @@ export default function Dashboard() {
         return;
       }
 
-      // Buscar estatísticas via backend (service role - confiável, sem limites de RLS no frontend)
-      const statsRes = await base44.functions.invoke("getUserStats", {});
-      const s = statsRes.data;
-      setStats({
-        total: s.total,
-        correct: s.correct,
-        accuracy: s.accuracy,
-        completedModules: 0
-      });
-      setStreakDays(s.streakDays);
+      // --- ESSENCIAL: nada. As três opções de navegação e a saudação só
+      // dependem da conta, que já veio acima. A tela pode aparecer aqui. ---
+      setLoading(false);
 
-      try {
-        const userAchievements = await loadUserAchievements(userData);
-        setAchievements(userAchievements);
-      } catch (_) {}
+      // --- SECUNDÁRIO: não bloqueia a tela, preenche os números depois ---
+      // Antes estes dois awaits vinham em sequência e a tela inteira ficava
+      // atrás deles: dois round-trips para escrever a sequência de dias num
+      // canto e os troféus num painel que só existe no desktop.
+      base44.functions
+        .invoke("getUserStats", {})
+        .then((statsRes) => setStreakDays(statsRes?.data?.streakDays ?? 0))
+        .catch((err) => console.error("getUserStats:", err));
+
+      loadUserAchievements(userData)
+        .then(setAchievements)
+        .catch((err) => console.error("getUserAchievements:", err));
 
       // A consulta a getDailyCase saiu junto com o card do Caso do Dia: era o
       // único lugar que usava esse resultado.

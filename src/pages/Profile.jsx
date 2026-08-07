@@ -74,13 +74,8 @@ function rotuloDaFormaDePagamento(paymentMethod, store) {
 export default function Profile() {
   const [user, setUser] = useState(null);
   const [streakDays, setStreakDays] = useState(0);
-  const [stats, setStats] = useState({
-    totalAttempts: 0,
-    correctAnswers: 0,
-    accuracy: 0,
-    totalPoints: 0,
-    completedModules: 0
-  });
+  // O estado `stats` saiu junto com o painel de estatísticas: nada na tela lia
+  // mais totalAttempts/accuracy/completedModules.
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     full_name: "",
@@ -116,64 +111,24 @@ export default function Profile() {
       city: userData.city || ""
     });
 
-    const streak = await calculateStreakDays(userData.email);
+    // Antes daqui saíam cinco round-trips em fila, e dois deles eram a MESMA
+    // consulta: calculateStreakDays pede as tentativas do usuário e o
+    // getMyQuizAttempts logo abaixo pedia de novo. O que consumia a segunda
+    // cópia — o bloco de estatísticas e a contagem de módulos completos, que
+    // ainda varria Phase.list inteira — saiu da tela; sobrou o streak.
+    //
+    // O que restou não depende um do outro e agora vai junto.
+    const isPremium = userData.subscription_type === 'premium';
+    if (!isPremium) setSubscriptionInfo(null);
+
+    const [streak, userAchievements] = await Promise.all([
+      calculateStreakDays(userData.email),
+      loadUserAchievements(userData),
+      isPremium ? loadSubscriptionInfo() : null,
+    ]);
+
     setStreakDays(streak);
-
-    const resAttempts = await base44.functions.invoke('getMyQuizAttempts', {});
-    const attempts = resAttempts?.data?.attempts || [];
-    const correctCount = attempts.filter(a => a.correct).length;
-    
-    // Calcular módulos completados a partir de QuizAttempt
-    const phases = await base44.entities.Phase.list();
-    const moduleAttempts = attempts.filter(a => a.quiz_type === "module");
-    
-    let completedPhasesCount = 0;
-    for (const phase of phases) {
-      const phaseAttempts = moduleAttempts.filter(a => a.phase_id === phase.id);
-      const attemptsByCase = {};
-      
-      phaseAttempts.forEach(att => {
-        if (!attemptsByCase[att.case_id]) {
-          attemptsByCase[att.case_id] = [];
-        }
-        attemptsByCase[att.case_id].push(att);
-      });
-      
-      let completedCases = 0;
-      Object.keys(attemptsByCase).forEach(caseId => {
-        const caseAttempts = attemptsByCase[caseId];
-        const hasCorrect = caseAttempts.some(a => a.correct);
-        const hasThreeAttempts = caseAttempts.length >= 3;
-        
-        if (hasCorrect || hasThreeAttempts) {
-          completedCases++;
-        }
-      });
-      
-      if (completedCases >= (phase.total_cases || 0)) {
-        completedPhasesCount++;
-      }
-    }
-
-    const statsData = {
-      totalAttempts: attempts?.length || 0,
-      correctAnswers: correctCount || 0,
-      accuracy: attempts?.length > 0 ? Math.round((correctCount / attempts.length) * 100) : 0,
-      totalPoints: userData.points || 0,
-      completedModules: completedPhasesCount || 0
-    };
-
-    setStats(statsData);
-
-    // Carregar conquistas dinâmicas
-    const userAchievements = await loadUserAchievements(userData, statsData, streak);
     setAchievements(userAchievements);
-
-    if (userData.subscription_type === 'premium') {
-      await loadSubscriptionInfo();
-    } else {
-      setSubscriptionInfo(null);
-    }
   };
 
   const loadSubscriptionInfo = async () => {
