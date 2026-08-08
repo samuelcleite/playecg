@@ -10,6 +10,10 @@
 
     <!-- PWA: tema e cor de fundo -->
     <meta name="theme-color" content="#0D1E30" />
+    <!-- O app tem design apenas claro. Declarar isso impede que o WebView/Chrome
+         aplique o escurecimento automatico dele quando o sistema esta no modo noturno,
+         que inverte os fundos mas mantem o texto escuro (texto escuro sobre fundo escuro). -->
+    <meta name="color-scheme" content="light" />
     <meta name="mobile-web-app-capable" content="yes" />
 
     <!-- PWA: suporte iOS (Safari) -->
