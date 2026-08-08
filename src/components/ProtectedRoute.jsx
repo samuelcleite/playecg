@@ -1,8 +1,10 @@
 import { useAuth } from "@/lib/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
+import { guardarDestinoPosLogin } from "@/lib/postLoginRedirect";
 
 export default function ProtectedRoute({ children }) {
   const { isAuthenticated, isLoadingAuth, isLoadingPublicSettings } = useAuth();
+  const location = useLocation();
 
   if (isLoadingAuth || isLoadingPublicSettings) {
     return (
@@ -13,6 +15,11 @@ export default function ProtectedRoute({ children }) {
   }
 
   if (!isAuthenticated) {
+    // Anota para onde a pessoa estava indo antes de mandá-la para o login. Só
+    // anota — quem decide voltar é a Home, depois que a sessão existir. Não
+    // muda o fluxo de autenticação: nenhum token, nenhuma credencial, nenhuma
+    // decisão de sessão passa por aqui.
+    guardarDestinoPosLogin(location.pathname + location.search);
     return <Navigate to="/" replace />;
   }
 
