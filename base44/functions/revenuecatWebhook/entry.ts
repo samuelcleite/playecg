@@ -97,9 +97,25 @@ Deno.serve(async (req) => {
     } else if (DEACTIVATE.includes(type)) {
       const conta = await resolveAccount();
       if (conta) {
-        await base44.asServiceRole.entities.Account.update(conta.id, {
-          subscription_type: 'free'
-        });
+        // INVARIANTE lifetime_access
+        // Quem tem lifetime_access NUNCA é escrito como 'free'.
+        // subscription_type é o que CONCEDE o acesso — todas as telas do app
+        // checam 'premium' e nenhuma sabe o que é vitalício. lifetime_access
+        // não concede nada: ele só impede o rebaixamento. É a combinação dos
+        // dois que sustenta o vitalício sem tocar em nenhuma tela.
+        //
+        // Aqui isso importa porque o comprador vitalício pode ter tido uma
+        // assinatura de loja antes (ele só precisava estar 'free' no dia da
+        // compra, não nunca ter assinado). Quando aquela assinatura expirar,
+        // a App Store / Play Store manda EXPIRATION meses depois e rebaixaria
+        // alguém que pagou pelo acesso permanente.
+        if (conta.lifetime_access === true) {
+          console.log('🔒 INVARIANTE lifetime_access: rebaixamento ignorado para', conta.email);
+        } else {
+          await base44.asServiceRole.entities.Account.update(conta.id, {
+            subscription_type: 'free'
+          });
+        }
       }
     }
 

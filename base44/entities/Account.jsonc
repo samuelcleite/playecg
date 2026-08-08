@@ -52,6 +52,11 @@
       "format": "date-time",
       "description": "Data de início da assinatura premium"
     },
+    "lifetime_access": {
+      "type": "boolean",
+      "default": false,
+      "description": "Comprou o plano vitalício (pagamento único, Stripe/web). NÃO concede acesso: quem concede é subscription_type. Serve para impedir que os caminhos de expiração rebaixem o comprador para 'free'. Ver INVARIANTE lifetime_access."
+    },
     "specialty": {
       "type": "string",
       "description": "Especialidade médica do usuário"
