@@ -108,8 +108,13 @@ const AuthenticatedApp = () => {
 
 function App() {
 
+  // O ThemeProvider existe so porque o Toaster (components/ui/sonner.jsx) chama
+  // useTheme(). Ele NAO deve seguir o tema do sistema: o app e claro por design e
+  // as cores estao hardcoded (text-gray-*, bg-white) nas telas, entao ativar o
+  // bloco `.dark` do index.css trocava so os fundos e deixava o texto escuro sobre
+  // fundo escuro. forcedTheme ignora o sistema e o localStorage.
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem={true}>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} forcedTheme="light">
       <AuthProvider>
         <QueryClientProvider client={queryClientInstance}>
           <Router>
