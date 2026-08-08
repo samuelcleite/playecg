@@ -6,6 +6,10 @@
   :root {
     /* ── PlayECG Design System ────────────────────────────── */
 
+    /* Design apenas claro — ver a meta color-scheme no index.html.
+       Sem isso o WebView escurece a pagina por conta propria no modo noturno. */
+    color-scheme: light;
+
     /* Backgrounds */
     --background: 0 0% 100%;           /* #FFFFFF — Branco Clínico */
     --foreground: 240 35% 14%;         /* #1A1A2E — Carvão Texto */
