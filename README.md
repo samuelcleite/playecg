@@ -179,9 +179,43 @@ Três trilhos independentes. **Nenhum sistema de cupom atravessa os três.**
 | Android | Google Play Billing via RevenueCat | mesmo webhook |
 
 - **Fonte única de verdade:** campo `subscription_type` (`'free'` \| `'premium'`)
-  na entidade `User`. Os dois webhooks escrevem nele.
-- Planos: **mensal R$59** (`monthly`), **anual R$499** (`annual`). O Product ID
-  anual da Apple ainda usa sufixo `.yearly`.
+  na entidade **`Account`** — não mais no `User`, congelado desde o corte de
+  julho/2026. Os dois webhooks escrevem nele.
+- Planos: **mensal R$59** (`monthly`), **anual R$499** (`annual`) e **vitalício
+  R$400** (`lifetime`). O Product ID anual da Apple ainda usa sufixo `.yearly`.
+- **Preço e price ID vivem em `base44/shared/plans.ts`.** Aquele arquivo não
+  roda — o Base44 não resolve import entre functions — então ele é o *original*
+  e as functions carregam cópias inline, mesmo contrato do `resolveIdentity`.
+  `grep PLANOS` acha todas.
+
+### Plano vitalício
+
+Pagamento único de R$400, acesso permanente. **Oferta privada:** não aparece no
+paywall e não é linkada de lugar nenhum — só chega quem tem a URL `/vitalicio`.
+Limite de vagas na env `LIFETIME_VAGAS` (padrão 100). Elegível só quem está
+`subscription_type: 'free'` no momento da compra; a trava vive no
+`createStripeCheckout`, no backend, porque o link circula por WhatsApp.
+
+**Só web/Stripe.** Fora das lojas de propósito: a ponte Despia do iOS só aceita
+assinatura, e o Android exigiria one-time product no Play Console.
+
+> ⚠️ **Ler o invariante 8 do [`ARQUITETURA_AUTH.md`](ARQUITETURA_AUTH.md) antes
+> de tocar em qualquer caminho que escreva `subscription_type: 'free'`.**
+> `lifetime_access` não concede acesso — ele impede o rebaixamento. Três guards
+> dependem disso e `grep -rn "INVARIANTE lifetime_access" base44/` tem que
+> continuar achando os três.
+
+Estorno: `charge.refunded` **total** revoga o acesso (direito de arrependimento
+do CDC); **parcial não revoga**. A cobrança é identificada como vitalícia pelo
+registro em `Payment` (`payment_method: 'STRIPE_LIFETIME'`, casado pelo
+PaymentIntent), nunca pelo valor — R$400 colide com o limiar que separa mensal
+de anual. A revogação **não é instantânea**: o evento leva segundos e o painel
+mostra cache, então conferir na hora mostra o estado antigo.
+
+**A contagem de vagas não é atômica** e não há como torná-la: o SDK do Base44
+não tem update condicional, unicidade nem transação. A trava existe só na
+criação da session e o webhook **nunca** nega acesso por vaga esgotada — se o
+evento chegou, o dinheiro já foi cobrado. Vender 101 é aceito de propósito.
 - RevenueCat: projeto `projc13a06e9`, entitlement **"PlayECG Pro"**, produtos
   `premium:monthly` / `premium:annual`.
 - Webhook RevenueCat autenticado por header `Authorization` **cru** (sem
@@ -350,5 +384,6 @@ Só o que não coube em nenhuma seção. Mais recente no topo.
  
 | Data | O que se descobriu | Como se sabe |
 |---|---|---|
-| | | |
+| 09/08/2026 | **O sync com o Base44 carrega schema de entidade, não só código.** Campo novo declarado em `base44/entities/*.jsonc` aparece no painel sozinho depois do merge. Não é preciso recriar nada à mão nem por prompt. | Merge do PR do vitalício: `lifetime_access` apareceu no Schema Editor da `Account`, com a descrição inteira, sem ninguém tocar no painel. |
+| 09/08/2026 | **Campo novo com `default` NÃO preenche registro que já existia.** O banco é Mongo: ler `undefined` num registro antigo é o esperado, não sinal de que o schema falhou. Testar campo novo lendo registro velho não distingue as duas coisas — teste escrevendo e lendo de volta. | Custou um alarme falso: `lifetime_access` voltou `undefined` numa Account antiga e eu tratei como falha de deploy; o campo estava no painel o tempo todo. |
  
