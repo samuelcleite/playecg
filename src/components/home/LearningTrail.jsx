@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Lock, CheckCircle, Star, Play, BookOpen, ChevronRight, Crown, Heart } from "lucide-react";
+import { Lock, CheckCircle, Star, Play, BookOpen, ChevronRight, Heart } from "lucide-react";
 import { motion } from "framer-motion";
 
 function getPhaseProgress(phase, userProgress) {
@@ -15,7 +15,11 @@ const ZIGZAG_X = [50, 72, 50, 28, 50, 72];
 const NODE_SIZE = 64;
 const Y_STEP = 130;
 
-export default function LearningTrail({ modules, phases, userProgress, isPremium }) {
+// A trilha não sabe nada sobre planos. O único cadeado que ela aplica é o de
+// progressão (fase anterior concluída, módulo anterior completo) — a cobrança
+// pelo plano acontece no ModuleDetail, quando a pessoa tenta abrir a fase.
+// Sem isso, o usuário free não conseguiria nem clicar para chegar ao paywall.
+export default function LearningTrail({ modules, phases, userProgress }) {
   const trail = useMemo(() => {
     return modules.map(mod => {
       const modPhases = phases.filter(p => p.module_id === mod.id).sort((a, b) => a.order - b.order);
@@ -35,7 +39,6 @@ export default function LearningTrail({ modules, phases, userProgress, isPremium
   };
 
   const nextPhase = useMemo(() => {
-    if (!isPremium) return null;
     for (const item of trail) {
       if (!isModuleUnlocked(trail, item.module)) continue;
       for (const phase of item.phases) {
@@ -43,7 +46,7 @@ export default function LearningTrail({ modules, phases, userProgress, isPremium
       }
     }
     return null;
-  }, [trail, isPremium]);
+  }, [trail]);
 
   const nextPhaseRef = useRef(null);
 
@@ -83,8 +86,7 @@ export default function LearningTrail({ modules, phases, userProgress, isPremium
 
       <div className="space-y-2">
         {trail.map((item, modIdx) => {
-          const unlocked = isModuleUnlocked(trail, item.module);
-          const isLocked = !isPremium || !unlocked;
+          const isLocked = !isModuleUnlocked(trail, item.module);
           const trailHeight = item.phases.length * Y_STEP + NODE_SIZE + 10;
 
           return (
@@ -104,10 +106,12 @@ export default function LearningTrail({ modules, phases, userProgress, isPremium
                       ? "bg-gray-100 text-gray-400"
                       : "bg-purple-100 text-purple-700"
                 }`}>
-                  {isLocked && !isPremium && <Crown className="w-3 h-3 inline mr-1" />}
-                  {isLocked && isPremium && <Lock className="w-3 h-3 inline mr-1" />}
+                  {isLocked && <Lock className="w-3 h-3 inline mr-1" />}
                   {item.allDone && <Heart className="w-3 h-3 inline mr-1 fill-red-500 text-red-500" />}
-                  {unlocked ? item.module.name : `Módulo ${item.module.order}`}
+                  {/* Nome do módulo nunca é mascarado: saber o que vem pela
+                      frente é o que dá sentido à trilha. O sigilo fica só no
+                      nome das fases (ver PhaseNode). */}
+                  {item.module.name}
                 </span>
                 <div className={`h-px flex-1 ${isLocked ? "bg-gray-200" : "bg-purple-200"}`} />
               </div>
