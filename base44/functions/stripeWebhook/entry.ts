@@ -250,22 +250,45 @@ Deno.serve(async (req) => {
                 const contas = await base44.asServiceRole.entities.Account.filter({
                     email: (pagamento.user_email || '').trim().toLowerCase()
                 });
-                if (contas.length > 0) {
+                const conta = contas.length > 0 ? contas[0] : null;
+
+                if (conta) {
                     // Ordem intencional: primeiro cai lifetime_access, depois
                     // subscription_type. Invertido, uma falha no meio deixaria
                     // a conta 'free' com lifetime_access true — um usuário sem
                     // acesso e blindado contra recuperá-lo por qualquer
                     // caminho automático.
-                    await base44.asServiceRole.entities.Account.update(contas[0].id, {
+                    await base44.asServiceRole.entities.Account.update(conta.id, {
                         lifetime_access: false,
                         subscription_type: 'free'
                     });
+                } else {
+                    // A conta sumiu entre a compra e o estorno (exclusão de
+                    // conta, e-mail alterado no registro). O dinheiro voltou e
+                    // NADA foi revogado — mas o Payment abaixo vira CANCELED do
+                    // mesmo jeito, então sem este log o rastro fica idêntico ao
+                    // de um estorno bem sucedido.
+                    console.error(
+                        `🚨 Estorno total de vitalício SEM Account para ${pagamento.user_email}. ` +
+                        `Acesso NAO foi revogado — verificar e revogar a mao.`
+                    );
                 }
+
                 await base44.asServiceRole.entities.Payment.update(pagamento.id, {
                     status: 'CANCELED',
                     updated_at: new Date().toISOString()
                 });
-                console.log('↩️ Vitalício estornado e acesso revogado:', pagamento.user_email);
+
+                // O log tem que distinguir os dois desfechos. Antes ele afirmava
+                // "acesso revogado" mesmo quando a busca da Account voltava
+                // vazia e nada tinha sido revogado — quem fosse investigar um
+                // cliente reclamando de acesso indevido leria no log que a
+                // revogação aconteceu, e procuraria o problema no lugar errado.
+                console.log(
+                    conta
+                        ? '↩️ Vitalício estornado e acesso revogado: ' + pagamento.user_email
+                        : '↩️ Vitalício estornado SEM revogar acesso: ' + pagamento.user_email
+                );
             }
         }
 
