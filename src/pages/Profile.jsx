@@ -63,6 +63,18 @@ function instrucaoDaLoja(store, cancelada) {
     : 'Sua assinatura é gerenciada pela loja onde você assinou. Para alterar ou cancelar, acesse a área de Assinaturas na App Store ou na Google Play.';
 }
 
+// Data por extenso, tolerante a nulo.
+//
+// As datas de assinatura passaram a poder vir nulas do backend — o vitalício
+// manda `nextRenewal: null` de propósito, porque não existe próxima renovação.
+// Chamar toLocaleDateString direto num campo que pode ser null é uma tela
+// branca esperando acontecer, e trocar "data errada" por "app quebrado" seria
+// piorar. Travessão é o pior caso aceitável.
+function dataLonga(d) {
+  if (!d) return '—';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
 // Rótulo da linha "Forma de Pagamento". Sem `store`, não dá para nomear a loja.
 function rotuloDaFormaDePagamento(paymentMethod, store) {
   if (paymentMethod !== 'APP_STORE_SUBSCRIPTION') return paymentMethod;
@@ -139,9 +151,15 @@ export default function Profile() {
         const info = response.data.subscriptionInfo;
         
         setSubscriptionInfo({
+          // Acesso vitalício: pagamento único, sem renovação. A tela ramifica
+          // por isto antes de olhar qualquer outro campo.
+          lifetime: info.lifetime === true,
           amount: info.amount,
-          lastRenewal: new Date(info.lastRenewal),
-          nextRenewal: new Date(info.nextRenewal),
+          // As datas podem vir nulas — o vitalício manda `nextRenewal: null`
+          // de propósito. Sem esta guarda, `new Date(null)` vira 01/01/1970 e
+          // a tela exibiria isso como se fosse uma data de verdade.
+          lastRenewal: info.lastRenewal ? new Date(info.lastRenewal) : null,
+          nextRenewal: info.nextRenewal ? new Date(info.nextRenewal) : null,
           paymentMethod: info.paymentMethod,
           // 'APP_STORE' | 'PLAY_STORE' | null. null quando o backend não soube
           // dizer a loja (ou é uma resposta anterior a este campo).
@@ -160,6 +178,7 @@ export default function Profile() {
         nextRenewal.setDate(nextRenewal.getDate() + 30);
 
         setSubscriptionInfo({
+          lifetime: false,
           amount: 10.00,
           lastRenewal: startDate,
           nextRenewal: nextRenewal,
@@ -176,6 +195,7 @@ export default function Profile() {
       nextRenewal.setDate(nextRenewal.getDate() + 30);
 
       setSubscriptionInfo({
+        lifetime: false,
         amount: 10.00,
         lastRenewal: startDate,
         nextRenewal: nextRenewal,
@@ -323,11 +343,57 @@ export default function Profile() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CreditCard className="w-6 h-6 text-amber-600" />
-                Informações da Assinatura
+                {/* "Assinatura" está errado para quem comprou o vitalício:
+                    não há assinatura nenhuma no registro dele. */}
+                {subscriptionInfo?.lifetime ? 'Informações do Plano' : 'Informações da Assinatura'}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {subscriptionInfo ? (
+              {subscriptionInfo ? (subscriptionInfo.lifetime ? (
+                /* ACESSO VITALÍCIO — layout próprio.
+                   Não dá para reaproveitar o bloco de assinatura abaixo
+                   trocando rótulos: metade dele é sobre renovação, e aqui não
+                   existe renovação nenhuma. "Próxima Renovação", "Renovação
+                   Automática" e o aviso de cancelar pela loja não têm
+                   equivalente vitalício — eles simplesmente não vão à tela. */
+                <>
+                  <div className="grid md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Plano Atual</p>
+                      <p className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <Crown className="w-5 h-5 text-amber-600" />
+                        Acesso Vitalício
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Valor Pago</p>
+                      <p className="text-lg font-medium text-gray-900">
+                        R$ {subscriptionInfo.amount.toFixed(2).replace('.', ',')}
+                        <span className="text-sm text-gray-600"> — pagamento único</span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Data da Compra</p>
+                      <p className="text-lg font-medium text-gray-900">
+                        {dataLonga(subscriptionInfo.lastRenewal)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Validade</p>
+                      <p className="text-lg font-medium text-green-700">Permanente</p>
+                    </div>
+                  </div>
+
+                  <Alert className="bg-green-50 border-green-200">
+                    <Crown className="w-5 h-5 text-green-600" />
+                    <AlertDescription className="text-green-900 ml-2">
+                      <strong>Acesso permanente:</strong> você fez um pagamento único e
+                      seu acesso não expira. Não há renovação, não há cobrança
+                      recorrente e não há nada para cancelar.
+                    </AlertDescription>
+                  </Alert>
+                </>
+              ) : (
                 <>
                   <div className="grid md:grid-cols-2 gap-6 mb-6">
                     <div>
@@ -340,11 +406,7 @@ export default function Profile() {
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Última Renovação</p>
                       <p className="text-lg font-medium text-gray-900">
-                        {subscriptionInfo.lastRenewal.toLocaleDateString('pt-BR', { 
-                          day: '2-digit', 
-                          month: 'long', 
-                          year: 'numeric' 
-                        })}
+                        {dataLonga(subscriptionInfo.lastRenewal)}
                       </p>
                     </div>
                     <div>
@@ -352,11 +414,7 @@ export default function Profile() {
                         {assinaturaCancelada ? 'Acesso Premium até' : 'Próxima Renovação'}
                       </p>
                       <p className={`text-lg font-medium ${assinaturaCancelada ? 'text-red-600' : 'text-gray-900'}`}>
-                        {subscriptionInfo.nextRenewal.toLocaleDateString('pt-BR', {
-                          day: '2-digit',
-                          month: 'long',
-                          year: 'numeric'
-                        })}
+                        {dataLonga(subscriptionInfo.nextRenewal)}
                       </p>
                     </div>
                     <div>
@@ -373,11 +431,7 @@ export default function Profile() {
                       <AlertDescription className="text-red-900 ml-2">
                         <strong>Assinatura cancelada:</strong> a renovação automática foi desligada.
                         Você continua com acesso Premium até{' '}
-                        {subscriptionInfo.nextRenewal.toLocaleDateString('pt-BR', {
-                          day: '2-digit',
-                          month: 'long',
-                          year: 'numeric'
-                        })}
+                        {dataLonga(subscriptionInfo.nextRenewal)}
                         . Depois dessa data sua conta volta para o plano gratuito.
                       </AlertDescription>
                     </Alert>
@@ -422,7 +476,7 @@ export default function Profile() {
                     </Alert>
                   )}
                 </>
-              ) : (
+              )) : (
                 <div className="text-center py-8">
                   <Loader2 className="w-8 h-8 animate-spin text-amber-600 mx-auto mb-4" />
                   <p className="text-gray-600">Carregando informações da assinatura...</p>

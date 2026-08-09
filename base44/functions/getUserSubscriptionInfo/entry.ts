@@ -208,6 +208,61 @@ Deno.serve(async (req) => {
         const paidPayments = userPayments.filter(p => p.status === 'PAID');
         console.log('✅ Paid payments:', paidPayments.length);
 
+        // ACESSO VITALÍCIO — caminho próprio, antes de qualquer cálculo de
+        // renovação.
+        //
+        // Sem isto o vitalício cai no ramo 'Manual' lá embaixo e a tela de
+        // Perfil mente três vezes de uma vez: promete uma "Próxima Renovação"
+        // de +365 dias (o `amount >= 400` cai justamente em cima do R$400),
+        // rotula o pagamento como "Manual" e manda o comprador falar com o
+        // suporte para cancelar uma assinatura que não existe.
+        //
+        // Quem manda aqui é `lifetime_access` na Account, não o Payment: a flag
+        // é a fonte da verdade do invariante (ver ARQUITETURA_AUTH.md §5.8) e
+        // continua correta mesmo se a linha de Payment não for encontrada — o
+        // que acontece de verdade, porque o filtro de Payment acima compara
+        // `user_email` com `identity.email` sem normalizar caixa.
+        if (user.lifetime_access === true) {
+            const pagamento = paidPayments.find(
+                p => p.payment_method === 'STRIPE_LIFETIME'
+            ) || null;
+
+            const compradoEm = pagamento?.paid_at
+                || pagamento?.created_date
+                || user.subscription_start_date
+                || user.created_date
+                || null;
+
+            console.log('♾️ Acesso vitalício para', email);
+
+            return Response.json({
+                success: true,
+                hasSubscription: true,
+                subscriptionInfo: {
+                    // Discriminador novo. A tela ramifica por ele ANTES de
+                    // olhar qualquer outro campo.
+                    lifetime: true,
+                    amount: pagamento?.amount ?? 400,
+                    lastRenewal: compradoEm,
+                    // null de propósito: não existe próxima renovação. Mandar
+                    // uma data qualquer aqui seria mentir com precisão, que é
+                    // exatamente o defeito que este bloco existe para corrigir.
+                    nextRenewal: null,
+                    paymentMethod: 'LIFETIME',
+                    store: null,
+                    // null, e não o reference_id: o único uso de `paymentId` na
+                    // tela é liberar o botão de cancelar assinatura, e não há
+                    // assinatura para cancelar.
+                    paymentId: null,
+                    // null (= "não sabemos"), nunca false. `willRenew === false`
+                    // é o que a tela usa para dizer "assinatura cancelada, você
+                    // perde o acesso em tal data" — a mensagem mais errada
+                    // possível para quem comprou acesso permanente.
+                    willRenew: null
+                }
+            });
+        }
+
         if (paidPayments.length === 0) {
             console.log('⚠️ No PAID payments found');
             
