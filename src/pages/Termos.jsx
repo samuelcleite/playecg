@@ -30,29 +30,43 @@ const SECTIONS = [
     ],
   },
   {
-    title: "4. Conta",
+    title: "4. Acesso vitalício",
+    paragraphs: [
+      "O PlayECG também oferece o acesso vitalício: um pagamento único, feito pela web, que libera o conteúdo premium sem mensalidade. Não é uma assinatura — não há renovação nem qualquer cobrança recorrente depois da compra.",
+      'Neste caso, "vitalício" significa acesso enquanto o PlayECG estiver em operação. É o nosso compromisso de não cobrar de novo por esse acesso, e não uma garantia de que o serviço existirá para sempre: não assumimos a obrigação de manter o aplicativo em funcionamento por tempo indeterminado.',
+    ],
+    items: [
+      "O acesso é pessoal e intransferível, vinculado à conta que fez a compra.",
+      "Se o PlayECG for descontinuado, avisaremos com antecedência razoável pelos canais de contato associados à sua conta.",
+      "O acesso vitalício cobre o serviço tal como é oferecido, incluindo o conteúdo novo publicado ao longo do tempo. Ele não garante a manutenção de nenhuma funcionalidade específica, que pode ser alterada ou removida.",
+      "Você pode desistir da compra em até 7 dias, conforme o Código de Defesa do Consumidor, com estorno integral do valor pago.",
+      "O acesso vitalício pode ser revogado em caso de estorno, contestação da cobrança ou violação destes Termos.",
+    ],
+  },
+  {
+    title: "5. Conta",
     paragraphs: [
       "Você é responsável por manter a confidencialidade das suas credenciais. Você pode excluir sua conta a qualquer momento na área de Perfil do aplicativo.",
     ],
   },
   {
-    title: "5. Uso aceitável",
+    title: "6. Uso aceitável",
     paragraphs: [
       "O conteúdo do PlayECG é de uso pessoal e educacional. É vedada a reprodução, redistribuição ou revenda do conteúdo sem autorização.",
     ],
   },
   {
-    title: "6. Privacidade",
+    title: "7. Privacidade",
     privacy: true,
   },
   {
-    title: "7. Alterações",
+    title: "8. Alterações",
     paragraphs: [
       "Podemos atualizar estes Termos. Alterações relevantes serão comunicadas no aplicativo.",
     ],
   },
   {
-    title: "8. Contato",
+    title: "9. Contato",
     contact: true,
   },
 ];
@@ -105,7 +119,7 @@ export default function Termos() {
               Termos de Uso
             </h1>
             <p className="text-sm text-gray-500">
-              Última atualização: 15 de julho de 2026
+              Última atualização: 9 de agosto de 2026
             </p>
           </div>
         </div>
