@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { getCurrentUser } from '@/lib/currentUser';
-import { Link, useNavigate } from "react-router-dom";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
-import { createPageUrl } from "@/utils";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import LearningTrail from "@/components/home/LearningTrail";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,8 +23,11 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+// Esta tela é a vitrine da trilha, não uma tela paga. Quem está no plano free
+// entra, vê a trilha inteira e navega até tentar abrir uma fase — é o
+// ModuleDetail que pede a assinatura. A ideia é deixar a pessoa avançar até
+// esbarrar no conteúdo, em vez de barrá-la antes de ver o que está comprando.
 export default function Modules() {
-  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [modules, setModules] = useState([]);
   const [phases, setPhases] = useState([]);
@@ -45,11 +46,6 @@ export default function Modules() {
     try {
       const userData = await getCurrentUser();
       setUser(userData);
-
-      if (userData.subscription_type !== "premium") {
-        navigate(createPageUrl("Upgrade"));
-        return;
-      }
 
       // --- ESSENCIAL: só o que a trilha precisa para renderizar ---
       const [modulesData, phasesData, progressRes] = await Promise.all([
@@ -173,7 +169,6 @@ export default function Modules() {
             modules={modules}
             phases={phases}
             userProgress={userProgress}
-            isPremium={true}
           />
         )}
       </div>

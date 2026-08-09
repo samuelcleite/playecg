@@ -38,7 +38,8 @@ import {
   AlertTriangle,
   RefreshCw,
   AlertCircle,
-  BookOpen
+  BookOpen,
+  Lock
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
@@ -54,6 +55,9 @@ export default function ModuleDetail() {
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Plano free chegou até aqui: a trilha em Modules é aberta a todos e o pedido
+  // de assinatura acontece nesta tela, na hora de abrir a fase.
+  const [needsUpgrade, setNeedsUpgrade] = useState(false);
   const [attemptCount, setAttemptCount] = useState(0);
   const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
   const [completedCasesCount, setCompletedCasesCount] = useState(0);
@@ -168,6 +172,17 @@ export default function ModuleDetail() {
       return;
     }
     setPhase(foundPhase);
+
+    // PAYWALL — daqui para baixo começa o conteúdo pago (os casos de ECG).
+    // Parar exatamente nesta linha é intencional: Module e Phase já foram
+    // lidos, então a tela de bloqueio consegue dizer o nome do que a pessoa
+    // tentou abrir, mas selectAndCombineCases ainda não rodou — nenhum caso
+    // chega ao navegador de quem não assinou.
+    if (userData?.subscription_type !== 'premium') {
+      setNeedsUpgrade(true);
+      setLoading(false);
+      return;
+    }
 
     const allProgress = progressResp?.data?.data || [];
     const progressRecord = allProgress.find(p => p.module_id === moduleId && p.phase_id === phaseId) || null;
@@ -592,6 +607,51 @@ export default function ModuleDetail() {
           <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-gray-600">Carregando módulo...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Tela de bloqueio por plano. Precisa vir antes de tudo que depende de
+  // `cases`: no plano free os casos nunca foram carregados.
+  if (needsUpgrade) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <Card className="w-full max-w-md border-2 border-blue-200 shadow-xl">
+          <CardContent className="p-8 text-center">
+            <div className="w-20 h-20 rounded-full bg-[#0D3B66] flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <Lock className="w-10 h-10 text-white" />
+            </div>
+
+            <p className="text-sm font-semibold text-[#1976D2] mb-1">
+              {module?.name}
+            </p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              {phase?.name || `Fase ${phase?.order}`}
+            </h2>
+
+            <p className="text-gray-600 mb-8">
+              Esta fase faz parte do plano premium. Assine para estudar os casos
+              de ECG deste módulo e destravar a trilha inteira.
+            </p>
+
+            <div className="space-y-3">
+              <Button
+                onClick={() => navigate(createPageUrl("Upgrade"))}
+                className="w-full bg-[#0D3B66] hover:bg-[#1976D2] text-white"
+              >
+                Assinar agora
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate(createPageUrl("Modules"))}
+                className="w-full gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Voltar à trilha
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
