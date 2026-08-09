@@ -51,6 +51,9 @@ export default function AdminCases() {
   const [showDialog, setShowDialog] = useState(false);
   const [showImageSelector, setShowImageSelector] = useState(false);
   const [editingCase, setEditingCase] = useState(null);
+  const [caseIdSearch, setCaseIdSearch] = useState("");
+  const [searchedCases, setSearchedCases] = useState(null);
+  const [searching, setSearching] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     image_url: "",
@@ -308,6 +311,25 @@ export default function AdminCases() {
     setFormData({ ...formData, key_findings: newFindings });
   };
 
+  const handleCaseIdSearch = async (value) => {
+    setCaseIdSearch(value);
+    if (!value.trim()) {
+      setSearchedCases(null);
+      return;
+    }
+    setSearching(true);
+    try {
+      const allCases = await base44.entities.ECGCase.list("-created_date");
+      const lower = value.toLowerCase();
+      setSearchedCases(allCases.filter(c => c.id?.toLowerCase().includes(lower)));
+    } catch (error) {
+      console.error("Erro ao buscar casos por ID:", error);
+      setSearchedCases([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const handleModuleChange = async (moduleId) => {
     setSelectedModule(moduleId);
     setSelectedPhase("");
@@ -394,6 +416,27 @@ export default function AdminCases() {
           </div>
         </div>
 
+        {/* Busca por ID */}
+        <div className="relative max-w-xl">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Input
+            value={caseIdSearch}
+            onChange={(e) => handleCaseIdSearch(e.target.value)}
+            placeholder="Buscar caso por ID..."
+            className="pl-10"
+          />
+          {searching && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="w-4 h-4 border-2 border-gray-300 border-t-purple-600 rounded-full animate-spin" />
+            </div>
+          )}
+          {caseIdSearch && searchedCases && (
+            <p className="text-sm text-gray-500 mt-2 ml-1">
+              {searchedCases.length} resultado(s) para "{caseIdSearch}"
+            </p>
+          )}
+        </div>
+
         {/* Module and Phase Selectors */}
         <div className="grid md:grid-cols-2 gap-6">
           <Card className="border-none shadow-lg">
@@ -453,10 +496,10 @@ export default function AdminCases() {
         </div>
 
         {/* Cases Grid */}
-        {selectedModule && selectedPhase && (
+        {caseIdSearch && searchedCases ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence>
-              {cases.map((caseItem) => (
+              {searchedCases.map((caseItem) => (
                 <motion.div
                   key={caseItem.id}
                   initial={{ opacity: 0, scale: 0.95 }}
@@ -506,24 +549,93 @@ export default function AdminCases() {
               ))}
             </AnimatePresence>
 
-            {cases.length === 0 && selectedModule && selectedPhase && (
+            {searchedCases.length === 0 && (
               <Card className="col-span-full border-none shadow-lg">
                 <CardContent className="p-12 text-center">
                   <FileEdit className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-xl font-bold text-gray-900 mb-2">
-                    Nenhum caso nesta fase
+                    Nenhum caso encontrado
                   </h3>
-                  <p className="text-gray-600 mb-4">
-                    Adicione casos de ECG para esta fase
+                  <p className="text-gray-600">
+                    Nenhum caso com o ID "{caseIdSearch}" foi encontrado.
                   </p>
-                  <Button onClick={() => handleOpenDialog()} className="bg-purple-600 hover:bg-purple-700">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Adicionar Primeiro Caso
-                  </Button>
                 </CardContent>
               </Card>
             )}
           </div>
+        ) : (
+          selectedModule && selectedPhase && (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <AnimatePresence>
+                {cases.map((caseItem) => (
+                  <motion.div
+                    key={caseItem.id}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                  >
+                    <Card className="border-none shadow-lg hover:shadow-xl transition-all duration-300">
+                      <CardHeader>
+                        <CardTitle className="text-lg">{caseItem.title}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {caseItem.image_url && (
+                          <img
+                            src={caseItem.image_url}
+                            alt={caseItem.title}
+                            className="w-full h-32 object-cover rounded-lg mb-4"
+                          />
+                        )}
+                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                          {caseItem.patient_info}
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            aria-label="Editar caso"
+                            onClick={() => handleOpenDialog(caseItem)}
+                            className="flex-1 gap-2"
+                          >
+                            <Edit className="w-4 h-4" />
+                            Editar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            aria-label="Excluir caso"
+                            onClick={() => handleDelete(caseItem.id)}
+                            className="flex-1 gap-2 text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Excluir
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
+              {cases.length === 0 && selectedModule && selectedPhase && (
+                <Card className="col-span-full border-none shadow-lg">
+                  <CardContent className="p-12 text-center">
+                    <FileEdit className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                      Nenhum caso nesta fase
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Adicione casos de ECG para esta fase
+                    </p>
+                    <Button onClick={() => handleOpenDialog()} className="bg-purple-600 hover:bg-purple-700">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Adicionar Primeiro Caso
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )
         )}
 
         {/* Main Dialog */}
