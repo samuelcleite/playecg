@@ -116,11 +116,13 @@ export default function Layout({ children, currentPageName }) {
 
   const navigationItems = [
     { title: "Dashboard", url: createPageUrl("Dashboard"), icon: Home },
-    // Módulos aparece para todo mundo. Escondê-lo de quem é gratuito fazia o
-    // usuário nem saber que o modo existe — e é justamente o que a assinatura
-    // vende. Sem premium o item leva para os planos (a própria tela de Módulos
-    // já redireciona para lá).
-    { title: "Módulos", url: createPageUrl(isPremium ? "Modules" : "Upgrade"), icon: ListOrdered },
+    // Módulos aparece para todo mundo e leva para Módulos — inclusive no plano
+    // gratuito. O item já mandou o usuário free direto para os planos, na época
+    // em que a tela de Módulos também redirecionava; hoje ela é aberta e quem
+    // cobra a assinatura é o ModuleDetail, na hora de abrir a fase. Mandar para
+    // Upgrade aqui pulava a trilha inteira — justamente a vitrine do que a
+    // assinatura vende.
+    { title: "Módulos", url: createPageUrl("Modules"), icon: ListOrdered },
     { title: "Quiz", url: createPageUrl("Quiz"), icon: Shuffle },
     { title: "Troféus", url: createPageUrl("Achievements"), icon: Award },
     { title: "Aprenda ECG", url: createPageUrl("AprendaECG"), icon: BookOpen },

@@ -154,11 +154,12 @@ export default function Dashboard() {
             Ordem proposital: Módulos e Aprenda ECG (o que a assinatura vende)
             antes do Quiz (o que já é gratuito). Os dois primeiros aparecem
             para quem é gratuito com selo Premium — é assim que ele descobre o
-            que está perdendo; sem assinatura o toque leva à tela de planos.
+            que está perdendo. Módulos leva à trilha mesmo sem assinatura: ela é
+            aberta, e a cobrança acontece no ModuleDetail, ao abrir a fase.
             Aprenda ECG é bloqueado por inteiro para quem não assina, então o
-            selo diz a verdade. */}
+            selo diz a verdade nos dois casos. */}
         <div className="md:hidden space-y-3 mb-6">
-          <Link to={createPageUrl(isPremium ? "Modules" : "Upgrade")} className="block">
+          <Link to={createPageUrl("Modules")} className="block">
             <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 active:scale-[0.99] transition-transform">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#22C55E] to-[#16a34a] flex items-center justify-center shadow-md flex-shrink-0">

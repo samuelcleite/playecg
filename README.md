@@ -112,6 +112,10 @@ retorna `{ success, count, data: [...] }`, o array real está em
   segura handles na pasta `android/` e quebra troca de branch no Windows.
 - Para atualizar o ponteiro de `main` sem tocar no disco:
   `git branch -f main origin/main`.
+- **O `gh` (GitHub CLI) não está instalado nesta máquina** (verificado em
+  09/08/2026). Nenhum agente abre PR por linha de comando aqui: o push vai por
+  `git push` e o PR se abre pelo link que o próprio GitHub devolve na saída.
+  Para mudar isso: `winget install GitHub.cli` + `gh auth login`.
 
 ---
 
@@ -187,6 +191,34 @@ Três trilhos independentes. **Nenhum sistema de cupom atravessa os três.**
   roda — o Base44 não resolve import entre functions — então ele é o *original*
   e as functions carregam cópias inline, mesmo contrato do `resolveIdentity`.
   `grep PLANOS` acha todas.
+
+### Onde o conteúdo pago é bloqueado
+
+Desde 09/08/2026 a cobrança acontece **na fase, não na listagem**:
+
+- **`Modules` é aberta a todo mundo.** O usuário gratuito vê a trilha inteira,
+  com os nomes reais dos módulos. É a vitrine do que a assinatura vende — antes
+  ele era mandado para o `Upgrade` sem ver nada.
+- **`ModuleDetail` é quem cobra.** A checagem fica logo depois do
+  `setPhase(foundPhase)` e **antes** do `selectAndCombineCases`: `Module` e
+  `Phase` já foram lidos (a tela de bloqueio diz o nome do que a pessoa tentou
+  abrir), mas nenhum caso de ECG chega ao navegador de quem não assinou. Subir
+  ou descer essa checagem quebra uma das duas coisas.
+- **`ConteudoECG` tem gate próprio**, independente deste.
+- **`LearningTrail` não sabe o que é plano.** O único cadeado dela é o de
+  progressão (módulo anterior completo, fase anterior concluída). Não devolva a
+  prop `isPremium`: com ela todos os módulos ficam `isLocked`, nenhum nó recebe
+  `<Link>`, e o usuário gratuito não consegue nem clicar para chegar ao paywall.
+- O nome do **módulo** nunca é mascarado; o da **fase** é, enquanto bloqueada.
+  Mascaramento é cosmético — os nomes reais já estão nas props (ver §8).
+
+⚠️ **A regra de plano estava duplicada em três lugares, e mudar a tela não
+bastou.** O item "Módulos" do menu (`Layout.jsx`) e o card de Módulos do
+Dashboard mobile apontavam para `Upgrade` quando `!isPremium`: o usuário
+gratuito ia parar nos planos sem nunca chegar à trilha, e a tela recém-liberada
+parecia não ter funcionado. **Ao mover qualquer paywall, varra os pontos de
+entrada, não só a página.** É o mesmo formato da armadilha de RLS da §4 — a
+barreira que sobra é a que ninguém lembrou que existia.
 
 ### Plano vitalício
 
@@ -285,8 +317,12 @@ rebaseada antes de qualquer merge** — senão o merge deleta `/termos`,
 
 ### Dívidas registradas (não agir sem decisão)
 
-- **`ECGCase`, `Module`, `Coupon` têm RLS `read:{}`** — legíveis sem autenticação
-  nenhuma. Todo o conteúdo pago vaza (~1MB de `ECGCase` baixável com o app id).
+- **`ECGCase`, `Module`, `Phase`, `Coupon` têm RLS `read:{}`** — legíveis sem
+  autenticação nenhuma. (`Phase` conferido em `base44/entities/Phase.jsonc` em
+  09/08/2026; faltava nesta lista.) Todo o conteúdo pago vaza (~1MB de
+  `ECGCase` baixável com o app id). É por isso que o mascaramento de nome de
+  fase na trilha (§5) é enfeite, não barreira: os nomes reais viajam inteiros
+  na resposta e ficam visíveis no DevTools.
   Fechar isso obriga a mover as leituras para backend; fazer **depois** do auth,
   não antes. As imagens estão em `/files/mp/public/`, então fechar o RLS da
   entidade sozinho não basta.
