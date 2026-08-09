@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { signInWithGoogle, getToken, clearToken } from "@/lib/customAuth";
+import { consumirDestinoPosLogin } from "@/lib/postLoginRedirect";
 import { withNativeReturnMarker } from "@/utils/nativeOAuth";
 import { signInWithApple } from "@/lib/appleAuth";
 import { isAppleDevice, isAndroidNativeApp } from "@/utils/platform";
@@ -29,16 +30,25 @@ export default function Home() {
   const [entrando, setEntrando] = useState(null); // 'google' | 'apple' | null
 
   useEffect(() => {
+    // Todo caminho de login desemboca aqui: o /auth manda para '/' e o
+    // ProtectedRoute manda para '/'. Se alguém tentou abrir uma rota protegida
+    // deslogado, o destino ficou anotado — é aqui, com a sessão já resolvida,
+    // que ele é honrado. Sem destino anotado, Dashboard, como sempre.
+    const irParaDestino = () => {
+      const destino = consumirDestinoPosLogin();
+      navigate(destino || createPageUrl("Dashboard"), { replace: true });
+    };
+
     // Nossa sessão tem precedência: quem tem token JWT já está logado, e o
     // base44.auth.isAuthenticated() não sabe disso — devolveria false e deixaria
     // o usuário preso na landing mesmo autenticado.
     if (getToken()) {
-      navigate(createPageUrl("Dashboard"), { replace: true });
+      irParaDestino();
       return;
     }
     base44.auth.isAuthenticated().then((authed) => {
       if (authed) {
-        navigate(createPageUrl("Dashboard"), { replace: true });
+        irParaDestino();
       } else {
         setIsAuthenticated(false);
       }

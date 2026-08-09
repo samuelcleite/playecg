@@ -198,6 +198,30 @@ Deno.serve(async (req) => {
     }
 
     if (!ativo) {
+      // INVARIANTE lifetime_access
+      // Quem tem lifetime_access NUNCA é escrito como 'free'.
+      // subscription_type é o que CONCEDE o acesso — todas as telas do app
+      // checam 'premium' e nenhuma sabe o que é vitalício. lifetime_access não
+      // concede nada: ele só impede o rebaixamento. É a combinação dos dois que
+      // sustenta o vitalício sem tocar em nenhuma tela.
+      //
+      // ATENÇÃO ao alterar este ramo: hoje ele NÃO escreve 'free' — só relata
+      // `premium: false` e sai. Esta função é o terceiro caminho pelo qual o
+      // rebaixamento poderia entrar, porque "o RevenueCat não conhece este
+      // usuário" é indistinguível de "a assinatura dele acabou", e a tentação
+      // de sincronizar o estado aqui é grande. O comprador vitalício NUNCA
+      // teve compra de loja: uma consulta ao RevenueCat sobre ele volta vazia
+      // por definição, e transformar isso em escrita rebaixaria todos eles de
+      // uma vez.
+      //
+      // O guard é explícito e não decorativo: se a conta é vitalícia, esta
+      // função responde premium: true, porque ela É premium — independente do
+      // que a loja saiba. Sem isto, um cliente que confie na resposta desta
+      // function (o Upgrade.jsx confia, no fluxo de restaurar compras) trataria
+      // um vitalício como não-assinante.
+      if (account.lifetime_access === true) {
+        return Response.json({ success: true, premium: true, mudou: false });
+      }
       return Response.json({ success: true, premium: false, mudou: false });
     }
 

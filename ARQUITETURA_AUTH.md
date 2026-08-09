@@ -105,7 +105,7 @@ limpar só uma faz o usuário reaparecer logado como a outra identidade.
 
 ## 4. Superfície de backend
 
-36 functions. As que um cliente de usuário final chama:
+37 functions. As que um cliente de usuário final chama:
 
 ### Sessão e perfil
 | Function | O que faz |
@@ -131,6 +131,7 @@ limpar só uma faz o usuário reaparecer logado como a outra identidade.
 | `createStripeCheckout` | Sessão de pagamento web. |
 | `cancelStripeSubscription` | Cancela no Stripe e marca free. **Irreversível.** |
 | `syncStoreSubscription` | Pergunta ao RevenueCat se há assinatura de loja ativa e libera premium na hora. Chamar depois de comprar e ao restaurar. |
+| `getLifetimeSeats` | Vagas restantes do plano vitalício. Só o número que resta — nem o total vendido, nem o limite. Exige sessão: a oferta é privada. |
 
 ### Outros
 `savePushSubscription`, `getVapidPublicKey`, `validateCoupon`, `reportCaseError`, `deleteUserAccount`.
@@ -184,6 +185,29 @@ premissas dela morreram.**
 **7. Ao paginar `QuizAttempt`, ordene por `created_date`.**
 A eleição da "primeira tentativa por caso" depende da ordem. Sem sort explícito, as taxas de
 acerto inflam.
+
+**8. `lifetime_access === true` NUNCA pode ser escrito como `subscription_type: 'free'`.**
+Quem concede acesso é `subscription_type`: todas as telas checam `=== 'premium'` e nenhuma sabe
+o que é vitalício. O `lifetime_access` não concede nada — ele só **impede o rebaixamento**. É a
+combinação dos dois que sustenta o plano vitalício sem alterar uma linha de tela.
+
+O comprador vitalício precisa estar `free` no dia da compra, mas pode ter sido assinante antes.
+Meses depois, a assinatura antiga expira em algum lugar e o evento chega — e rebaixaria alguém
+que pagou pelo acesso permanente. São três os caminhos que escrevem `'free'` por expiração:
+`stripeWebhook` (`customer.subscription.deleted`), `revenuecatWebhook` (`EXPIRATION`) e
+`syncStoreSubscription` (RevenueCat sem entitlement ativo — que hoje não escreve, e o guard
+está lá para que não comece a escrever). Os três carregam a frase exata
+`INVARIANTE lifetime_access` no comentário: **`grep -rn "INVARIANTE lifetime_access" base44/`
+tem que continuar achando os três.** Qualquer caminho novo de expiração precisa do quarto.
+
+O `cancelStripeSubscription` também escreve `'free'`, e de propósito não tem guard: ele exige um
+`Payment` com `stripe_subscription_id`, que a compra vitalícia não tem, e recusa com 404 antes
+de chegar à escrita. Se um dia ele deixar de depender disso, passa a precisar do guard.
+
+Revogar é caminho único e explícito: `charge.refunded` com estorno **total** de uma cobrança
+identificada como vitalícia **pelo registro em `Payment`** (`payment_method === 'STRIPE_LIFETIME'`,
+casado pelo PaymentIntent), nunca pelo valor — R$400 colide com o limiar que separa mensal de
+anual. Estorno parcial não revoga.
 
 ---
 

@@ -24,6 +24,10 @@ import Modules from './pages/Modules';
 import Profile from './pages/Profile';
 import Quiz from './pages/Quiz';
 import Upgrade from './pages/Upgrade';
+// Oferta privada: alcançável só por link direto (/vitalicio). Registrada aqui
+// para existir como rota protegida, e deliberadamente NÃO linkada de nenhuma
+// tela — nem do menu, nem do Upgrade.
+const Vitalicio = lazy(() => import('./pages/Vitalicio'));
 import __Layout from './Layout.jsx';
 
 
@@ -53,6 +57,7 @@ export const PAGES = {
     "Profile": Profile,
     "Quiz": Quiz,
     "Upgrade": Upgrade,
+    "Vitalicio": Vitalicio,
 }
 
 export const pagesConfig = {

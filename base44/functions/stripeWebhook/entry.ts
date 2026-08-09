@@ -20,6 +20,71 @@ Deno.serve(async (req) => {
 
         console.log('📩 Stripe event:', event.type);
 
+        // payment_method do Payment de uma compra vitalícia. É o discriminador
+        // que o charge.refunded usa para saber se aquele estorno é de um
+        // vitalício — nunca o valor da cobrança, que colide com o anual.
+        const LIFETIME_PAYMENT_METHOD = 'STRIPE_LIFETIME';
+
+        // Concede o vitalício. Caminho separado do das assinaturas de propósito:
+        // o valor vem da session, não de heurística, e não há cupom nem
+        // stripe_subscription_id para registrar.
+        async function activateLifetime(email, { amount, paymentIntentId }) {
+            if (!email) return;
+
+            const contas = await base44.asServiceRole.entities.Account.filter({
+                email: email.trim().toLowerCase()
+            });
+            if (contas.length > 0) {
+                await base44.asServiceRole.entities.Account.update(contas[0].id, {
+                    // subscription_type é o que concede o acesso: todas as telas
+                    // do app checam 'premium' e nenhuma sabe o que é vitalício.
+                    subscription_type: 'premium',
+                    // lifetime_access é o que impede o rebaixamento futuro.
+                    lifetime_access: true,
+                    subscription_start_date: new Date().toISOString()
+                });
+            }
+
+            // VAGAS: aqui NÃO se confere limite. Se o evento chegou, o dinheiro
+            // já foi cobrado — negar acesso agora seria cobrar sem entregar. O
+            // limite vive só na criação da session. Excedente é registrado para
+            // aparecer no log, não para bloquear.
+            const vitalicios = await base44.asServiceRole.entities.Account.filter(
+                { lifetime_access: true }, '-created_date', 5000, 0, ['id']
+            );
+            const limite = Number(Deno.env.get('LIFETIME_VAGAS') ?? 100);
+            if (vitalicios.length > limite) {
+                console.warn(
+                    `⚠️ Vitalício acima do limite: ${vitalicios.length}/${limite}. ` +
+                    `Acesso CONCEDIDO mesmo assim para ${email} — o pagamento já foi cobrado.`
+                );
+            }
+
+            await base44.asServiceRole.entities.Payment.create({
+                user_email: email,
+                // Sem stripe_subscription_id: pagamento único não tem assinatura.
+                // Quem lê este campo (getUserSubscriptionInfo, cancelStripeSubscription)
+                // já trata a ausência dele — o cancelStripeSubscription, aliás,
+                // depende dela para recusar cancelar um vitalício.
+                stripe_subscription_id: null,
+                // O PaymentIntent é a chave do estorno: o charge.refunded traz
+                // charge.payment_intent, e é por ele que a cobrança é ligada de
+                // volta a esta linha.
+                reference_id: paymentIntentId || `stripe_lifetime_${Date.now()}`,
+                // Valor REAL da session. A heurística `amount/100 >= 400 ? 499 : 59`
+                // usada no caminho das assinaturas erraria justamente aqui: R$400
+                // cai em cima do limiar dela e viraria 499.
+                amount: amount != null ? amount / 100 : 400,
+                discount_amount: 0,
+                coupon_id: null,
+                status: 'PAID',
+                payment_method: LIFETIME_PAYMENT_METHOD,
+                paid_at: new Date().toISOString()
+            });
+
+            // Sem CouponUsage de propósito: não existe cupom neste fluxo.
+        }
+
         // Helper para marcar premium e registrar pagamento
         async function activatePremium(email, { amount, subscriptionId, couponId }) {
             if (!email) return;
@@ -80,11 +145,23 @@ Deno.serve(async (req) => {
         if (event.type === 'checkout.session.completed') {
             const session = event.data.object;
             const email = session.customer_email || session.customer_details?.email || session.metadata?.user_email;
-            await activatePremium(email, {
-                amount: session.amount_total,
-                subscriptionId: session.subscription,
-                couponId: session.metadata?.coupon_id || null
-            });
+
+            // O plano vem explícito da metadata da session, gravado pelo
+            // createStripeCheckout. Nada de inferir pelo valor.
+            if (session.metadata?.plan === 'lifetime') {
+                await activateLifetime(email, {
+                    amount: session.amount_total,
+                    paymentIntentId: typeof session.payment_intent === 'string'
+                        ? session.payment_intent
+                        : session.payment_intent?.id || null
+                });
+            } else {
+                await activatePremium(email, {
+                    amount: session.amount_total,
+                    subscriptionId: session.subscription,
+                    couponId: session.metadata?.coupon_id || null
+                });
+            }
         }
 
         if (event.type === 'customer.subscription.deleted') {
@@ -95,10 +172,100 @@ Deno.serve(async (req) => {
                     email: email.trim().toLowerCase()
                 });
                 if (contas.length > 0) {
+                    // INVARIANTE lifetime_access
+                    // Quem tem lifetime_access NUNCA é escrito como 'free'.
+                    // subscription_type é o que CONCEDE o acesso — todas as
+                    // telas do app checam 'premium' e nenhuma sabe o que é
+                    // vitalício. lifetime_access não concede nada: ele só
+                    // impede o rebaixamento. É a combinação dos dois que
+                    // sustenta o vitalício sem tocar em nenhuma tela.
+                    //
+                    // Aqui isso importa porque um comprador vitalício pode ter
+                    // tido uma assinatura antes (ele só precisava estar 'free'
+                    // no dia da compra, não nunca ter assinado). Quando aquela
+                    // assinatura antiga expirar no Stripe, este evento chega e
+                    // rebaixaria alguém que pagou pelo acesso permanente.
+                    if (contas[0].lifetime_access === true) {
+                        console.log('🔒 INVARIANTE lifetime_access: rebaixamento ignorado para', email);
+                    } else {
+                        await base44.asServiceRole.entities.Account.update(contas[0].id, {
+                            subscription_type: 'free'
+                        });
+                    }
+                }
+            }
+        }
+
+        // ESTORNO — exigido pelo direito de arrependimento do CDC.
+        //
+        // charge.refunded dispara para QUALQUER estorno, inclusive o de uma
+        // assinatura. Antes de revogar coisa alguma é obrigatório confirmar que
+        // aquela cobrança é de um vitalício, e isso é feito pelo registro em
+        // Payment — pelo PaymentIntent gravado no reference_id —, nunca por
+        // adivinhação de valor.
+        if (event.type === 'charge.refunded') {
+            const charge = event.data.object;
+            const paymentIntentId = typeof charge.payment_intent === 'string'
+                ? charge.payment_intent
+                : charge.payment_intent?.id || null;
+
+            // NÃO usamos charge.refunds[]: desde a API 2022-11-15 a lista de
+            // refunds deixou de vir expandida por padrão na Charge, e continua
+            // assim na 2026-05-27.dahlia — ela viria ausente ou truncada.
+            // `amount` e `amount_refunded` estão sempre na Charge, e são o que
+            // basta para distinguir estorno total de parcial.
+            const total = charge.amount_refunded >= charge.amount;
+
+            let pagamento = null;
+            if (paymentIntentId) {
+                const linhas = await base44.asServiceRole.entities.Payment.filter({
+                    reference_id: paymentIntentId
+                });
+                pagamento = linhas && linhas.length > 0 ? linhas[0] : null;
+            }
+
+            if (!pagamento || pagamento.payment_method !== LIFETIME_PAYMENT_METHOD) {
+                // Estorno de assinatura, ou cobrança que não conhecemos.
+                // Ignorar é o comportamento certo: o ciclo de vida da
+                // assinatura é do customer.subscription.deleted, não daqui.
+                console.log('↩️ charge.refunded ignorado (não é vitalício):', paymentIntentId);
+            } else if (!total) {
+                // ESTORNO PARCIAL NÃO REVOGA.
+                //
+                // O vitalício é indivisível: não existe "70% de acesso
+                // permanente". Um estorno parcial é, na prática, um ajuste
+                // comercial — desconto retroativo, correção de cobrança — e
+                // não uma desistência da compra. O arrependimento do CDC é
+                // devolução integral, e é essa que aparece aqui como total.
+                //
+                // O erro é assimétrico: revogar por engano tira o acesso de
+                // quem pagou; não revogar por engano deixa acesso a quem
+                // recebeu parte do dinheiro de volta. O segundo é reversível
+                // à mão, o primeiro queima o cliente.
+                console.warn(
+                    `⚠️ Estorno PARCIAL de vitalício (${charge.amount_refunded}/${charge.amount}) ` +
+                    `para ${pagamento.user_email}. Acesso MANTIDO — revisar à mão.`
+                );
+            } else {
+                const contas = await base44.asServiceRole.entities.Account.filter({
+                    email: (pagamento.user_email || '').trim().toLowerCase()
+                });
+                if (contas.length > 0) {
+                    // Ordem intencional: primeiro cai lifetime_access, depois
+                    // subscription_type. Invertido, uma falha no meio deixaria
+                    // a conta 'free' com lifetime_access true — um usuário sem
+                    // acesso e blindado contra recuperá-lo por qualquer
+                    // caminho automático.
                     await base44.asServiceRole.entities.Account.update(contas[0].id, {
+                        lifetime_access: false,
                         subscription_type: 'free'
                     });
                 }
+                await base44.asServiceRole.entities.Payment.update(pagamento.id, {
+                    status: 'CANCELED',
+                    updated_at: new Date().toISOString()
+                });
+                console.log('↩️ Vitalício estornado e acesso revogado:', pagamento.user_email);
             }
         }
 
