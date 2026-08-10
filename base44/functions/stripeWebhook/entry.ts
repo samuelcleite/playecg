@@ -25,6 +25,61 @@ Deno.serve(async (req) => {
         // vitalício — nunca o valor da cobrança, que colide com o anual.
         const LIFETIME_PAYMENT_METHOD = 'STRIPE_LIFETIME';
 
+        // Notificação de venda para o time. É AVISO, não parte da concessão.
+        //
+        // O try/catch de dentro não é zelo: se uma falha de e-mail escapasse,
+        // o webhook devolveria 500, o Stripe re-tentaria o evento inteiro e o
+        // re-envio criaria um SEGUNDO Payment e concederia o acesso de novo.
+        // Notificação nunca pode derrubar pagamento.
+        const ADMIN_EMAIL = 'ecgdescomplica@gmail.com';
+
+        const PLANO_LABEL = {
+            monthly:  { curto: 'Mensal',    longo: 'Mensal (R$59/mês)' },
+            annual:   { curto: 'Anual',     longo: 'Anual (R$499/ano)' },
+            lifetime: { curto: 'Vitalício', longo: 'Vitalício (R$400, pagamento único)' }
+        };
+
+        async function notificarCompra({ plano, email, conta, amount, couponId }) {
+            try {
+                const label = PLANO_LABEL[plano] || {
+                    curto: 'Plano indefinido',
+                    longo: `Não identificada (metadata.plan: ${plano || 'ausente'})`
+                };
+                const valor = amount != null
+                    ? (amount / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                    : 'não informado';
+                const quando = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+                const linhas = [
+                    'Nova compra confirmada no PlayECG.',
+                    '',
+                    `Usuário:    ${conta?.full_name || 'nome não informado'}`,
+                    `E-mail:     ${email || 'não informado'}`,
+                    'Origem:     Site / PWA (Stripe)',
+                    `Modalidade: ${label.longo}`,
+                    `Valor pago: ${valor}`,
+                    `Data:       ${quando} (horário de Brasília)`
+                ];
+                if (couponId) linhas.push(`Cupom:      ${couponId}`);
+                if (!conta) {
+                    linhas.push(
+                        '',
+                        'ATENÇÃO: nenhuma Account com este e-mail. O pagamento entrou, ' +
+                        'mas o acesso NÃO foi concedido automaticamente — liberar à mão.'
+                    );
+                }
+
+                await base44.asServiceRole.integrations.Core.SendEmail({
+                    from_name: 'PlayECG — Vendas',
+                    to: ADMIN_EMAIL,
+                    subject: `[COMPRA] ${label.curto} — ${email || 'e-mail desconhecido'}`,
+                    body: linhas.join('\n')
+                });
+            } catch (e) {
+                console.error('Falha ao notificar compra (acesso JÁ concedido):', e.message);
+            }
+        }
+
         // Concede o vitalício. Caminho separado do das assinaturas de propósito:
         // o valor vem da session, não de heurística, e não há cupom nem
         // stripe_subscription_id para registrar.
@@ -83,10 +138,17 @@ Deno.serve(async (req) => {
             });
 
             // Sem CouponUsage de propósito: não existe cupom neste fluxo.
+
+            await notificarCompra({
+                plano: 'lifetime',
+                email,
+                conta: contas.length > 0 ? contas[0] : null,
+                amount
+            });
         }
 
         // Helper para marcar premium e registrar pagamento
-        async function activatePremium(email, { amount, subscriptionId, couponId }) {
+        async function activatePremium(email, { amount, subscriptionId, couponId, plano }) {
             if (!email) return;
 
             // CORTE: a assinatura passa a viver na Account. A resolução já era
@@ -140,6 +202,14 @@ Deno.serve(async (req) => {
                     }
                 }
             }
+
+            await notificarCompra({
+                plano,
+                email,
+                conta: contas.length > 0 ? contas[0] : null,
+                amount,
+                couponId
+            });
         }
 
         if (event.type === 'checkout.session.completed') {
@@ -159,7 +229,8 @@ Deno.serve(async (req) => {
                 await activatePremium(email, {
                     amount: session.amount_total,
                     subscriptionId: session.subscription,
-                    couponId: session.metadata?.coupon_id || null
+                    couponId: session.metadata?.coupon_id || null,
+                    plano: session.metadata?.plan || null
                 });
             }
         }

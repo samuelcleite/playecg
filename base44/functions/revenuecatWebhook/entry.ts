@@ -57,6 +57,65 @@ Deno.serve(async (req) => {
     // reativam/alteram o plano, mas não geram cobrança — não viram Payment.
     const BILLABLE = ['INITIAL_PURCHASE','RENEWAL','NON_RENEWING_PURCHASE'];
 
+    // Só compra NOVA notifica. RENEWAL fica de fora de propósito: o
+    // checkout.session.completed do Stripe só dispara na primeira compra, então
+    // notificar renovação aqui encheria a caixa de entrada de renovação de loja
+    // sem nenhuma equivalente da web — assimetria que engana quem lê.
+    const NOTIFICAR = ['INITIAL_PURCHASE', 'NON_RENEWING_PURCHASE'];
+
+    const ADMIN_EMAIL = 'ecgdescomplica@gmail.com';
+
+    const LOJA_LABEL = {
+      APP_STORE:     'App Store (iOS)',
+      PLAY_STORE:    'Google Play (Android)',
+      MAC_APP_STORE: 'Mac App Store',
+      AMAZON:        'Amazon Appstore',
+      STRIPE:        'Stripe (via RevenueCat)',
+      PROMOTIONAL:   'Cortesia / promocional'
+    };
+
+    // A modalidade sai do product_id porque o RevenueCat não manda a duração em
+    // campo próprio (period_type é NORMAL/TRIAL/INTRO, não mensal/anual). Os ids
+    // reais são com.despia.playecg.monthly / .yearly no iOS e premium:monthly /
+    // premium:annual no Android — daí os dois vocabulários. Não existe vitalício
+    // nas lojas: ele é só Stripe (README §5).
+    function modalidadeDoProduto(productId) {
+      const p = (productId || '').toLowerCase();
+      if (p.includes('year') || p.includes('annual') || p.includes('anual')) return 'Anual';
+      if (p.includes('month') || p.includes('mensal')) return 'Mensal';
+      return `Não identificada (product_id: ${productId || 'ausente'})`;
+    }
+
+    // Mesmo contrato do stripeWebhook: falha de e-mail é engolida. Erro aqui
+    // faria o RevenueCat re-tentar o evento e regravar o Payment.
+    async function notificarCompra(conta, ev) {
+      try {
+        const modalidade = modalidadeDoProduto(ev.product_id);
+        const loja = LOJA_LABEL[ev.store] || ev.store || 'origem não informada';
+        const preco = ev.price_in_purchased_currency;
+        const valor = preco != null ? `${preco} ${ev.currency || 'BRL'}` : 'não informado';
+        const quando = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+        await base44.asServiceRole.integrations.Core.SendEmail({
+          from_name: 'PlayECG — Vendas',
+          to: ADMIN_EMAIL,
+          subject: `[COMPRA] ${modalidade} — ${conta.email || 'e-mail desconhecido'}`,
+          body: [
+            'Nova compra confirmada no PlayECG.',
+            '',
+            `Usuário:    ${conta.full_name || 'nome não informado'}`,
+            `E-mail:     ${conta.email || 'não informado'}`,
+            `Origem:     ${loja}`,
+            `Modalidade: ${modalidade}`,
+            `Valor pago: ${valor}`,
+            `Data:       ${quando} (horário de Brasília)`
+          ].join('\n')
+        });
+      } catch (e) {
+        console.error('Falha ao notificar compra de loja (acesso JÁ concedido):', e.message);
+      }
+    }
+
     if (ACTIVATE.includes(type)) {
       const conta = await resolveAccount();
       if (conta) {
@@ -92,6 +151,8 @@ Deno.serve(async (req) => {
           } catch (paymentError) {
             console.error('Erro ao criar Payment de loja:', paymentError.message);
           }
+
+          if (NOTIFICAR.includes(type)) await notificarCompra(conta, event);
         }
       }
     } else if (DEACTIVATE.includes(type)) {

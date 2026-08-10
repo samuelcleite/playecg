@@ -192,6 +192,25 @@ Três trilhos independentes. **Nenhum sistema de cupom atravessa os três.**
   e as functions carregam cópias inline, mesmo contrato do `resolveIdentity`.
   `grep PLANOS` acha todas.
 
+### Notificação de venda (10/08/2026)
+
+Toda **compra nova** dispara um e-mail simples para `ecgdescomplica@gmail.com`
+com quem comprou, de onde e em qual modalidade. Vive nos dois webhooks, na
+função `notificarCompra` de cada um.
+
+- **Renovação NÃO notifica.** O `checkout.session.completed` do Stripe só
+  dispara na primeira compra — notificar `RENEWAL` no RevenueCat daria e-mail de
+  renovação de loja e nenhum da web. Para cobrir renovação é preciso tratar
+  `invoice.payment_succeeded` no Stripe primeiro.
+- ⚠️ **A notificação NUNCA pode lançar exceção.** Ela roda em `try/catch`
+  próprio, *depois* da concessão, e falha em silêncio no log. Se o erro
+  escapasse, o webhook devolveria 500, o processador re-tentaria o evento
+  inteiro e o re-envio criaria um **segundo `Payment`** e concederia o acesso de
+  novo. Vale para os dois trilhos.
+- A modalidade nunca é inferida por valor: no Stripe vem de
+  `session.metadata.plan`; no RevenueCat, do `event.product_id` (a loja não
+  manda duração em campo próprio — `period_type` é NORMAL/TRIAL/INTRO).
+
 ### Onde o conteúdo pago é bloqueado
 
 Desde 09/08/2026 a cobrança acontece **na fase, não na listagem**:
