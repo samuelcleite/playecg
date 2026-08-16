@@ -4,6 +4,7 @@ import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 import { getToken, clearToken } from '@/lib/customAuth';
 import { initAndroidPurchases } from '@/utils/purchasesAndroid';
+import { vincularPushAoUsuario } from '@/utils/pushNativo';
 
 const AuthContext = createContext();
 
@@ -137,6 +138,20 @@ export const AuthProvider = ({ children }) => {
       console.error('Falha ao inicializar RevenueCat (Android):', error)
     );
 
+  // iOS (Despia): vincula a Account ao OneSignal, para que o push nativo saiba
+  // para quem enviar. Mesmo contrato do aquecerComprasAndroid, e de propósito:
+  // fire-and-forget, .catch() obrigatório, guard de plataforma DENTRO da função
+  // chamada (no-op na web e no Android). Sem await: não pode atrasar nem
+  // quebrar o auth.
+  //
+  // Roda a cada carregamento autenticado, não só no login — é assim que a
+  // vinculação se recupera sozinha de um app reinstalado ou de um token de push
+  // rotacionado pelo sistema.
+  const vincularPushIOS = (account) =>
+    vincularPushAoUsuario(account?.id).catch((error) =>
+      console.error('Falha ao vincular push (iOS):', error)
+    );
+
   // A Account tem `read: false` no RLS, então ela NÃO é lida por
   // base44.entities — só por function com service role atrás do resolveIdentity.
   const carregarConta = async () => {
@@ -154,6 +169,7 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
       aquecerComprasAndroid(account);
+      vincularPushIOS(account);
       return true;
     } catch (error) {
       // 404: autenticado, mas sem Account. Acontece com quem se cadastrou pelo
@@ -170,6 +186,7 @@ export const AuthProvider = ({ children }) => {
             setIsAuthenticated(true);
             setIsLoadingAuth(false);
             aquecerComprasAndroid(account);
+            vincularPushIOS(account);
             return true;
           }
         } catch (e2) {
@@ -190,6 +207,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // CAMINHO DEGRADADO: só roda quando a Account não pôde ser resolvida e ainda
+  // existe sessão hospedada do Base44. Aqui `user` volta a ser um User do
+  // Base44, não uma Account.
+  //
+  // NÃO acrescente aqui o vincularPushIOS nem o aquecerComprasAndroid "por
+  // simetria" com o carregarConta. O `currentUser.id` deste caminho é o User.id
+  // legado, e o identificador que o OneSignal e o RevenueCat esperam é o
+  // Account.id. Vincular o id errado não estoura em lugar nenhum: o push
+  // simplesmente nunca chega, e não há nada no app capaz de detectar isso —
+  // ver o bloco sobre ausência de confirmação em utils/pushNativo.js.
   const checkUserAuth = async () => {
     try {
       // Now check if the user is authenticated
