@@ -355,6 +355,15 @@ rebaseada antes de qualquer merge** — senão o merge deleta `/termos`,
   `current_streak`); mostra sempre 0.
 - Entidade `Coupon` sem RLS deny-all; `used_count` sujeito a race condition;
   falta ledger `CouponRedemption` para garantir `one_per_user`.
+- **O app é claro por design e não pode ganhar modo noturno por acidente.** As
+  telas usam ~770 cores hardcoded (`text-gray-600`, `text-gray-900`, `bg-white`)
+  espalhadas por 44 arquivos. O bloco `.dark` do `src/index.css` existe e está
+  inerte. Qualquer coisa que ative tema escuro — `next-themes`, media query,
+  classe no `<html>` — troca só os tokens (`--background`, `--card`,
+  `--foreground`) e deixa o texto hardcoded escuro sobre fundo escuro. Por isso
+  `App.jsx` fixa `forcedTheme="light"`. Só relaxar isso **depois** de migrar as
+  cores para tokens semânticos. (08/08/2026 — contado por grep e medido no
+  navegador.)
 
 ---
 
@@ -371,6 +380,19 @@ rebaseada antes de qualquer merge** — senão o merge deleta `/termos`,
 - **VS Code trava a pasta `android/`.** Git de troca de branch só em PowerShell puro.
 - Se o `gradlew` baixar o Gradle "agora", é sinal de que o build nunca rodou
   naquela máquina — a tarefa anterior não foi executada de verdade.
+- **Sintoma que só aparece com o modo escuro do sistema não é culpa do wrapper.**
+  Em 08/08/2026 o Quiz e o Perfil ficaram ilegíveis no iPhone. Culpei primeiro o
+  auto-dark do WebView Android, depois o Despia — duas correções foram ao ar sem
+  nenhum efeito. A causa era JS da própria página: `next-themes` com
+  `defaultTheme="system"` punha `class="dark"` no `<html>`. O que discrimina em
+  30 segundos, antes de tocar em qualquer código: **carregar a página com
+  `prefers-color-scheme: dark` e ler `document.documentElement.className`.** Se a
+  classe muda, é a página; o wrapper não entra na conta.
+- **Grep em `src/` não enxerga comportamento que mora em `node_modules`.** No caso
+  acima, quem mexia na classe do `<html>` era a lib; o `src/App.jsx` só declarava
+  `attribute="class"`. Buscar pelo mecanismo (`classList`, `documentElement`) deu
+  zero resultado e me fez descartar a hipótese certa. Procure também pela
+  intenção — o nome da lib, a prop de configuração.
 
 ---
 
