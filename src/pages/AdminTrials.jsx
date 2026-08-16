@@ -28,8 +28,12 @@ import {
   AlertTriangle,
   Mail,
   CalendarClock,
-  Eraser
+  Eraser,
+  Users
 } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import TrialBulkGrant from "@/components/admin/TrialBulkGrant";
+import TrialAuditPanel from "@/components/admin/TrialAuditPanel";
 import { motion, AnimatePresence } from "framer-motion";
 
 // AdminTrials — concessão e acompanhamento de acesso de cortesia.
@@ -90,6 +94,9 @@ export default function AdminTrials() {
   const navigate = useNavigate();
   const [trials, setTrials] = useState([]);
   const [resumo, setResumo] = useState(null);
+  const [contas, setContas] = useState([]);
+  const [auditoria, setAuditoria] = useState(null);
+  const [auditando, setAuditando] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
 
@@ -114,19 +121,43 @@ export default function AdminTrials() {
       return;
     }
     await loadData();
+    // Fora do await de cima: a auditoria varre Account, TrialGrant e Payment, e
+    // é a chamada mais cara da tela. Segurar a lista por causa dela deixaria o
+    // admin olhando um spinner por causa de um painel secundário.
+    auditar();
   };
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await base44.functions.invoke("adminListTrials", {});
-      setTrials(res?.data?.trials || []);
-      setResumo(res?.data?.resumo || null);
+      const [resTrials, resContas] = await Promise.all([
+        base44.functions.invoke("adminListTrials", {}),
+        // A lista de contas alimenta os filtros do lote. Vem do mesmo endpoint
+        // que a tela de usuários usa — nenhuma leitura nova de entidade.
+        base44.functions.invoke("adminListAccounts", {})
+      ]);
+      setTrials(resTrials?.data?.trials || []);
+      setResumo(resTrials?.data?.resumo || null);
+      setContas(resContas?.data?.accounts || []);
     } catch (error) {
       console.error("Erro ao carregar cortesias:", error);
       avisar("error", "Não foi possível carregar as cortesias: " + error.message);
     }
     setLoading(false);
+  };
+
+  const auditar = async () => {
+    setAuditando(true);
+    try {
+      const res = await base44.functions.invoke("auditTrialInvariants", {});
+      setAuditoria(res?.data || null);
+    } catch (error) {
+      console.error("Erro na auditoria de cortesias:", error);
+      setAuditoria({
+        erro: error?.response?.data?.error || error?.message || "falha ao verificar"
+      });
+    }
+    setAuditando(false);
   };
 
   // 8 segundos, e não os 5 do AdminUsers: as mensagens de recusa aqui explicam
@@ -218,6 +249,11 @@ export default function AdminTrials() {
     setExpirando(false);
   };
 
+  // Quem já apareceu alguma vez numa concessão. Alimenta o filtro "nunca
+  // recebeu cortesia" do lote — inclui expirados e revogados, porque a pergunta
+  // é sobre histórico, não sobre estado atual.
+  const emailsComHistorico = new Set(trials.map(t => t.user_email));
+
   const filtrados = trials.filter(t => {
     const casaBusca =
       t.user_email.toLowerCase().includes(busca.toLowerCase()) ||
@@ -268,7 +304,25 @@ export default function AdminTrials() {
           )}
         </AnimatePresence>
 
+        {/* Integridade dos acessos. Fica no topo de propósito: se uma conta paga
+            está em rota de perder acesso, é a primeira coisa que precisa ser
+            vista, antes de qualquer concessão nova. */}
+        <TrialAuditPanel auditoria={auditoria} carregando={auditando} onRecarregar={auditar} />
+
         {/* Conceder */}
+        <Tabs defaultValue="individual">
+          <TabsList>
+            <TabsTrigger value="individual" className="gap-2">
+              <Mail className="w-4 h-4" />
+              Um usuário
+            </TabsTrigger>
+            <TabsTrigger value="lote" className="gap-2">
+              <Users className="w-4 h-4" />
+              Em lote
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="individual" className="mt-4">
         <Card className="border-none shadow-lg">
           <CardContent className="p-6">
             <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -319,6 +373,17 @@ export default function AdminTrials() {
             </p>
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="lote" className="mt-4">
+            <TrialBulkGrant
+              contas={contas}
+              emailsComHistorico={emailsComHistorico}
+              duracoes={DURACOES}
+              onConcluido={async () => { await loadData(); auditar(); }}
+            />
+          </TabsContent>
+        </Tabs>
 
         {/* Resumo */}
         {resumo && (

@@ -269,8 +269,26 @@ Deno.serve(async (req) => {
                     // no dia da compra, não nunca ter assinado). Quando aquela
                     // assinatura antiga expirar no Stripe, este evento chega e
                     // rebaixaria alguém que pagou pelo acesso permanente.
+                    // INVARIANTE trial_ends_at
+                    // Cortesia em curso também barra o rebaixamento, pelo mesmo
+                    // motivo e no mesmo cenário: quem ganhou cortesia estava
+                    // 'free' no dia (a concessão recusa assinante pago), mas
+                    // pode ter tido assinatura antes. O evento tardio dela
+                    // chegaria agora e apagaria uma cortesia que mal começou.
+                    //
+                    // A cortesia não é apagada nem adiada: ela continua com o
+                    // prazo que tinha, e vence sozinha no getMyAccount.
+                    const fimCortesia = contas[0].trial_ends_at
+                        ? new Date(contas[0].trial_ends_at)
+                        : null;
+                    const emCortesia = !!(
+                        fimCortesia && !isNaN(fimCortesia.getTime()) && fimCortesia > new Date()
+                    );
+
                     if (contas[0].lifetime_access === true) {
                         console.log('🔒 INVARIANTE lifetime_access: rebaixamento ignorado para', email);
+                    } else if (emCortesia) {
+                        console.log('🔒 INVARIANTE trial_ends_at: rebaixamento ignorado (cortesia em curso) para', email);
                     } else {
                         await base44.asServiceRole.entities.Account.update(contas[0].id, {
                             subscription_type: 'free'

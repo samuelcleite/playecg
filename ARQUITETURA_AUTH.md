@@ -145,10 +145,11 @@ Acesso de cortesia (tela `AdminTrials`, só web):
 
 | Function | O que faz |
 |---|---|
-| `adminGrantTrial` | Libera premium por N dias. Recusa conta paga e conta vitalícia; concessão repetida soma dias. |
+| `adminGrantTrial` | Libera premium por N dias, para um (`user_email`) ou até 200 (`user_emails`). Recusa conta paga e vitalícia; concessão repetida soma dias. No lote, recusa individual não aborta os demais. |
 | `adminRevokeTrial` | Encerra a cortesia antes do prazo. Recusa quem não está em cortesia. |
 | `adminListTrials` | Lista as concessões com o estado derivado da Account. Só lê. |
 | `adminExpireTrials` | Varredura das cortesias vencidas. Higiene de relatório, não de acesso — ver §5.9. |
+| `auditTrialInvariants` | Procura contas em estado impossível (pagante com marca de cortesia, vitalício rebaixado, cortesia sem registro). **Só leitura.** Lista vazia é o resultado esperado. |
 
 ### Webhooks (sem sessão)
 `stripeWebhook` (assinatura HMAC), `revenuecatWebhook` (segredo compartilhado),
@@ -239,6 +240,25 @@ assinante. Duas barreiras seguram isso, nesta ordem:
   cópias precisam concordar, como todo helper duplicado neste projeto.
 
 O `adminGrantTrial` fecha a porta na entrada: só concede a quem está `free` e sem vitalício.
+
+**A cortesia em curso também barra o rebaixamento por expiração.** Pelo mesmo motivo do
+vitalício e no mesmo cenário: quem ganhou cortesia estava `free` no dia, mas pode ter tido
+assinatura antes — o evento tardio dela apagaria uma cortesia recém-concedida. `stripeWebhook`
+(`customer.subscription.deleted`) e `revenuecatWebhook` (`EXPIRATION`) pulam o rebaixamento
+quando há cortesia em curso; ela segue com o prazo que tinha e vence sozinha.
+
+**Duas ferramentas cuidam de que estas regras não se percam**, porque as duas barreiras acima são
+disciplina de código — e disciplina de código falha em silêncio:
+
+- **`npm run check:invariantes`** ([scripts/check-invariantes.mjs](scripts/check-invariantes.mjs))
+  falha se alguma function escrever `subscription_type` literal sem declarar o invariante que lhe
+  cabe. Confere a presença do marcador, não a corretude — e só enxerga escrita literal, então o
+  `adminSetSubscription` (que monta o valor a partir do corpo) passa por fora. Dispensa legítima
+  se registra no próprio script, **com motivo**.
+- **`auditTrialInvariants`** olha os dados reais e acha o que o check estático não alcança: conta
+  com `Payment` pago e marca de cortesia ainda pendurada, vitalício com cortesia, cortesia sem
+  `TrialGrant`. O resultado aparece no topo da tela `AdminTrials` a cada carregamento — verde
+  quando não há nada, que é o resultado esperado.
 
 **Onde a cortesia efetivamente acaba é o `getMyAccount`.** Não existe cron nesta plataforma, e o
 `getMyAccount` é o único ponto por onde toda tela passa — expirar ali torna impossível usar o app

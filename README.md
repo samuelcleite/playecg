@@ -255,6 +255,25 @@ assinatura, e o Android exigiria one-time product no Play Console.
 > `lifetime_access` não concede acesso — ele impede o rebaixamento. Três guards
 > dependem disso e `grep -rn "INVARIANTE lifetime_access" base44/` tem que
 > continuar achando os três.
+>
+> O mesmo vale para o **invariante 9** (`trial_ends_at`, acesso de cortesia) ao
+> escrever `'premium'`. **`npm run check:invariantes` confere os dois de uma vez
+> e falha se um caminho novo esquecer** — rode antes de commitar qualquer coisa
+> que mexa em assinatura.
+
+### Acesso de cortesia (16/08/2026)
+
+Premium por tempo limitado, concedido pela tela `AdminTrials` (web, só admin),
+individualmente ou em lote com filtros. Quem concede acesso continua sendo
+`subscription_type`; `trial_ends_at` só diz até quando.
+
+**A cortesia acaba no `getMyAccount`** — não há cron nesta plataforma, e ele é o
+único ponto por onde toda tela passa. A varredura `adminExpireTrials` é higiene
+de relatório, não de acesso.
+
+**Nunca conceda cortesia a quem paga** (a function recusa): a marca faria o
+acesso do assinante vencer. Ver invariante 9 e a auditoria `auditTrialInvariants`,
+cujo resultado abre no topo da tela.
 
 Estorno: `charge.refunded` **total** revoga o acesso (direito de arrependimento
 do CDC); **parcial não revoga**. A cobrança é identificada como vitalícia pelo

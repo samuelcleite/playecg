@@ -176,8 +176,24 @@ Deno.serve(async (req) => {
         // compra, não nunca ter assinado). Quando aquela assinatura expirar,
         // a App Store / Play Store manda EXPIRATION meses depois e rebaixaria
         // alguém que pagou pelo acesso permanente.
+        // INVARIANTE trial_ends_at
+        // Cortesia em curso também barra o rebaixamento, pelo mesmo motivo e no
+        // mesmo cenário: quem ganhou cortesia estava 'free' no dia (a concessão
+        // recusa assinante pago), mas pode ter tido assinatura de loja antes. O
+        // EXPIRATION tardio dela chegaria agora e apagaria uma cortesia que mal
+        // começou.
+        //
+        // A cortesia não é apagada nem adiada: ela continua com o prazo que
+        // tinha, e vence sozinha no getMyAccount.
+        const fimCortesia = conta.trial_ends_at ? new Date(conta.trial_ends_at) : null;
+        const emCortesia = !!(
+          fimCortesia && !isNaN(fimCortesia.getTime()) && fimCortesia > new Date()
+        );
+
         if (conta.lifetime_access === true) {
           console.log('🔒 INVARIANTE lifetime_access: rebaixamento ignorado para', conta.email);
+        } else if (emCortesia) {
+          console.log('🔒 INVARIANTE trial_ends_at: rebaixamento ignorado (cortesia em curso) para', conta.email);
         } else {
           await base44.asServiceRole.entities.Account.update(conta.id, {
             subscription_type: 'free'
