@@ -3,6 +3,12 @@ import { savePushSubscription } from "@/functions/savePushSubscription";
 import { getVapidPublicKey } from "@/functions/getVapidPublicKey";
 import { Bell, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { isIOSNativeApp } from "@/utils/platform";
+import {
+  estadoDaPermissaoNativa,
+  pedirPermissaoNativa,
+  abrirAjustesDoSistema
+} from "@/utils/pushNativo";
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -23,6 +29,23 @@ export default function NotificationBanner() {
   }, []);
 
   const checkStatus = async () => {
+    // APP iOS NATIVO: caminho próprio, ANTES do guard de PushManager.
+    //
+    // O WKWebView do Despia não expõe PushManager, então sem esta ramificação o
+    // componente caía em "unsupported" e sumia — que é exatamente o que
+    // acontecia até agora dentro do app. Lá o push não é Web Push: é o SDK do
+    // OneSignal compilado no binário, e a permissão é a do sistema.
+    if (isIOSNativeApp()) {
+      const estado = await estadoDaPermissaoNativa();
+      // Indeterminado renderiza NADA. Ver o bloco em utils/pushNativo.js: é o
+      // que um binário sem o SDK devolve, e mostrar um botão que não faz nada
+      // seria pior do que não mostrar botão nenhum.
+      if (estado === "indeterminado") { setStatus("indeterminado"); return; }
+      if (estado === "concedida") { setStatus("subscribed"); return; }
+      setStatus("prompt");
+      return;
+    }
+
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       setStatus("unsupported");
       return;
@@ -40,6 +63,16 @@ export default function NotificationBanner() {
   const handleEnable = async () => {
     setLoading(true);
     try {
+      // No app iOS o caminho inteiro é outro: prompt do sistema via Despia, sem
+      // service worker, sem VAPID e sem savePushSubscription. Quem guarda a
+      // inscrição é o OneSignal, e a vinculação com a conta já foi feita no
+      // boot pelo AuthContext.
+      if (isIOSNativeApp()) {
+        const estado = await pedirPermissaoNativa();
+        setStatus(estado === "concedida" ? "subscribed" : "denied");
+        return;
+      }
+
       const permission = await Notification.requestPermission();
       if (permission !== "granted") { setStatus("denied"); return; }
 
@@ -64,16 +97,32 @@ export default function NotificationBanner() {
     }
   };
 
-  // Não mostrar se: não suportado, já inscrito, já foi fechado manualmente
-  if (status === "loading" || status === "unsupported" || status === "subscribed" || dismissed) return null;
+  // Não mostrar se: não suportado, indeterminado, já inscrito, já foi fechado.
+  // "indeterminado" só acontece no app iOS e significa que não deu para saber o
+  // estado da permissão — ver utils/pushNativo.js.
+  if (status === "loading" || status === "unsupported" || status === "indeterminado"
+      || status === "subscribed" || dismissed) return null;
 
   if (status === "denied") {
     return (
       <div className="mx-4 mb-4 rounded-2xl bg-gray-100 border border-gray-200 px-4 py-3 flex items-center gap-3">
         <Bell className="w-5 h-5 text-gray-400 flex-shrink-0" />
         <p className="text-sm text-gray-500 flex-1">
-          Notificações bloqueadas. Habilite nas configurações do seu navegador.
+          {isIOSNativeApp()
+            ? "Notificações bloqueadas. Abra os Ajustes do iPhone para permitir."
+            : "Notificações bloqueadas. Habilite nas configurações do seu navegador."}
         </p>
+        {/* No iOS a recusa é definitiva — o prompt não reaparece. Os Ajustes
+            são o único resgate, então o atalho não é um extra. */}
+        {isIOSNativeApp() && (
+          <Button
+            onClick={abrirAjustesDoSistema}
+            variant="outline"
+            className="flex-shrink-0 h-8 text-xs rounded-lg"
+          >
+            Abrir Ajustes
+          </Button>
+        )}
       </div>
     );
   }
