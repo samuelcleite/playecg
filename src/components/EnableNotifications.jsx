@@ -24,6 +24,10 @@ function urlBase64ToUint8Array(base64String) {
 export default function EnableNotifications({ className }) {
   const [status, setStatus] = useState("loading");
   const [loading, setLoading] = useState(false);
+  // Ver o mesmo estado em NotificationBanner.jsx: a espera pelo diálogo do
+  // sistema no iOS pode chegar a 10s, e sem rótulo próprio o botão pareceria
+  // travado — sobretudo para quem já recusou antes, que não vê diálogo nenhum.
+  const [pedindo, setPedindo] = useState(false);
 
   useEffect(() => {
     checkStatus();
@@ -71,8 +75,13 @@ export default function EnableNotifications({ className }) {
       // No app iOS o caminho é o prompt do sistema via Despia — sem service
       // worker, sem VAPID, sem savePushSubscription.
       if (isIOSNativeApp()) {
-        const estado = await pedirPermissaoNativa();
-        setStatus(estado === "concedida" ? "subscribed" : "denied");
+        setPedindo(true);
+        try {
+          const estado = await pedirPermissaoNativa();
+          setStatus(estado === "concedida" ? "subscribed" : "denied");
+        } finally {
+          setPedindo(false);
+        }
         return;
       }
 
@@ -174,7 +183,7 @@ export default function EnableNotifications({ className }) {
       ) : (
         <Bell className="w-4 h-4" />
       )}
-      {loading ? "Ativando..." : "Ativar Notificações"}
+      {pedindo ? "Aguardando sua permissão..." : loading ? "Ativando..." : "Ativar Notificações"}
     </Button>
   );
 }

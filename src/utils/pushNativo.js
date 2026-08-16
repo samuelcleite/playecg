@@ -80,7 +80,15 @@ const TETO_CONSULTA_MS = 1500;
 // Depois de pedir a permissão, reconsultamos algumas vezes: o prompt é do
 // sistema e a pessoa leva alguns segundos para responder. Sem isso, concluiríamos
 // "não concedeu" no instante seguinte ao toque, sempre.
-const TENTATIVAS_APOS_PEDIDO = 6;
+//
+// DEZ segundos, e não seis: seis não cobrem quem para para ler o diálogo do
+// iOS. Se o laço estoura antes do toque em "Permitir", a tela diz "bloqueadas"
+// para alguém que acabou de conceder — o checkStatus corrige no boot seguinte,
+// mas a mensagem errada não deveria aparecer. Esperar mais só é aceitável
+// porque quem chama mostra andamento durante a espera (ver o estado `pedindo`
+// em NotificationBanner.jsx e EnableNotifications.jsx); sem esse retorno
+// visual, dez segundos de botão inerte pareceriam tela travada.
+const TENTATIVAS_APOS_PEDIDO = 10;
 const INTERVALO_TENTATIVA_MS = 1000;
 
 // Estado da permissão: "concedida" | "nao_concedida" | "indeterminado".

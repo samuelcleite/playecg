@@ -23,6 +23,12 @@ export default function NotificationBanner() {
   const [status, setStatus] = useState("loading");
   const [loading, setLoading] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  // Só no app iOS: o pedirPermissaoNativa espera até 10s pelo desfecho do
+  // diálogo do sistema. Sem um rótulo próprio para essa espera, o botão fica
+  // dizendo "Ativando..." por dez segundos — e para quem já recusou antes o
+  // diálogo nem aparece (a recusa no iOS é definitiva), então a tela pareceria
+  // simplesmente travada.
+  const [pedindo, setPedindo] = useState(false);
 
   useEffect(() => {
     checkStatus();
@@ -68,8 +74,13 @@ export default function NotificationBanner() {
       // inscrição é o OneSignal, e a vinculação com a conta já foi feita no
       // boot pelo AuthContext.
       if (isIOSNativeApp()) {
-        const estado = await pedirPermissaoNativa();
-        setStatus(estado === "concedida" ? "subscribed" : "denied");
+        setPedindo(true);
+        try {
+          const estado = await pedirPermissaoNativa();
+          setStatus(estado === "concedida" ? "subscribed" : "denied");
+        } finally {
+          setPedindo(false);
+        }
         return;
       }
 
@@ -165,7 +176,9 @@ export default function NotificationBanner() {
           disabled={loading}
           className="w-full bg-ecg-green text-ecg-midnight font-black hover:bg-ecg-green/90 rounded-xl h-10 text-sm"
         >
-          {loading ? (
+          {pedindo ? (
+            <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Aguardando sua permissão...</>
+          ) : loading ? (
             <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Ativando...</>
           ) : (
             "Ativar notificações agora →"
