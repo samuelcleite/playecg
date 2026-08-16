@@ -23,10 +23,11 @@ const ROTAS_DESTINO = [
   { valor: "/profile", rotulo: "Perfil" }
 ];
 
-// O formato de `errors` do OneSignal NÃO é estável: array de strings na API v1,
-// objeto (invalid_aliases: { external_id: [...] }) na API rich com
-// include_aliases. Um .map() ou .join() direto quebra a tela — e quebraria
-// justamente no primeiro teste real, que é quando o alvo ainda não existe.
+// O formato de `errors` do OneSignal não é garantido. No teste real ele veio
+// como array de strings (["All included players are not subscribed"]) — é o
+// único formato que observamos. Aceitamos string, array e objeto assim mesmo:
+// este é um cenário de erro entre vários, e um .map() ou .join() direto
+// derruba a tela inteira se algum outro responder diferente.
 function renderErros(errors) {
   if (!errors) return null;
   if (typeof errors === "string") return <span>{errors}</span>;
