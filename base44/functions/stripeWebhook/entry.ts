@@ -360,6 +360,12 @@ Deno.serve(async (req) => {
                     // a conta 'free' com lifetime_access true — um usuário sem
                     // acesso e blindado contra recuperá-lo por qualquer
                     // caminho automático.
+                    //
+                    // check-invariantes: dispensa trial_ends_at — para chegar
+                    // aqui a conta precisou COMPRAR o vitalício, e a compra
+                    // (activateLifetime) já limpou qualquer cortesia. Não há
+                    // marca para poupar nem para apagar. Se um dia a compra
+                    // deixar de limpar, esta dispensa deixa de valer.
                     await base44.asServiceRole.entities.Account.update(conta.id, {
                         lifetime_access: false,
                         subscription_type: 'free'

@@ -147,6 +147,11 @@ Deno.serve(async (req) => {
     // de alguém que pagou por ele.
     const vitalicio = conta.lifetime_access === true;
 
+    // INVARIANTE trial_ends_at
+    // Este é o caminho que APAGA a cortesia de propósito — o único em que
+    // remover a marca é o objetivo, e não um efeito colateral a lembrar. As duas
+    // marcas saem juntas do estado da conta; o que sobra do trial vira história
+    // nos TrialGrants logo abaixo.
     await base44.asServiceRole.entities.Account.update(conta.id, {
       ...(vitalicio ? {} : { subscription_type: 'free' }),
       // O trial_ends_at sai NOS DOIS CASOS. Ele é a marca de "este premium

@@ -251,10 +251,14 @@ quando há cortesia em curso; ela segue com o prazo que tinha e vence sozinha.
 disciplina de código — e disciplina de código falha em silêncio:
 
 - **`npm run check:invariantes`** ([scripts/check-invariantes.mjs](scripts/check-invariantes.mjs))
-  falha se alguma function escrever `subscription_type` literal sem declarar o invariante que lhe
-  cabe. Confere a presença do marcador, não a corretude — e só enxerga escrita literal, então o
-  `adminSetSubscription` (que monta o valor a partir do corpo) passa por fora. Dispensa legítima
-  se registra no próprio script, **com motivo**.
+  faz três coisas: (1) exige que toda escrita literal de `subscription_type` trate `trial_ends_at`
+  e `lifetime_access` por perto **em código** — comentário não conta, e colar o marcador sem a
+  linha que limpa o campo não passa; (2) compara as cópias de `avaliarCortesia` por hash e quebra
+  se divergirem; (3) exige o comentário `INVARIANTE ...` como documentação. Ele lê texto, não
+  executa nada, e só enxerga escrita literal — o `adminSetSubscription`, que monta o valor a partir
+  do corpo da requisição, passa por fora. Dispensa legítima se registra **com motivo**: inline
+  (`// check-invariantes: dispensa <campo> — <motivo>`, ao lado do código, para um caminho
+  específico) ou no próprio script, quando vale para o arquivo inteiro.
 - **`auditTrialInvariants`** olha os dados reais e acha o que o check estático não alcança: conta
   com `Payment` pago e marca de cortesia ainda pendurada, vitalício com cortesia, cortesia sem
   `TrialGrant`. O resultado aparece no topo da tela `AdminTrials` a cada carregamento — verde
