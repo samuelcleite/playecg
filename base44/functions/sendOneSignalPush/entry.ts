@@ -216,13 +216,15 @@ Deno.serve(async (req) => {
     // { success: true }, perderíamos o único sinal que distingue "não funciona"
     // de "ainda não rebuildado".
     //
-    // O FORMATO DE `errors` NÃO É ESTÁVEL — não assuma array. Na API v1 ele era
-    // um array de strings (["All included players are not subscribed"]); na API
-    // rich, com include_aliases, um alias inexistente tende a voltar como
-    // objeto (invalid_aliases: { external_id: [...] }). É justamente por isso
-    // que repassamos sem tocar. Quem RENDERIZA é que tem de tratar os dois
-    // formatos — ver o renderErros em AdminNotifications.jsx. Um .map() ou
-    // .join() direto quebra a tela no primeiro teste real.
+    // O FORMATO DE `errors` NÃO É GARANTIDO. No teste real contra a API rich,
+    // um external_id sem subscription voltou como ARRAY DE STRINGS
+    // (["All included players are not subscribed"]) — esse é o formato
+    // observado, e é só isso que sabemos.
+    //
+    // O repasse verbatim e o tratamento defensivo de quem renderiza continuam
+    // valendo mesmo assim: este é um cenário de erro entre vários, e não temos
+    // base para afirmar que os outros respondem igual. Ver o renderErros em
+    // AdminNotifications.jsx, que aceita string, array e objeto.
     //
     // `success` reflete a CHAMADA ter dado certo (HTTP 2xx), não a entrega.
     // Quem lê recipients para saber se chegou a alguém é a tela de admin.
