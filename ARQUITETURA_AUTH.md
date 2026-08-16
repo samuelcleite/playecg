@@ -110,7 +110,7 @@ limpar só uma faz o usuário reaparecer logado como a outra identidade.
 ### Sessão e perfil
 | Function | O que faz |
 |---|---|
-| `getMyAccount` | Devolve a Account do autenticado. É o objeto de sessão. |
+| `getMyAccount` | Devolve a Account do autenticado. É o objeto de sessão. **Também encerra a cortesia vencida** antes de responder — ver §5.9. |
 | `ensureMyAccount` | Cria a Account se faltar. Só chamar no 404 do anterior. |
 | `updateMyProfile` | Grava perfil. **Lista branca**: `full_name`, `specialty`, `country`, `state`, `city`, `profile_completed`. Ignora `subscription_type` e `role` de propósito. |
 
@@ -140,6 +140,15 @@ limpar só uma faz o usuário reaparecer logado como a outra identidade.
 `adminListAccounts`, `adminListRecords`, `adminSetSubscription`, `manuallyUpgradeToPremium`,
 `sendTestPush`, `exportImagesData`, `migrateUserProgress`, `backfillAccountFromUser`,
 `auditUserAccountSync`.
+
+Acesso de cortesia (tela `AdminTrials`, só web):
+
+| Function | O que faz |
+|---|---|
+| `adminGrantTrial` | Libera premium por N dias. Recusa conta paga e conta vitalícia; concessão repetida soma dias. |
+| `adminRevokeTrial` | Encerra a cortesia antes do prazo. Recusa quem não está em cortesia. |
+| `adminListTrials` | Lista as concessões com o estado derivado da Account. Só lê. |
+| `adminExpireTrials` | Varredura das cortesias vencidas. Higiene de relatório, não de acesso — ver §5.9. |
 
 ### Webhooks (sem sessão)
 `stripeWebhook` (assinatura HMAC), `revenuecatWebhook` (segredo compartilhado),
@@ -208,6 +217,34 @@ Revogar é caminho único e explícito: `charge.refunded` com estorno **total** 
 identificada como vitalícia **pelo registro em `Payment`** (`payment_method === 'STRIPE_LIFETIME'`,
 casado pelo PaymentIntent), nunca pelo valor — R$400 colide com o limiar que separa mensal de
 anual. Estorno parcial não revoga.
+
+**9. `trial_ends_at` marca "este premium vence" — e por isso NUNCA pode ser escrito em quem pagou.**
+O acesso de cortesia é o `lifetime_access` de cabeça para baixo. Quem concede continua sendo
+`subscription_type`; o `trial_ends_at` só diz até quando. Nenhuma tela sabe o que é um trial —
+todas seguem checando `=== 'premium'` — exceto a faixa de aviso
+([TrialBanner.jsx](src/components/TrialBanner.jsx)) e o bloco próprio do Perfil.
+
+O perigo é o simétrico do vitalício: carimbar o campo em quem paga faz a expiração rebaixar um
+assinante. Duas barreiras seguram isso, nesta ordem:
+
+- **Primária:** todo caminho que promove por pagamento escreve `trial_ends_at: null`. São cinco —
+  `stripeWebhook` (assinatura *e* vitalício), `revenuecatWebhook`, `syncStoreSubscription`,
+  `manuallyUpgradeToPremium` e `adminSetSubscription` (nas duas direções). Todos carregam a frase
+  exata `INVARIANTE trial_ends_at`: **`grep -rn "INVARIANTE trial_ends_at" base44/` tem que
+  continuar achando os cinco, mais os dois donos da regra** (`getMyAccount`,
+  `adminExpireTrials`). Caminho novo de promoção precisa do sexto.
+- **Secundária:** `avaliarCortesia`, a função que decide o rebaixamento, recusa rebaixar quem tem
+  `lifetime_access` ou cuja `subscription_start_date` é posterior ao `trial_started_at` — quem
+  pagou depois de ganhar. Ela vive copiada em `getMyAccount` e `adminExpireTrials`, e as duas
+  cópias precisam concordar, como todo helper duplicado neste projeto.
+
+O `adminGrantTrial` fecha a porta na entrada: só concede a quem está `free` e sem vitalício.
+
+**Onde a cortesia efetivamente acaba é o `getMyAccount`.** Não existe cron nesta plataforma, e o
+`getMyAccount` é o único ponto por onde toda tela passa — expirar ali torna impossível usar o app
+com cortesia vencida, mesmo que nenhuma varredura rode nunca. O `adminExpireTrials` serve só ao
+registro de quem não voltou ao app: rodá-lo não muda o acesso de ninguém que esteja usando o
+produto.
 
 ---
 

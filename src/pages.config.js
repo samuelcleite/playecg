@@ -12,6 +12,7 @@ const AdminModules = lazy(() => import('./pages/AdminModules'));
 const AdminPayments = lazy(() => import('./pages/AdminPayments'));
 const AdminPhases = lazy(() => import('./pages/AdminPhases'));
 const AdminNotifications = lazy(() => import('./pages/AdminNotifications'));
+const AdminTrials = lazy(() => import('./pages/AdminTrials'));
 const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 import AprendaECG from './pages/AprendaECG';
 import CompleteProfile from './pages/CompleteProfile';
@@ -45,6 +46,7 @@ export const PAGES = {
     "AdminPayments": AdminPayments,
     "AdminPhases": AdminPhases,
     "AdminNotifications": AdminNotifications,
+    "AdminTrials": AdminTrials,
     "AdminUsers": AdminUsers,
     "AprendaECG": AprendaECG,
     "CompleteProfile": CompleteProfile,

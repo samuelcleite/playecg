@@ -348,6 +348,13 @@ export default function AdminUsers() {
             const userPayments = getUserPayments(user.email);
             const userStats = getUserStats(user.email);
             const isPremium = user.subscription_type === 'premium';
+            // Cortesia em curso. Esta tela não concede nem revoga trial — isso é
+            // a AdminTrials —, mas precisa distinguir os dois tipos de premium:
+            // sem o selo, um acesso que vence em 3 dias aparece aqui idêntico a
+            // uma assinatura paga.
+            const emCortesia = isPremium
+              && !!user.trial_ends_at
+              && new Date(user.trial_ends_at) > new Date();
             const isExpanded = expandedUser === user.id;
             const latestPayment = userPayments.filter(p => p.status === 'PAID').sort((a, b) => 
               new Date(b.created_date) - new Date(a.created_date)
@@ -382,6 +389,14 @@ export default function AdminUsers() {
                                 </span>
                               ) : 'Free'}
                             </Badge>
+                            {emCortesia && (
+                              <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  Cortesia até {new Date(user.trial_ends_at).toLocaleDateString('pt-BR')}
+                                </span>
+                              </Badge>
+                            )}
                             {user.role === 'admin' && (
                               <Badge className="bg-purple-100 text-purple-800 border-purple-300">
                                 Admin

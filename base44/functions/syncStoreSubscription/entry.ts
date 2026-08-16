@@ -227,7 +227,17 @@ Deno.serve(async (req) => {
 
     await base44.asServiceRole.entities.Account.update(account.id, {
       subscription_type: 'premium',
-      subscription_start_date: account.subscription_start_date || new Date().toISOString()
+      subscription_start_date: account.subscription_start_date || new Date().toISOString(),
+      // INVARIANTE trial_ends_at
+      // Quem PAGA deixa de ter cortesia. Aqui a assinatura de loja foi
+      // confirmada pelo RevenueCat; manter a marca de cortesia faria a
+      // expiração do getMyAccount rebaixar um assinante de verdade.
+      //
+      // Repare que o subscription_start_date acima preserva a data antiga
+      // quando ela existe — então a segunda barreira (pagamento posterior ao
+      // início da cortesia) NÃO cobre este caminho. Esta linha é a que cobre.
+      trial_ends_at: null,
+      trial_started_at: null
     });
 
     console.log('syncStoreSubscription: premium liberado para', email);

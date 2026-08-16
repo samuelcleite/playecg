@@ -1,22 +1,14 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-// adminSetSubscription
+// adminRevokeTrial — encerra uma cortesia antes do prazo.
 // -----------------------------------------------------------------------------
-// Substitui a escrita que o AdminUsers.jsx fazia direto do frontend:
-//   base44.entities.User.update(user.id, { subscription_type: 'free' })
+// É o adminGrantTrial ao contrário: rebaixa a Account para 'free', limpa o
+// trial_ends_at e carimba revoked_at nos TrialGrants que ainda estavam de pé.
 //
-// Depois do corte isso não funciona mais. A Account tem `update` restrito a
-// `__service_only__` no RLS, então nem admin a altera pelo cliente — a escrita
-// precisa passar por uma function com service role.
-//
-// Aceita 'free' e 'premium'. O caminho para 'premium' já existia em
-// manuallyUpgradeToPremium; aqui ele fica junto do rebaixamento para que a tela
-// admin tenha um único ponto de escrita de assinatura.
-//
-// NÃO mexe em Payment. Rebaixar alguém aqui não cancela cobrança nenhuma no
-// Stripe nem na App Store — é ajuste do nosso registro, e cancelar de verdade
-// continua sendo cancelStripeSubscription ou a própria loja. Misturar as duas
-// coisas num botão de admin criaria a ilusão de que clicar resolve a cobrança.
+// SÓ MEXE EM QUEM ESTÁ EM CORTESIA. Se `trial_ends_at` estiver vazio, o premium
+// daquela conta é pago (ou não existe), e esta function recusa em vez de
+// rebaixar. Rebaixar assinante é trabalho do adminSetSubscription, onde está
+// escrito na tela o que o botão faz.
 // -----------------------------------------------------------------------------
 
 function b64urlToBytes(input) {
@@ -114,47 +106,81 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    const { user_email, subscription_type } = await req.json();
+    const { user_email } = await req.json();
 
-    if (!user_email || !['free', 'premium'].includes(subscription_type)) {
-      return Response.json(
-        { error: 'Parâmetros: user_email e subscription_type ("free" | "premium")', success: false },
-        { status: 400 }
-      );
+    if (!user_email) {
+      return Response.json({ error: 'Parâmetro: user_email', success: false }, { status: 400 });
     }
 
-    const email = user_email.trim().toLowerCase();
+    const email = String(user_email).trim().toLowerCase();
     const contas = await base44.asServiceRole.entities.Account.filter({ email });
 
     if (contas.length === 0) {
       return Response.json({ error: 'Conta não encontrada', success: false }, { status: 404 });
     }
 
-    // INVARIANTE trial_ends_at
-    // As duas direções limpam a marca de cortesia, por motivos opostos:
-    //   - ao PROMOVER, o premium desta tela não tem prazo; deixar a marca faria
-    //     o getMyAccount desfazer o clique na data em que o trial venceria;
-    //   - ao REBAIXAR, o acesso acabou agora; deixar a marca é deixar armada
-    //     uma expiração para uma cortesia que não existe mais.
-    const updates = {
-      subscription_type,
-      trial_ends_at: null,
-      trial_started_at: null
-    };
-    // Só carimba a data ao PROMOVER. Ao rebaixar, preservamos a data original:
-    // ela é histórico de quando a assinatura começou, e zerá-la apagaria a única
-    // pista de quanto tempo a pessoa foi premium.
-    if (subscription_type === 'premium') {
-      updates.subscription_start_date = new Date().toISOString();
+    const conta = contas[0];
+
+    if (!conta.trial_ends_at) {
+      return Response.json(
+        {
+          error: 'Esta conta não está em cortesia. Se o objetivo é remover um premium pago, use a tela de usuários.',
+          code: 'sem_cortesia',
+          success: false
+        },
+        { status: 409 }
+      );
     }
 
-    await base44.asServiceRole.entities.Account.update(contas[0].id, updates);
+    const agora = new Date();
 
-    console.log('adminSetSubscription:', email, '->', subscription_type, 'por', identity.email);
+    // INVARIANTE lifetime_access
+    // Quem tem lifetime_access NUNCA é escrito como 'free'. subscription_type é
+    // o que CONCEDE o acesso — todas as telas do app checam 'premium' e nenhuma
+    // sabe o que é vitalício. lifetime_access não concede nada: ele só impede o
+    // rebaixamento. É a combinação dos dois que sustenta o vitalício sem tocar
+    // em nenhuma tela.
+    //
+    // Aqui isso importa porque a ordem "ganhou cortesia, depois comprou o
+    // vitalício" deixa a conta com as duas marcas se o caminho da compra falhar
+    // em limpar o trial. Revogar a cortesia então tiraria o acesso permanente
+    // de alguém que pagou por ele.
+    const vitalicio = conta.lifetime_access === true;
 
-    return Response.json({ success: true, user_email: email, subscription_type });
+    await base44.asServiceRole.entities.Account.update(conta.id, {
+      ...(vitalicio ? {} : { subscription_type: 'free' }),
+      // O trial_ends_at sai NOS DOIS CASOS. Ele é a marca de "este premium
+      // vence": deixá-la num vitalício é deixar armada a expiração preguiçosa
+      // do getMyAccount contra a conta errada.
+      trial_ends_at: null,
+      trial_started_at: null
+    });
+
+    if (vitalicio) {
+      console.log('🔒 INVARIANTE lifetime_access: rebaixamento ignorado para', email);
+    }
+
+    // Marca os grants que ainda estavam de pé. São vários quando houve
+    // extensão: uma revogação encerra a cortesia inteira, não uma parcela dela.
+    const grants = await base44.asServiceRole.entities.TrialGrant.filter({ user_email: email });
+    const abertos = grants.filter(g => !g.revoked_at && new Date(g.expires_at) > agora);
+    for (const g of abertos) {
+      await base44.asServiceRole.entities.TrialGrant.update(g.id, {
+        revoked_at: agora.toISOString(),
+        revoked_by: identity.email
+      });
+    }
+
+    console.log('adminRevokeTrial:', email, '- grants encerrados:', abertos.length, 'por', identity.email);
+
+    return Response.json({
+      success: true,
+      user_email: email,
+      rebaixado: !vitalicio,
+      grants_revogados: abertos.length
+    });
   } catch (error) {
-    console.error('Erro em adminSetSubscription:', error);
+    console.error('Erro em adminRevokeTrial:', error);
     return Response.json({ error: error.message, success: false }, { status: 500 });
   }
 });

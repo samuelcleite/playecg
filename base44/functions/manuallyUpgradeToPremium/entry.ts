@@ -127,7 +127,14 @@ Deno.serve(async (req) => {
         // Atualizar para premium
         await base44.asServiceRole.entities.Account.update(user.id, {
             subscription_type: 'premium',
-            subscription_start_date: new Date().toISOString()
+            subscription_start_date: new Date().toISOString(),
+            // INVARIANTE trial_ends_at
+            // Premium concedido pela tela de usuários é premium SEM prazo. Se a
+            // pessoa estava em cortesia, esta promoção a torna definitiva —
+            // manter a marca faria o getMyAccount desfazer o clique do admin na
+            // data em que o trial venceria.
+            trial_ends_at: null,
+            trial_started_at: null
         });
 
         console.log('✅ User upgraded successfully:', user_email);

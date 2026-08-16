@@ -96,7 +96,14 @@ Deno.serve(async (req) => {
                     subscription_type: 'premium',
                     // lifetime_access é o que impede o rebaixamento futuro.
                     lifetime_access: true,
-                    subscription_start_date: new Date().toISOString()
+                    subscription_start_date: new Date().toISOString(),
+                    // INVARIANTE trial_ends_at
+                    // Quem PAGA deixa de ter cortesia. O campo é a marca de
+                    // "este premium vence"; deixá-lo aqui faria a expiração do
+                    // getMyAccount rebaixar, na data do trial, alguém que
+                    // acabou de comprar acesso permanente.
+                    trial_ends_at: null,
+                    trial_started_at: null
                 });
             }
 
@@ -159,7 +166,13 @@ Deno.serve(async (req) => {
             if (contas.length > 0) {
                 await base44.asServiceRole.entities.Account.update(contas[0].id, {
                     subscription_type: 'premium',
-                    subscription_start_date: new Date().toISOString()
+                    subscription_start_date: new Date().toISOString(),
+                    // INVARIANTE trial_ends_at
+                    // Quem PAGA deixa de ter cortesia. Sem isto, o assinante que
+                    // comprou durante o trial seria rebaixado pela expiração do
+                    // getMyAccount no dia em que a cortesia venceria.
+                    trial_ends_at: null,
+                    trial_started_at: null
                 });
             }
 

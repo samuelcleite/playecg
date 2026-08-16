@@ -263,6 +263,54 @@ Deno.serve(async (req) => {
             });
         }
 
+        // ACESSO DE CORTESIA — caminho próprio, pelo mesmo motivo do vitalício.
+        //
+        // Sem este bloco a cortesia cai no ramo 'Manual' logo abaixo e a tela de
+        // Perfil mente três vezes: anuncia "Premium — R$59/mês", promete uma
+        // próxima renovação de +30 dias que não vai acontecer, e manda falar com
+        // o suporte para cancelar uma assinatura que não existe. Pior: esconde
+        // justamente o que o usuário precisa saber — que o acesso tem prazo, e
+        // qual é. É essa informação que faz a cortesia virar venda.
+        //
+        // Vem DEPOIS do vitalício de propósito: as duas marcas não coexistem por
+        // construção (o adminGrantTrial recusa conta vitalícia e os caminhos de
+        // compra limpam a cortesia), e se um dia coexistirem por bug, o acesso
+        // permanente é a resposta menos errada.
+        const fimCortesia = user.trial_ends_at ? new Date(user.trial_ends_at) : null;
+        if (
+            fimCortesia && !isNaN(fimCortesia.getTime()) &&
+            fimCortesia > new Date() &&
+            user.subscription_type === 'premium'
+        ) {
+            console.log('⏳ Acesso de cortesia para', email, 'até', user.trial_ends_at);
+
+            return Response.json({
+                success: true,
+                hasSubscription: true,
+                subscriptionInfo: {
+                    // Discriminador novo, no mesmo formato do `lifetime`. A tela
+                    // ramifica por ele antes de olhar qualquer outro campo.
+                    trial: true,
+                    lifetime: false,
+                    trialEndsAt: fimCortesia.toISOString(),
+                    // Valor 0: não houve cobrança. Mandar 59 aqui faria a tela
+                    // exibir um preço que ninguém pagou.
+                    amount: 0,
+                    lastRenewal: user.trial_started_at || null,
+                    // null de propósito: cortesia não renova. Ver a mesma
+                    // decisão no bloco do vitalício acima.
+                    nextRenewal: null,
+                    paymentMethod: 'TRIAL',
+                    store: null,
+                    paymentId: null,
+                    // null (= "não sabemos"), nunca false: `willRenew === false`
+                    // é o gatilho da mensagem "assinatura cancelada" em outros
+                    // pontos da tela, e não há assinatura nenhuma aqui.
+                    willRenew: null
+                }
+            });
+        }
+
         if (paidPayments.length === 0) {
             console.log('⚠️ No PAID payments found');
             

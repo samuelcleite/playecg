@@ -121,7 +121,13 @@ Deno.serve(async (req) => {
       if (conta) {
         await base44.asServiceRole.entities.Account.update(conta.id, {
           subscription_type: 'premium',
-          subscription_start_date: new Date().toISOString()
+          subscription_start_date: new Date().toISOString(),
+          // INVARIANTE trial_ends_at
+          // Quem PAGA deixa de ter cortesia. Sem isto, o assinante que comprou
+          // na loja durante o trial seria rebaixado pela expiração do
+          // getMyAccount no dia em que a cortesia venceria.
+          trial_ends_at: null,
+          trial_started_at: null
         });
 
         if (BILLABLE.includes(type)) {
