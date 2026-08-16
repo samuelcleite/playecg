@@ -62,3 +62,90 @@ export async function vincularPushAoUsuario(accountId) {
     `setonesignalplayerid://?user_id=${encodeURIComponent(accountId)}`
   );
 }
+
+// ─── PERMISSÃO ──────────────────────────────────────────────────────────────
+// O "Automatic Prompt" está DESLIGADO no painel do Despia. O prompt do sistema
+// é disparado por nós, atrás de um gesto do usuário — e isso não é preferência
+// de UX: no iOS a recusa é PERMANENTE, só reversível nos Ajustes. Um prompt no
+// primeiro launch, antes de a pessoa ter visto um caso de ECG, queima quem
+// recusa para sempre.
+
+// Teto para a CONSULTA de estado, e ele não é decorativo: o modo `watch` do
+// despia-native espera 30 SEGUNDOS antes de desistir. Sem este teto, um binário
+// que não responda deixaria o componente em "carregando" (invisível) por meio
+// minuto — e binário que não responde é justamente o caso que precisa ser
+// resolvido rápido. Mesmo raciocínio do teto no bootstrapAuth.
+const TETO_CONSULTA_MS = 1500;
+
+// Depois de pedir a permissão, reconsultamos algumas vezes: o prompt é do
+// sistema e a pessoa leva alguns segundos para responder. Sem isso, concluiríamos
+// "não concedeu" no instante seguinte ao toque, sempre.
+//
+// DEZ segundos, e não seis: seis não cobrem quem para para ler o diálogo do
+// iOS. Se o laço estoura antes do toque em "Permitir", a tela diz "bloqueadas"
+// para alguém que acabou de conceder — o checkStatus corrige no boot seguinte,
+// mas a mensagem errada não deveria aparecer. Esperar mais só é aceitável
+// porque quem chama mostra andamento durante a espera (ver o estado `pedindo`
+// em NotificationBanner.jsx e EnableNotifications.jsx); sem esse retorno
+// visual, dez segundos de botão inerte pareceriam tela travada.
+const TENTATIVAS_APOS_PEDIDO = 10;
+const INTERVALO_TENTATIVA_MS = 1000;
+
+// Estado da permissão: "concedida" | "nao_concedida" | "indeterminado".
+//
+// INDETERMINADO NÃO É "AINDA NÃO PERGUNTOU". É "não deu para saber" — e o caso
+// mais comum é o binário do Despia sem o SDK do OneSignal compilado, onde o
+// comando simplesmente não é processado e a variável nunca chega.
+//
+// QUEM RENDERIZA TEM DE TRATAR INDETERMINADO COMO "NÃO MOSTRE NADA". Um botão
+// de ativar notificações que não faz absolutamente nada é pior do que botão
+// nenhum, e é o que usuários iOS reais veriam se indeterminado caísse no mesmo
+// balde de "ainda não perguntou". É essa regra que torna este commit seguro em
+// produção antes do rebuild: hoje a UI fica invisível, e ela aparece sozinha
+// quando o binário novo chegar.
+//
+// "nao_concedida" também NÃO distingue "nunca perguntou" de "já recusou" — o
+// Despia devolve um booleano só. Por isso não adivinhamos: pedimos a permissão
+// e, se continuar não concedida, a tela oferece TAMBÉM o atalho para os Ajustes.
+export async function estadoDaPermissaoNativa() {
+  if (!isIOSNativeApp()) return "indeterminado";
+
+  try {
+    const resultado = await Promise.race([
+      despia("checkNativePushPermissions://", ["nativePushEnabled"]),
+      new Promise((resolve) => setTimeout(() => resolve(null), TETO_CONSULTA_MS))
+    ]);
+
+    const valor = resultado?.nativePushEnabled;
+    if (valor === true) return "concedida";
+    if (valor === false) return "nao_concedida";
+    return "indeterminado";
+  } catch (_e) {
+    return "indeterminado";
+  }
+}
+
+// Dispara o prompt do sistema e devolve o estado resultante, já reconsultado.
+// Quem já recusou antes não vê prompt nenhum (a recusa no iOS é definitiva):
+// para essa pessoa isto volta "nao_concedida" e o atalho para os Ajustes é o
+// único caminho.
+export async function pedirPermissaoNativa() {
+  if (!isIOSNativeApp()) return "indeterminado";
+
+  await despia("registerpush://");
+
+  for (let i = 0; i < TENTATIVAS_APOS_PEDIDO; i++) {
+    await new Promise((resolve) => setTimeout(resolve, INTERVALO_TENTATIVA_MS));
+    const estado = await estadoDaPermissaoNativa();
+    if (estado === "concedida") return estado;
+  }
+
+  return "nao_concedida";
+}
+
+// Abre os Ajustes do sistema para o app. É o único resgate possível para quem
+// já recusou — no iOS não há como reapresentar o prompt.
+export async function abrirAjustesDoSistema() {
+  if (!isIOSNativeApp()) return;
+  await despia("settingsapp://");
+}
