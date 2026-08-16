@@ -173,8 +173,8 @@ Deno.serve(async (req) => {
       app_id: appId,
       target_channel: 'push',
       include_aliases: { external_id: [String(conta.id)] },
-      headings: { en: title },
-      contents: { en: body }
+      headings: { en: title.trim() },
+      contents: { en: body.trim() }
     };
 
     // Roteamento: o Despia lê `path` de dentro de `data`, atualiza a URL pela
@@ -209,12 +209,20 @@ Deno.serve(async (req) => {
 
     // recipients e errors VERBATIM, e o motivo é diagnóstico, não capricho.
     //
-    // O OneSignal responde 200 OK com recipients: 0 e
-    // errors: ["All included players are not subscribed"] quando nenhuma
-    // subscription carrega o external_id alvo — que é EXATAMENTE o estado do
-    // mundo enquanto o binário do Despia não for reconstruído com o OneSignal
-    // embutido. Se esta função devolvesse só { success: true }, perderíamos o
-    // único sinal que distingue "não funciona" de "ainda não rebuildado".
+    // Quando nenhuma subscription carrega o external_id alvo, o OneSignal
+    // responde 200 OK com recipients: 0 e um `errors` explicando o motivo — que
+    // é EXATAMENTE o estado do mundo enquanto o binário do Despia não for
+    // reconstruído com o OneSignal embutido. Se esta função devolvesse só
+    // { success: true }, perderíamos o único sinal que distingue "não funciona"
+    // de "ainda não rebuildado".
+    //
+    // O FORMATO DE `errors` NÃO É ESTÁVEL — não assuma array. Na API v1 ele era
+    // um array de strings (["All included players are not subscribed"]); na API
+    // rich, com include_aliases, um alias inexistente tende a voltar como
+    // objeto (invalid_aliases: { external_id: [...] }). É justamente por isso
+    // que repassamos sem tocar. Quem RENDERIZA é que tem de tratar os dois
+    // formatos — ver o renderErros em AdminNotifications.jsx. Um .map() ou
+    // .join() direto quebra a tela no primeiro teste real.
     //
     // `success` reflete a CHAMADA ter dado certo (HTTP 2xx), não a entrega.
     // Quem lê recipients para saber se chegou a alguém é a tela de admin.
