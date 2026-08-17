@@ -3,6 +3,12 @@ import { savePushSubscription } from "@/functions/savePushSubscription";
 import { getVapidPublicKey } from "@/functions/getVapidPublicKey";
 import { Button } from "@/components/ui/button";
 import { Bell, BellOff, CheckCircle2, Loader2 } from "lucide-react";
+import { isIOSNativeApp } from "@/utils/platform";
+import {
+  estadoDaPermissaoNativa,
+  pedirPermissaoNativa,
+  abrirAjustesDoSistema
+} from "@/utils/pushNativo";
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -18,12 +24,28 @@ function urlBase64ToUint8Array(base64String) {
 export default function EnableNotifications({ className }) {
   const [status, setStatus] = useState("loading");
   const [loading, setLoading] = useState(false);
+  // Ver o mesmo estado em NotificationBanner.jsx: a espera pelo diálogo do
+  // sistema no iOS pode chegar a 10s, e sem rótulo próprio o botão pareceria
+  // travado — sobretudo para quem já recusou antes, que não vê diálogo nenhum.
+  const [pedindo, setPedindo] = useState(false);
 
   useEffect(() => {
     checkStatus();
   }, []);
 
   const checkStatus = async () => {
+    // APP iOS NATIVO: caminho próprio, ANTES do guard de PushManager — ver o
+    // mesmo bloco em NotificationBanner.jsx. Aqui o papel do componente é o
+    // estado PERMANENTE ("ativadas" / "bloqueadas") e o resgate pelos Ajustes;
+    // o gatilho contextual mora no banner do Dashboard.
+    if (isIOSNativeApp()) {
+      const estado = await estadoDaPermissaoNativa();
+      // Indeterminado renderiza NADA. Ver utils/pushNativo.js.
+      if (estado === "indeterminado") { setStatus("indeterminado"); return; }
+      setStatus(estado === "concedida" ? "subscribed" : "prompt");
+      return;
+    }
+
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       setStatus("unsupported");
       return;
@@ -50,6 +72,19 @@ export default function EnableNotifications({ className }) {
   const handleEnable = async () => {
     setLoading(true);
     try {
+      // No app iOS o caminho é o prompt do sistema via Despia — sem service
+      // worker, sem VAPID, sem savePushSubscription.
+      if (isIOSNativeApp()) {
+        setPedindo(true);
+        try {
+          const estado = await pedirPermissaoNativa();
+          setStatus(estado === "concedida" ? "subscribed" : "denied");
+        } finally {
+          setPedindo(false);
+        }
+        return;
+      }
+
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
         setStatus("denied");
@@ -84,7 +119,9 @@ export default function EnableNotifications({ className }) {
     }
   };
 
-  if (status === "loading" || status === "unsupported") return null;
+  // "indeterminado" só acontece no app iOS: não deu para saber o estado da
+  // permissão, e nesse caso não mostramos nada. Ver utils/pushNativo.js.
+  if (status === "loading" || status === "unsupported" || status === "indeterminado") return null;
 
   if (status === "subscribed") {
     return (
@@ -96,6 +133,23 @@ export default function EnableNotifications({ className }) {
   }
 
   if (status === "denied") {
+    // No iOS a recusa é definitiva: o prompt não reaparece, e os Ajustes são o
+    // único caminho de volta. Por isso o botão, e não só a mensagem.
+    if (isIOSNativeApp()) {
+      return (
+        <div className={`space-y-2 ${className || ""}`}>
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <BellOff className="w-4 h-4" />
+            Notificações bloqueadas no iPhone
+          </div>
+          <Button variant="outline" onClick={abrirAjustesDoSistema} className="gap-2">
+            <Bell className="w-4 h-4" />
+            Abrir Ajustes
+          </Button>
+        </div>
+      );
+    }
+
     return (
       <div className={`flex items-center gap-2 text-sm text-gray-500 ${className || ""}`}>
         <BellOff className="w-4 h-4" />
@@ -129,7 +183,7 @@ export default function EnableNotifications({ className }) {
       ) : (
         <Bell className="w-4 h-4" />
       )}
-      {loading ? "Ativando..." : "Ativar Notificações"}
+      {pedindo ? "Aguardando sua permissão..." : loading ? "Ativando..." : "Ativar Notificações"}
     </Button>
   );
 }
