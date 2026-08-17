@@ -255,6 +255,25 @@ assinatura, e o Android exigiria one-time product no Play Console.
 > `lifetime_access` não concede acesso — ele impede o rebaixamento. Três guards
 > dependem disso e `grep -rn "INVARIANTE lifetime_access" base44/` tem que
 > continuar achando os três.
+>
+> O mesmo vale para o **invariante 9** (`trial_ends_at`, acesso de cortesia) ao
+> escrever `'premium'`. **`npm run check:invariantes` confere os dois de uma vez
+> e falha se um caminho novo esquecer** — rode antes de commitar qualquer coisa
+> que mexa em assinatura.
+
+### Acesso de cortesia (16/08/2026)
+
+Premium por tempo limitado, concedido pela tela `AdminTrials` (web, só admin),
+individualmente ou em lote com filtros. Quem concede acesso continua sendo
+`subscription_type`; `trial_ends_at` só diz até quando.
+
+**A cortesia acaba no `getMyAccount`** — não há cron nesta plataforma, e ele é o
+único ponto por onde toda tela passa. A varredura `adminExpireTrials` é higiene
+de relatório, não de acesso.
+
+**Nunca conceda cortesia a quem paga** (a function recusa): a marca faria o
+acesso do assinante vencer. Ver invariante 9 e a auditoria `auditTrialInvariants`,
+cujo resultado abre no topo da tela.
 
 Estorno: `charge.refunded` **total** revoga o acesso (direito de arrependimento
 do CDC); **parcial não revoga**. A cobrança é identificada como vitalícia pelo
@@ -388,6 +407,14 @@ rebaseada antes de qualquer merge** — senão o merge deleta `/termos`,
   30 segundos, antes de tocar em qualquer código: **carregar a página com
   `prefers-color-scheme: dark` e ler `document.documentElement.className`.** Se a
   classe muda, é a página; o wrapper não entra na conta.
+- **`Set-Content` do PowerShell 5.1 corrompe acentos.** Editar arquivo por
+  `Get-Content -Raw` + regex + `Set-Content -Encoding utf8` reescreveu um script
+  inteiro em mojibake (`—` virou `â€"`), e o estrago só apareceu quando uma regex
+  que dependia do travessão parou de casar. Num projeto todo em português, isso
+  atinge quase qualquer arquivo. Use as ferramentas de edição do agente, não o
+  shell. Para conferir, `iconv -f UTF-8 -t UTF-8 <arquivo>` é confiável —
+  `grep 'Ã'` **não é**: em modo byte, ele casa com travessão UTF-8 legítimo e
+  acusa arquivo são. (16/08/2026, medido.)
 - **Grep em `src/` não enxerga comportamento que mora em `node_modules`.** No caso
   acima, quem mexia na classe do `<html>` era a lib; o `src/App.jsx` só declarava
   `attribute="class"`. Buscar pelo mecanismo (`classList`, `documentElement`) deu

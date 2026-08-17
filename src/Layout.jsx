@@ -14,6 +14,7 @@ import {
   BookOpen,
   Trophy,
   Crown,
+  Gift,
   LogOut,
   Settings,
   FileEdit,
@@ -46,6 +47,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import TrialBanner from "@/components/TrialBanner";
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
@@ -90,7 +92,8 @@ export default function Layout({ children, currentPageName }) {
   const adminSubPages = [
     "AdminModules", "AdminPhases", "AdminCases", "AdminContent", "AdminImages",
     "AdminAchievements", "AdminCoupons", "AdminCouponStats", "AdminPayments",
-    "AdminUsers", "AdminActivity", "AdminNotifications", "AdminDailyCases"
+    "AdminUsers", "AdminActivity", "AdminNotifications", "AdminDailyCases",
+    "AdminTrials"
   ];
   const isAdminSubPage = adminSubPages.includes(currentPageName);
 
@@ -144,6 +147,7 @@ export default function Layout({ children, currentPageName }) {
     { title: "Estatísticas de Cupons", url: createPageUrl("AdminCouponStats"), icon: BarChart3 },
     { title: "Gerenciar Pagamentos", url: createPageUrl("AdminPayments"), icon: CreditCard },
     { title: "Gerenciar Usuários", url: createPageUrl("AdminUsers"), icon: Users },
+    { title: "Acessos de Cortesia", url: createPageUrl("AdminTrials"), icon: Gift },
     { title: "Gerenciar Atividade", url: createPageUrl("AdminActivity"), icon: Activity },
     { title: "Notificações Push", url: createPageUrl("AdminNotifications"), icon: Bell },
   ];
@@ -317,6 +321,7 @@ export default function Layout({ children, currentPageName }) {
           </Sidebar>
 
           <main className="flex-1 overflow-auto bg-ecg-gray">
+            <TrialBanner />
             {children}
           </main>
         </SidebarProvider>
@@ -352,6 +357,7 @@ export default function Layout({ children, currentPageName }) {
             ? { paddingTop: 'env(safe-area-inset-top, 0px)' }
             : { height: '100%', paddingTop: 'env(safe-area-inset-top, 0px)', overscrollBehavior: 'none' }}
         >
+          <TrialBanner />
           {children}
         </main>
 

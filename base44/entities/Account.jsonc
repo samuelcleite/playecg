@@ -57,6 +57,16 @@
       "default": false,
       "description": "Comprou o plano vitalício (pagamento único, Stripe/web). NÃO concede acesso: quem concede é subscription_type. Serve para impedir que os caminhos de expiração rebaixem o comprador para 'free'. Ver INVARIANTE lifetime_access."
     },
+    "trial_ends_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Fim do acesso de cortesia. Preenchido = o premium desta conta é cortesia e vence nesta data. Ausente (null) = o premium, se houver, é pago e não vence por este caminho. Como o lifetime_access, ele não concede acesso sozinho: quem concede continua sendo subscription_type. Ver INVARIANTE trial_ends_at."
+    },
+    "trial_started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Início da cortesia em curso. Existe só para os caminhos de expiração compararem com subscription_start_date: data de assinatura mais recente que esta significa que a pessoa pagou depois de ganhar a cortesia, e então o vencimento do trial não pode rebaixá-la. Sai junto com trial_ends_at."
+    },
     "specialty": {
       "type": "string",
       "description": "Especialidade médica do usuário"

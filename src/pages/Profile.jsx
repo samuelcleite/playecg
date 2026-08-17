@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { getCurrentUser, refreshCurrentUser } from '@/lib/currentUser';
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -39,7 +40,8 @@ import {
   XCircle,
   Trash2,
   Bell,
-  LogOut
+  LogOut,
+  Clock
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { clearToken } from "@/lib/customAuth";
@@ -154,6 +156,12 @@ export default function Profile() {
           // Acesso vitalício: pagamento único, sem renovação. A tela ramifica
           // por isto antes de olhar qualquer outro campo.
           lifetime: info.lifetime === true,
+          // Acesso de cortesia: premium com prazo, sem cobrança. Mesmo tipo de
+          // discriminador do lifetime, e pela mesma razão — o bloco de
+          // assinatura abaixo é todo sobre renovação e valor pago, e aqui não
+          // existe nem uma coisa nem outra.
+          trial: info.trial === true,
+          trialEndsAt: info.trialEndsAt ? new Date(info.trialEndsAt) : null,
           amount: info.amount,
           // As datas podem vir nulas — o vitalício manda `nextRenewal: null`
           // de propósito. Sem esta guarda, `new Date(null)` vira 01/01/1970 e
@@ -343,9 +351,14 @@ export default function Profile() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CreditCard className="w-6 h-6 text-amber-600" />
-                {/* "Assinatura" está errado para quem comprou o vitalício:
-                    não há assinatura nenhuma no registro dele. */}
-                {subscriptionInfo?.lifetime ? 'Informações do Plano' : 'Informações da Assinatura'}
+                {/* "Assinatura" está errado para quem comprou o vitalício e
+                    para quem está em cortesia: nenhum dos dois tem assinatura
+                    nenhuma no registro. */}
+                {subscriptionInfo?.lifetime
+                  ? 'Informações do Plano'
+                  : subscriptionInfo?.trial
+                    ? 'Seu Acesso de Cortesia'
+                    : 'Informações da Assinatura'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -392,6 +405,51 @@ export default function Profile() {
                       recorrente e não há nada para cancelar.
                     </AlertDescription>
                   </Alert>
+                </>
+              ) : subscriptionInfo.trial ? (
+                /* ACESSO DE CORTESIA — layout próprio, pela mesma razão do
+                   vitalício: o bloco de assinatura abaixo é quase todo sobre
+                   renovação, valor pago e cancelamento, e aqui não existe
+                   nenhum dos três. Reaproveitá-lo trocando rótulos anunciaria
+                   uma cobrança de R$59/mês que ninguém fez, e mandaria o
+                   usuário ao suporte para cancelar o que não existe.
+
+                   O que esta tela precisa dizer é uma coisa só, e é o oposto de
+                   tranquilizar: o acesso tem data para acabar, e assinar é o
+                   que o mantém. */
+                <>
+                  <div className="grid md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Plano Atual</p>
+                      <p className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-emerald-600" />
+                        Premium de cortesia
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Válido até</p>
+                      <p className="text-lg font-bold text-emerald-700">
+                        {dataLonga(subscriptionInfo.trialEndsAt)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <Alert className="bg-emerald-50 border-emerald-200 mb-4">
+                    <Clock className="w-5 h-5 text-emerald-600" />
+                    <AlertDescription className="text-emerald-900 ml-2">
+                      <strong>Acesso liberado por cortesia:</strong> você tem o Premium completo
+                      até {dataLonga(subscriptionInfo.trialEndsAt)}, sem nenhuma cobrança e sem
+                      renovação automática. Depois dessa data sua conta volta ao plano gratuito —
+                      seu progresso, seus pontos e suas conquistas continuam salvos.
+                    </AlertDescription>
+                  </Alert>
+
+                  <Link to={createPageUrl("Upgrade")}>
+                    <Button className="w-full bg-amber-600 hover:bg-amber-700">
+                      <Crown className="w-4 h-4 mr-2" />
+                      Assinar e manter o acesso
+                    </Button>
+                  </Link>
                 </>
               ) : (
                 <>

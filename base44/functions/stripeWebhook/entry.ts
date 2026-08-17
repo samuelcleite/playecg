@@ -96,7 +96,14 @@ Deno.serve(async (req) => {
                     subscription_type: 'premium',
                     // lifetime_access é o que impede o rebaixamento futuro.
                     lifetime_access: true,
-                    subscription_start_date: new Date().toISOString()
+                    subscription_start_date: new Date().toISOString(),
+                    // INVARIANTE trial_ends_at
+                    // Quem PAGA deixa de ter cortesia. O campo é a marca de
+                    // "este premium vence"; deixá-lo aqui faria a expiração do
+                    // getMyAccount rebaixar, na data do trial, alguém que
+                    // acabou de comprar acesso permanente.
+                    trial_ends_at: null,
+                    trial_started_at: null
                 });
             }
 
@@ -159,7 +166,13 @@ Deno.serve(async (req) => {
             if (contas.length > 0) {
                 await base44.asServiceRole.entities.Account.update(contas[0].id, {
                     subscription_type: 'premium',
-                    subscription_start_date: new Date().toISOString()
+                    subscription_start_date: new Date().toISOString(),
+                    // INVARIANTE trial_ends_at
+                    // Quem PAGA deixa de ter cortesia. Sem isto, o assinante que
+                    // comprou durante o trial seria rebaixado pela expiração do
+                    // getMyAccount no dia em que a cortesia venceria.
+                    trial_ends_at: null,
+                    trial_started_at: null
                 });
             }
 
@@ -256,8 +269,26 @@ Deno.serve(async (req) => {
                     // no dia da compra, não nunca ter assinado). Quando aquela
                     // assinatura antiga expirar no Stripe, este evento chega e
                     // rebaixaria alguém que pagou pelo acesso permanente.
+                    // INVARIANTE trial_ends_at
+                    // Cortesia em curso também barra o rebaixamento, pelo mesmo
+                    // motivo e no mesmo cenário: quem ganhou cortesia estava
+                    // 'free' no dia (a concessão recusa assinante pago), mas
+                    // pode ter tido assinatura antes. O evento tardio dela
+                    // chegaria agora e apagaria uma cortesia que mal começou.
+                    //
+                    // A cortesia não é apagada nem adiada: ela continua com o
+                    // prazo que tinha, e vence sozinha no getMyAccount.
+                    const fimCortesia = contas[0].trial_ends_at
+                        ? new Date(contas[0].trial_ends_at)
+                        : null;
+                    const emCortesia = !!(
+                        fimCortesia && !isNaN(fimCortesia.getTime()) && fimCortesia > new Date()
+                    );
+
                     if (contas[0].lifetime_access === true) {
                         console.log('🔒 INVARIANTE lifetime_access: rebaixamento ignorado para', email);
+                    } else if (emCortesia) {
+                        console.log('🔒 INVARIANTE trial_ends_at: rebaixamento ignorado (cortesia em curso) para', email);
                     } else {
                         await base44.asServiceRole.entities.Account.update(contas[0].id, {
                             subscription_type: 'free'
@@ -329,6 +360,12 @@ Deno.serve(async (req) => {
                     // a conta 'free' com lifetime_access true — um usuário sem
                     // acesso e blindado contra recuperá-lo por qualquer
                     // caminho automático.
+                    //
+                    // check-invariantes: dispensa trial_ends_at — para chegar
+                    // aqui a conta precisou COMPRAR o vitalício, e a compra
+                    // (activateLifetime) já limpou qualquer cortesia. Não há
+                    // marca para poupar nem para apagar. Se um dia a compra
+                    // deixar de limpar, esta dispensa deixa de valer.
                     await base44.asServiceRole.entities.Account.update(conta.id, {
                         lifetime_access: false,
                         subscription_type: 'free'

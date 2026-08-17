@@ -1,26 +1,20 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-// getMyAccount
+// adminExpireTrials — varre e encerra as cortesias vencidas.
 // -----------------------------------------------------------------------------
-// Devolve a Account do usuário autenticado. É o `auth.me()` do mundo JWT: o
-// objeto de sessão que o AuthContext passa a usar no lugar do User do Base44.
+// POR QUE ISTO EXISTE, se o getMyAccount já expira.
 //
-// Existe porque a Account tem `read: false` no RLS — o frontend não a lê de
-// jeito nenhum, nem com sessão válida. Toda leitura passa por aqui.
+// O getMyAccount expira no acesso do próprio usuário, e é ele quem garante que
+// ninguém USA o app com cortesia vencida. O que ele não faz é alcançar quem não
+// volta: a conta de quem ganhou 7 dias e sumiu segue marcada 'premium' no banco
+// para sempre, inflando a contagem de assinantes de toda tela administrativa.
 //
-// Funciona pelos dois caminhos de identidade. No caminho `base44` devolve a
-// Account correspondente ao email da sessão, e não o User: depois do corte a
-// Account é o registro único, e um admin que também use o app deve ver os
-// mesmos dados independentemente de por onde entrou.
+// Esta function é o outro lado: passa em todo mundo de uma vez. Não existe cron
+// na plataforma — nenhuma function deste projeto roda sozinha — então ela é
+// disparada pelo botão da tela de cortesias. Rodá-la nunca é obrigatório para a
+// correção do acesso; é higiene de relatório.
 //
-// NUNCA devolve password_hash. google_id/apple_id viram booleanos: a tela pode
-// querer mostrar por onde a pessoa entra, mas o valor em si não deve transitar.
-//
-// TAMBÉM EXPIRA O ACESSO DE CORTESIA. Ver o bloco INVARIANTE trial_ends_at
-// abaixo: é aqui, e só aqui, que o vencimento de um trial vira perda de acesso
-// no app. Um endpoint de leitura que escreve é incomum e foi escolha
-// deliberada — não há cron nesta plataforma, e este é o único ponto por onde
-// TODA tela passa antes de decidir se mostra conteúdo pago.
+// É IDEMPOTENTE. Rodar duas vezes seguidas não muda nada na segunda.
 // -----------------------------------------------------------------------------
 
 function b64urlToBytes(input) {
@@ -109,14 +103,28 @@ async function resolveIdentity(req, base44) {
   return null;
 }
 
+async function listAll(entities, entityName) {
+  const batchSize = 500;
+  let skip = 0;
+  let all = [];
+  while (true) {
+    const batch = await entities[entityName].list(null, batchSize, skip);
+    if (!batch || batch.length === 0) break;
+    all = all.concat(batch);
+    if (batch.length < batchSize) break;
+    skip += batchSize;
+  }
+  return all;
+}
+
 // -----------------------------------------------------------------------------
 // INVARIANTE trial_ends_at — cópia inline
 //
-// Este bloco é IDÊNTICO ao do adminExpireTrials. Cópia porque o Base44 não
-// resolve import entre functions (mesma razão do resolveIdentity, ver
+// Este bloco é IDÊNTICO ao do getMyAccount. Cópia porque o Base44 não resolve
+// import entre functions (mesma razão do resolveIdentity, ver
 // ARQUITETURA_AUTH.md §2). Ao mudar a regra aqui, mude lá:
 //   grep -rn "INVARIANTE trial_ends_at" base44/
-// tem que achar os dois donos da decisão (getMyAccount, adminExpireTrials) além
+// tem que achar os dois donos da decisão (adminExpireTrials, getMyAccount) além
 // dos caminhos de pagamento que só limpam o campo.
 //
 // A regra: cortesia vencida rebaixa para 'free' — EXCETO quando rebaixar tiraria
@@ -130,7 +138,7 @@ async function resolveIdentity(req, base44) {
 //      promoção esquecer da primeira.
 //
 // Nos dois casos as marcas de cortesia saem assim mesmo: deixá-las é deixar a
-// expiração armada contra a conta errada na próxima leitura.
+// expiração armada contra a conta errada na próxima passagem.
 // -----------------------------------------------------------------------------
 function avaliarCortesia(conta, agora) {
   if (!conta.trial_ends_at) return { vencida: false };
@@ -155,73 +163,53 @@ function avaliarCortesia(conta, agora) {
   return { vencida: true, rebaixar: true };
 }
 
-function sanitize(account, identity) {
-  const { password_hash, google_id, apple_id, ...rest } = account;
-  return {
-    ...rest,
-    // role vem da IDENTIDADE, não do registro: só a sessão Base44 concede admin.
-    // Ler Account.role aqui abriria um caminho de escalação caso alguém um dia
-    // gravasse 'admin' nesse campo.
-    role: identity.role === 'admin' ? 'admin' : 'user',
-    tem_google: !!google_id,
-    tem_apple: !!apple_id,
-    tem_senha: !!password_hash
-  };
-}
-
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const identity = await resolveIdentity(req, base44);
 
-    if (!identity) {
-      return Response.json({ error: 'Não autenticado', success: false }, { status: 401 });
+    if (!identity || identity.role !== 'admin') {
+      return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    const email = (identity.email || '').trim().toLowerCase();
-    const accounts = await base44.asServiceRole.entities.Account.filter({ email });
-    const account = accounts && accounts.length > 0 ? accounts[0] : null;
+    const agora = new Date();
+    const contas = await listAll(base44.asServiceRole.entities, 'Account');
 
-    if (!account) {
-      // Autenticado sem Account. Acontece com admin que só existe como User e
-      // nunca usou o app. O frontend trata como "sem sessão de usuário".
-      return Response.json(
-        { error: 'Conta não encontrada', code: 'account_not_found', success: false },
-        { status: 404 }
-      );
-    }
+    const rebaixadas = [];
+    const preservadas = [];
 
-    // Cortesia vencida: encerra ANTES de responder. Se a escrita e a resposta
-    // discordassem, a tela seguinte mostraria conteúdo pago por mais um
-    // carregamento — o currentUser.js guarda esta resposta em cache pelo
-    // carregamento inteiro da página.
-    const cortesia = avaliarCortesia(account, new Date());
-    if (cortesia.vencida) {
-      const fim = {
-        ...(cortesia.rebaixar ? { subscription_type: 'free' } : {}),
+    for (const conta of contas) {
+      const r = avaliarCortesia(conta, agora);
+      if (!r.vencida) continue;
+
+      await base44.asServiceRole.entities.Account.update(conta.id, {
+        ...(r.rebaixar ? { subscription_type: 'free' } : {}),
         trial_ends_at: null,
         trial_started_at: null
-      };
-      await base44.asServiceRole.entities.Account.update(account.id, fim);
-      Object.assign(account, fim);
+      });
 
-      if (cortesia.rebaixar) {
-        console.log('⏳ Cortesia vencida:', account.email, '-> free');
+      if (r.rebaixar) {
+        rebaixadas.push(conta.email);
       } else {
-        console.log(
-          `🔒 INVARIANTE trial_ends_at (${cortesia.motivo}): rebaixamento ignorado para`,
-          account.email
-        );
+        console.log(`🔒 INVARIANTE trial_ends_at (${r.motivo}): rebaixamento ignorado para`, conta.email);
+        preservadas.push({ email: conta.email, motivo: r.motivo });
       }
     }
 
+    console.log(
+      'adminExpireTrials:', rebaixadas.length, 'rebaixadas,',
+      preservadas.length, 'preservadas, por', identity.email
+    );
+
     return Response.json({
       success: true,
-      account: sanitize(account, identity),
-      source: identity.source
+      rebaixadas: rebaixadas.length,
+      preservadas: preservadas.length,
+      emails_rebaixados: rebaixadas,
+      emails_preservados: preservadas
     });
   } catch (error) {
-    console.error('Erro em getMyAccount:', error);
+    console.error('Erro em adminExpireTrials:', error);
     return Response.json({ error: error.message, success: false }, { status: 500 });
   }
 });

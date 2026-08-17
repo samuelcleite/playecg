@@ -1,0 +1,82 @@
+{
+  // TrialGrant — histórico de concessões de acesso de cortesia.
+  //
+  // Esta entidade NÃO concede acesso nenhum. Quem concede é
+  // `Account.subscription_type`, e quem faz o acesso vencer é
+  // `Account.trial_ends_at`. O TrialGrant existe para responder perguntas que a
+  // Account não responde, porque ela guarda só o estado atual: quem concedeu,
+  // por quê, quantas vezes esta pessoa já ganhou cortesia, e quantos dos que
+  // ganharam acabaram comprando.
+  //
+  // Consequência prática: apagar um TrialGrant não tira o acesso de ninguém, e
+  // criar um também não dá. As duas escritas andam sempre juntas, no
+  // adminGrantTrial e no adminRevokeTrial.
+  "name": "TrialGrant",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Conta que recebeu a cortesia. Minúsculo, sem espaços — mesma chave da Account."
+    },
+    "granted_by": {
+      "type": "string",
+      "description": "E-mail do admin que concedeu. Vem sempre da identidade da sessão, nunca do corpo da requisição."
+    },
+    "granted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Momento da concessão."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Momento em que a cortesia vence. Cópia do que foi escrito em Account.trial_ends_at no ato da concessão; se o trial for estendido depois, um novo TrialGrant é criado em vez de este ser editado."
+    },
+    "days": {
+      "type": "number",
+      "description": "Duração concedida, em dias. Guardado explicitamente porque é a intenção do admin — expires_at menos granted_at devolveria o mesmo número hoje, mas deixaria de bater se uma extensão futura mudasse a conta."
+    },
+    "reason": {
+      "type": "string",
+      "description": "Motivo livre, escrito pelo admin. Ex.: 'palestra SBC', 'indicação do Dr. X'."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "grant",
+        "extension"
+      ],
+      "default": "grant",
+      "description": "'extension' quando a concessão apenas empurrou o vencimento de uma cortesia que já estava em curso. Distingue 'ganhou 7 dias duas vezes' de 'ganhou 7 e depois mais 7'."
+    },
+    "revoked_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Preenchido quando um admin encerra a cortesia antes do prazo. Registro histórico: o que efetivamente tira o acesso é a escrita na Account."
+    },
+    "revoked_by": {
+      "type": "string",
+      "description": "E-mail do admin que revogou."
+    }
+  },
+  "required": [
+    "user_email",
+    "expires_at"
+  ],
+  // Mesma postura das demais entidades per-user: nenhum cliente lê nem escreve
+  // direto. Só admin vê, e só através de function com service role.
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "read": false,
+    "update": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "delete": false
+  }
+}

@@ -106,7 +106,22 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Conta não encontrada', success: false }, { status: 404 });
         }
 
-        if (user.subscription_type === 'premium') {
+        // ACESSO DE CORTESIA CONTA COMO "SEM PLANO" AQUI.
+        //
+        // Quem está em cortesia é 'premium' — é assim que ele tem acesso — e sem
+        // esta distinção a trava logo abaixo recusaria a compra dele com "você
+        // já possui assinatura premium". Seria o pior defeito possível desta
+        // feature: a cortesia existe para virar venda, e o caminho da venda
+        // estaria fechado justamente para quem está experimentando.
+        //
+        // O que a trava protege é o assinante PAGANTE, que não deve ser cobrado
+        // duas vezes. Cortesia não é cobrança, então não há o que proteger.
+        const fimCortesia = user.trial_ends_at ? new Date(user.trial_ends_at) : null;
+        const emCortesia = !!(
+            fimCortesia && !isNaN(fimCortesia.getTime()) && fimCortesia > new Date()
+        );
+
+        if (user.subscription_type === 'premium' && !emCortesia) {
             return Response.json({ error: 'Você já possui assinatura premium', success: false }, { status: 400 });
         }
 
@@ -150,7 +165,12 @@ Deno.serve(async (req) => {
             // A checagem de premium lá em cima já barra o assinante ativo;
             // esta existe para barrar qualquer outro valor que não seja
             // exatamente 'free'.
-            if (user.subscription_type !== 'free') {
+            //
+            // Cortesia passa, pela mesma razão de lá em cima: "plano ativo"
+            // quer dizer plano PAGO. Quem está experimentando é exatamente o
+            // público desta oferta, e recusá-lo aqui mandaria a pessoa mais
+            // perto da compra de volta para o paywall.
+            if (user.subscription_type !== 'free' && !emCortesia) {
                 return Response.json({
                     error: 'O plano vitalício é uma oferta para quem ainda não tem um plano ativo.',
                     success: false

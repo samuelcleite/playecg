@@ -118,7 +118,13 @@ export default function Vitalicio() {
     );
   }
 
-  const elegivel = user?.subscription_type === 'free';
+  // Quem está em cortesia é 'premium', mas não paga nada — para esta oferta ele
+  // conta como sem plano, igual ao que o createStripeCheckout decide no
+  // backend. Sem esta linha, a tela negaria a compra a quem está justamente no
+  // momento de decidir se assina.
+  const fimCortesia = user?.trial_ends_at ? new Date(user.trial_ends_at) : null;
+  const emCortesia = !!(fimCortesia && !isNaN(fimCortesia.getTime()) && fimCortesia > new Date());
+  const elegivel = user?.subscription_type === 'free' || emCortesia;
   const esgotado = vagas === 0;
 
   const beneficios = [
