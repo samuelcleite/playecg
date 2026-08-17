@@ -23,11 +23,15 @@ const ROTAS_DESTINO = [
   { valor: "/profile", rotulo: "Perfil" }
 ];
 
-// O formato de `errors` do OneSignal não é garantido. No teste real ele veio
-// como array de strings (["All included players are not subscribed"]) — é o
-// único formato que observamos. Aceitamos string, array e objeto assim mesmo:
-// este é um cenário de erro entre vários, e um .map() ou .join() direto
-// derruba a tela inteira se algum outro responder diferente.
+// `errors` é o sinal que separa sucesso de problema no envio pelo OneSignal —
+// não `recipients`, que a API rich simplesmente não devolve.
+//
+// Formatos observados até aqui: `null` no caso de SUCESSO (envio confirmado no
+// device veio com errors null), e array de strings no caso de erro
+// (["All included players are not subscribed"], antes do rebuild do binário).
+// É só isso que sabemos, então aceitamos string, array e objeto: um .map() ou
+// .join() direto derruba a tela inteira se algum outro cenário de erro
+// responder diferente.
 function renderErros(errors) {
   if (!errors) return null;
   if (typeof errors === "string") return <span>{errors}</span>;
@@ -324,7 +328,7 @@ export default function AdminNotifications() {
         {result?.transporte === "ios" && (
           <Card className={`border-2 ${
             !result.success ? "border-red-300 bg-red-50"
-              : (result.recipients ?? 0) === 0 ? "border-amber-300 bg-amber-50"
+              : result.errors ? "border-amber-300 bg-amber-50"
               : "border-green-300 bg-green-50"
           }`}>
             <CardContent className="p-4 space-y-3">
@@ -336,15 +340,13 @@ export default function AdminNotifications() {
                     <p className="text-sm text-red-700 mt-1">{result.error || "Falha na chamada ao OneSignal."}</p>
                   </div>
                 </div>
-              ) : (result.recipients ?? 0) === 0 ? (
+              ) : result.errors ? (
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-bold text-amber-800">Nenhum dispositivo inscrito</p>
+                    <p className="font-bold text-amber-800">Enviada com ressalva</p>
                     <p className="text-sm text-amber-700 mt-1">
-                      A chamada ao OneSignal funcionou, mas nenhuma inscrição carrega esse
-                      identificador. É o resultado esperado antes do rebuild do binário do Despia —
-                      ou se o usuário nunca autorizou notificações.
+                      A chamada ao OneSignal funcionou, mas ele sinalizou algo — veja abaixo.
                     </p>
                   </div>
                 </div>
@@ -352,28 +354,34 @@ export default function AdminNotifications() {
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-bold text-green-800">Notificação enviada!</p>
+                    <p className="font-bold text-green-800">Notificação enviada ao OneSignal</p>
                     <p className="text-sm text-green-700 mt-1">
-                      ✅ {result.recipients} dispositivo{result.recipients !== 1 ? "s" : ""}
+                      A contagem de entrega fica no painel do OneSignal, em Delivery — a API
+                      resolve os destinatários depois de responder, então esse número não chega aqui.
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* Bloco de diagnóstico. Sem ele, um recipients 0 não diz se o
-                  problema é a vinculação ou se miramos a conta errada. */}
+              {/* Bloco de diagnóstico. Sem ele, uma ressalva não diz se o
+                  problema é a vinculação ou se miramos a conta errada.
+                  `recipients` NÃO aparece: a API rich não devolve esse campo,
+                  e exibi-lo era exatamente a origem do falso alarme. */}
               <div className="text-xs text-gray-600 border-t border-gray-200/70 pt-3 space-y-1">
                 {result.status != null && (
                   <p><span className="font-semibold">HTTP:</span> {result.status}</p>
+                )}
+                {result.id && (
+                  <p className="break-all">
+                    <span className="font-semibold">ID da mensagem:</span>{" "}
+                    <span className="font-mono">{result.id}</span>
+                  </p>
                 )}
                 {result.external_id_alvo && (
                   <p className="break-all">
                     <span className="font-semibold">External ID alvo:</span>{" "}
                     <span className="font-mono">{result.external_id_alvo}</span>
                   </p>
-                )}
-                {result.recipients != null && (
-                  <p><span className="font-semibold">recipients:</span> {result.recipients}</p>
                 )}
                 {result.errors && (
                   <div>
