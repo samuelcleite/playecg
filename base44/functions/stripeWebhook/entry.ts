@@ -176,12 +176,49 @@ Deno.serve(async (req) => {
                 });
             }
 
+            // ── QUANTO CUSTAVA, QUANTO FOI PAGO, QUANTO O CUPOM ABATEU ───────
+            // Os três números saem daqui e alimentam tanto o Payment quanto o
+            // CouponUsage. Antes eram calculados em dois lugares, com regras
+            // diferentes, e o do Payment era simplesmente zero.
+            //
+            // Cópia inline dos valores de base44/shared/plans.ts (o Base44 não
+            // compartilha código entre functions).
+            const PLANOS_VALOR = { monthly: 59, annual: 499 };
+
+            // O plano vem EXPLÍCITO na metadata da session. A heurística antiga
+            // — `amount/100 >= 400 ? 499 : 59` — errava exatamente no caso que
+            // esta feature cria: 20% no anual dá R$ 399,20, que cai ABAIXO do
+            // limiar de 400. A venda anual era classificada como mensal e
+            // gravava original_price 59 com discount_applied 0, justamente para
+            // os cupons grandes o bastante para importarem.
+            //
+            // hasOwnProperty e não acesso direto: `plano` vem de fora e um valor
+            // como "constructor" acharia o membro herdado do Object.prototype.
+            // É o mesmo furo que o createStripeCheckout fecha ao resolver o
+            // plano.
+            //
+            // A heurística fica só como fallback para session em voo — criada
+            // antes de a metadata carregar `plan` — e para o dia em que alguém
+            // criar uma session à mão pelo painel do Stripe.
+            const precoCheio = Object.prototype.hasOwnProperty.call(PLANOS_VALOR, plano)
+                ? PLANOS_VALOR[plano]
+                : (amount != null && amount / 100 >= 400 ? 499 : 59);
+
+            const valorPago = amount != null ? amount / 100 : precoCheio;
+
+            // Sem cupom, desconto é zero — mesmo que o valor pago difira do
+            // preço cheio. Diferença pode vir de proration ou de ajuste à mão no
+            // Stripe, e atribuí-la a um cupom que não existe seria inventar
+            // dado. Nenhuma das contas acima pode lançar: são números, e o
+            // acesso ao mapa está guardado.
+            const descontoAplicado = couponId ? Math.max(0, precoCheio - valorPago) : 0;
+
             await base44.asServiceRole.entities.Payment.create({
                 user_email: email,
                 stripe_subscription_id: subscriptionId || null,
                 reference_id: subscriptionId || `stripe_${Date.now()}`,
-                amount: amount != null ? amount / 100 : 59,
-                discount_amount: 0,
+                amount: valorPago,
+                discount_amount: descontoAplicado,
                 coupon_id: couponId || null,
                 status: 'PAID',
                 payment_method: 'STRIPE_SUBSCRIPTION',
@@ -195,14 +232,12 @@ Deno.serve(async (req) => {
                     user_email: email
                 });
                 if (existing.length === 0) {
-                    const basePrice = amount != null && amount / 100 >= 400 ? 499 : 59;
-                    const finalPrice = amount != null ? amount / 100 : basePrice;
                     await base44.asServiceRole.entities.CouponUsage.create({
                         coupon_id: couponId,
                         user_email: email,
-                        original_price: basePrice,
-                        discount_applied: Math.max(0, basePrice - finalPrice),
-                        final_price: finalPrice,
+                        original_price: precoCheio,
+                        discount_applied: descontoAplicado,
+                        final_price: valorPago,
                         used_at: new Date().toISOString()
                     });
                     const coupons = await base44.asServiceRole.entities.Coupon.filter({ id: couponId });
