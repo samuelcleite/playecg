@@ -289,7 +289,26 @@ Deno.serve(async (req) => {
                 ? { percent_off: coupon.discount_value }
                 : { amount_off: Math.round(coupon.discount_value * 100), currency: 'brl' };
 
-            const stripeCoupon = await stripe.coupons.create({ ...desconto, ...duracaoParams });
+            // JANELA DE RESGATE. O cupom nasce aqui, mas só é resgatado quando
+            // a pessoa conclui o pagamento — e a maioria não conclui. Sem
+            // prazo, cada checkout abandonado deixa no Stripe um cupom VÁLIDO
+            // para sempre, indistinguível de um cupom em uso.
+            //
+            // 7 dias é folga larga sobre as 24h de validade padrão da Checkout
+            // Session: nenhum pagamento legítimo chega depois disso, porque a
+            // própria session já expirou muito antes. Passado o prazo, o órfão
+            // fica inequivocamente morto.
+            //
+            // redeem_by governa só o RESGATE. Assinatura que já resgatou mantém
+            // o desconto pelo tempo do `duration` — 'forever' segue sendo para
+            // sempre.
+            const prazoDeResgate = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+
+            const stripeCoupon = await stripe.coupons.create({
+                ...desconto,
+                ...duracaoParams,
+                redeem_by: prazoDeResgate
+            });
             stripeCouponId = stripeCoupon.id;
         }
 
@@ -357,7 +376,33 @@ Deno.serve(async (req) => {
             sessionParams.discounts = [{ coupon: stripeCouponId }];
         }
 
-        const session = await stripe.checkout.sessions.create(sessionParams);
+        // O cupom Stripe é criado ANTES da session. Se a session falhar, ele
+        // fica órfão e nada mais o alcança — o `stripeCouponId` morre com a
+        // requisição. Limpar aqui é a única chance.
+        //
+        // A falha da limpeza é engolida de propósito: ela não pode substituir o
+        // erro de verdade, que é o da session. Um cupom sobrando é problema
+        // pequeno; esconder a causa do checkout ter falhado é grande.
+        //
+        // O `throw` devolve o erro original para o catch de fora, então a
+        // resposta ao cliente continua exatamente a mesma de antes.
+        let session;
+        try {
+            session = await stripe.checkout.sessions.create(sessionParams);
+        } catch (erroDaSession) {
+            if (stripeCouponId) {
+                try {
+                    await stripe.coupons.del(stripeCouponId);
+                    console.log('Cupom Stripe órfão removido após falha da session:', stripeCouponId);
+                } catch (erroDaLimpeza) {
+                    console.error(
+                        'Falha ao remover cupom Stripe órfão',
+                        stripeCouponId, '-', erroDaLimpeza.message
+                    );
+                }
+            }
+            throw erroDaSession;
+        }
 
         return Response.json({ success: true, url: session.url });
 
