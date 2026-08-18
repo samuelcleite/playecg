@@ -204,7 +204,18 @@ Deno.serve(async (req) => {
                 code: coupon.code,
                 discount_type: coupon.discount_type,
                 discount_value: coupon.discount_value,
-                description: coupon.description
+                description: coupon.description,
+                // ADITIVO. A tela precisa destes dois para parar de afirmar
+                // "R$ 29,50/mês" sobre um desconto que dura 6 meses — hoje ela
+                // mostra um preço sem período, e isso só está certo por
+                // coincidência com o 'forever'.
+                //
+                // A ausência é repassada como está: quem consome aplica o mesmo
+                // fallback do createStripeCheckout (sem duration = forever).
+                // Preencher aqui esconderia do cliente a diferença entre um
+                // cupom antigo e um cupom explicitamente 'forever'.
+                duration: coupon.duration,
+                duration_in_months: coupon.duration_in_months
             },
             pricing: {
                 original_price: originalPrice,
