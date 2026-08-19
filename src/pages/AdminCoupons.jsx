@@ -727,6 +727,25 @@ export default function AdminCoupons() {
                 </div>
               )}
 
+              {/* A MESMA mensagem aparece aqui e na página, e não é
+                  redundância: o Dialog é um modal que cobre a página inteira,
+                  então o banner de lá fica ATRÁS dele. Erro de salvar acontece
+                  sempre com o diálogo aberto — sem esta cópia, a recusa do
+                  backend some da vista e a tela parece não ter feito nada.
+                  Erro de excluir e de ativar/desativar acontece com o diálogo
+                  fechado, e aí quem aparece é o da página. */}
+              {message && (
+                <div
+                  className={`p-3 rounded-lg border text-sm ${
+                    message.type === 'error'
+                      ? 'bg-red-50 border-red-200 text-red-800'
+                      : 'bg-green-50 border-green-200 text-green-800'
+                  }`}
+                >
+                  {message.text}
+                </div>
+              )}
+
               <div className="flex justify-end gap-3 pt-4">
                 <Button variant="outline" onClick={() => setShowDialog(false)}>
                   Cancelar
