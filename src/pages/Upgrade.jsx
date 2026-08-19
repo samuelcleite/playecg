@@ -42,6 +42,41 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+// Qualifica o preço com desconto quando o cupom NÃO dura para sempre.
+//
+// Sem isto a tela afirma "R$ 29,50/mês" para um cupom que vale 6 meses, e o
+// cliente descobre a diferença pela fatura. A tela do próprio Stripe é mais
+// honesta que a nossa aqui: ela diz "Total devido hoje", que não promete nada
+// sobre o mês que vem.
+//
+// Devolve null quando não há o que qualificar — em 'forever' o preço com
+// desconto É o preço recorrente, e a linha extra só faria ruído.
+function textoDaDuracao(appliedCoupon, plano, precoCheio) {
+  const c = appliedCoupon?.coupon;
+  if (!c) return null;
+
+  // Ausência = forever. Mesmo fallback do createStripeCheckout: cupom gravado
+  // antes de o campo existir chega sem `duration`, e sempre se comportou assim.
+  const duracao = c.duration ?? "forever";
+  if (duracao === "forever") return null;
+
+  const cheio = `R$ ${precoCheio.toFixed(2)}${plano === "annual" ? "/ano" : "/mês"}`;
+  if (duracao === "once") return `Preço da 1ª cobrança. Depois, ${cheio}.`;
+
+  const meses = Number(c.duration_in_months);
+  if (!Number.isInteger(meses) || meses <= 0) return null;
+
+  // MESES CORRIDOS, não cobranças. O anual cobra uma vez a cada 12 meses, então
+  // qualquer duração abaixo de 12 não alcança a segunda cobrança — o desconto
+  // vale só pela primeira, por mais que o cupom diga "6 meses".
+  if (plano === "annual") {
+    return meses < 12
+      ? `Preço da 1ª cobrança. Depois, ${cheio}.`
+      : `Preço das cobranças nos primeiros ${meses} meses. Depois, ${cheio}.`;
+  }
+  return `Preço das ${meses} primeiras cobranças. Depois, ${cheio}.`;
+}
+
 export default function Upgrade() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -350,6 +385,7 @@ export default function Upgrade() {
   const originalPrice = selectedPlan === "annual" ? 499 : 59;
   const finalPrice = appliedCoupon?.pricing?.final_price || originalPrice;
   const discountAmount = appliedCoupon?.pricing?.discount_amount || 0;
+  const avisoDeDuracao = textoDaDuracao(appliedCoupon, selectedPlan, originalPrice);
 
   const freeFeatures = [
     "Acesso a quizzes aleatórios",
@@ -433,6 +469,14 @@ export default function Upgrade() {
                 <span className="text-4xl font-bold text-gray-900">R$ {finalPrice.toFixed(2)}</span>
                 <span className="text-gray-600">{selectedPlan === "annual" ? "/ano" : "/mês"}</span>
               </div>
+              {/* O "/mês" logo acima é uma afirmação sobre TODO mês. Quando o
+                  cupom tem prazo, ela deixa de ser verdade — e esta linha é a
+                  única coisa entre o cliente e uma fatura inesperada. */}
+              {avisoDeDuracao && (
+                <p className="mt-2 text-sm font-medium text-amber-700">
+                  {avisoDeDuracao}
+                </p>
+              )}
               {appliedCoupon && discountAmount > 0 && (
                 <div className="mt-4">
                   <Badge className="bg-green-500 text-white">

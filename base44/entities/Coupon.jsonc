@@ -18,6 +18,20 @@
       "type": "number",
       "description": "Valor do desconto (20 para 20% ou R$20)"
     },
+    "duration": {
+      "type": "string",
+      "enum": [
+        "once",
+        "repeating",
+        "forever"
+      ],
+      "default": "forever",
+      "description": "Por quanto tempo o desconto vale na assinatura, no vocabulário do Stripe. forever = desconta em todas as renovações, sem prazo. once = desconta só a primeira cobrança. repeating = desconta pelos próximos duration_in_months meses. O default não preenche registro que já existia (Mongo), então quem lê este campo trata a ausência como forever — ver o fallback no createStripeCheckout."
+    },
+    "duration_in_months": {
+      "type": "number",
+      "description": "Só tem efeito quando duration = repeating; obrigatório nesse caso e ignorado nos demais. Contado em MESES CORRIDOS, nunca em cobranças: no plano anual, que cobra uma vez a cada 12 meses, qualquer valor de 1 a 12 desconta apenas a primeira cobrança e nada nas seguintes."
+    },
     "valid_from": {
       "type": "string",
       "format": "date-time",
@@ -58,10 +72,24 @@
     "discount_value"
   ],
   "rls": {
-    "read": {},
-    "write": {
+    "read": {
       "user_condition": {
-        "role": "admin"
+        "role": "__service_only__"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__service_only__"
       }
     }
   }

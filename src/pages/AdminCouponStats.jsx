@@ -53,7 +53,8 @@ export default function AdminCouponStats() {
   };
 
   const loadData = async () => {
-    const couponsData = await base44.entities.Coupon.list("-created_date");
+    const resCupons = await base44.functions.invoke('adminCoupons', { action: 'list' });
+    const couponsData = resCupons?.data?.coupons || [];
     setCoupons(couponsData);
 
     const resUsos = await base44.functions.invoke('adminListRecords', {

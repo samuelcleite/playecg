@@ -22,6 +22,13 @@
 // Cópias inline hoje:
 //   - base44/functions/createStripeCheckout/entry.ts   (price ID + mode)
 //   - base44/functions/getLifetimeSeats/entry.ts       (só LIFETIME_VAGAS)
+//   - src/pages/AdminCoupons.jsx                       (só os valores em reais,
+//     para o preview de desconto do painel — `PLANOS_PRECO`)
+//   - base44/functions/stripeWebhook/entry.ts          (só os valores em reais,
+//     para separar preço cheio de desconto no Payment e no CouponUsage —
+//     `PLANOS_VALOR`)
+//   - src/pages/Upgrade.jsx                            (só os valores em reais,
+//     inline no ternário do preço exibido — cópia anterior a este catálogo)
 //
 // O validateCoupon NÃO recebeu cópia, de propósito: ver a nota no fim do
 // arquivo.

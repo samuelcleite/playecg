@@ -237,12 +237,78 @@ Deno.serve(async (req) => {
 
             appliedCouponId = coupon.id;
 
-            // Criar um cupom Stripe correspondente (recorrente 'forever' para manter desconto na assinatura)
-            const stripeCouponParams = coupon.discount_type === 'percentage'
-                ? { percent_off: coupon.discount_value, duration: 'forever' }
-                : { amount_off: Math.round(coupon.discount_value * 100), currency: 'brl', duration: 'forever' };
+            // ── DURAÇÃO DO DESCONTO ──────────────────────────────────────────
+            // Antes daqui saía `duration: 'forever'` fixo, e era a única
+            // duração que o sistema sabia expressar.
+            //
+            // O FALLBACK É OBRIGATÓRIO, não é zelo. O campo `duration` entrou
+            // no schema do Coupon agora, e default de JSON Schema NÃO preenche
+            // registro que já existia — o banco é Mongo (ver o Registro de
+            // aprendizados no README). O cupom TESTE1 está em produção
+            // exatamente assim, sem o campo. Sem este `??` ele iria para o
+            // Stripe como `duration: undefined`, a criação falharia e o
+            // usuário levaria um 500 no meio do checkout.
+            //
+            // O Base44 carimba o default na ESCRITA, então cupom salvo pelo
+            // painel depois daquele schema já chega com 'forever' explícito.
+            // Quem depende do fallback é o registro que ninguém mais tocou.
+            const duracao = coupon.duration ?? 'forever';
 
-            const stripeCoupon = await stripe.coupons.create(stripeCouponParams);
+            // Valor presente e fora do enum é cupom mal cadastrado, e a saída
+            // NÃO é cair em 'forever': num desconto percentual, 'forever' é a
+            // opção mais cara que existe. Errar para o mais caro é o oposto do
+            // que esta function faz no resto (o plano desconhecido cai no
+            // mensal justamente para errar para baixo). Recusa explícita.
+            if (!['once', 'repeating', 'forever'].includes(duracao)) {
+                console.error(`Cupom ${coupon.code}: duration inválida:`, coupon.duration);
+                return Response.json({ error: 'Cupom mal configurado', success: false }, { status: 400 });
+            }
+
+            const duracaoParams = { duration: duracao };
+
+            if (duracao === 'repeating') {
+                // duration_in_months obrigatório e > 0. É regra CONDICIONAL, e
+                // JSON Schema não sabe expressar isso — então ela só pode viver
+                // aqui. Sem a checagem, o Stripe recusa a criação do cupom e o
+                // erro chega ao usuário como um 500 genérico.
+                const meses = Number(coupon.duration_in_months);
+                if (!Number.isInteger(meses) || meses <= 0) {
+                    console.error(
+                        `Cupom ${coupon.code}: repeating exige duration_in_months > 0, veio:`,
+                        coupon.duration_in_months
+                    );
+                    return Response.json({ error: 'Cupom mal configurado', success: false }, { status: 400 });
+                }
+                duracaoParams.duration_in_months = meses;
+            }
+            // Em 'once' e 'forever' o duration_in_months NÃO vai junto: o
+            // Stripe recusa a combinação, mesmo que o valor esteja gravado no
+            // nosso registro (sobra de um cupom que já foi repeating).
+
+            const desconto = coupon.discount_type === 'percentage'
+                ? { percent_off: coupon.discount_value }
+                : { amount_off: Math.round(coupon.discount_value * 100), currency: 'brl' };
+
+            // JANELA DE RESGATE. O cupom nasce aqui, mas só é resgatado quando
+            // a pessoa conclui o pagamento — e a maioria não conclui. Sem
+            // prazo, cada checkout abandonado deixa no Stripe um cupom VÁLIDO
+            // para sempre, indistinguível de um cupom em uso.
+            //
+            // 7 dias é folga larga sobre as 24h de validade padrão da Checkout
+            // Session: nenhum pagamento legítimo chega depois disso, porque a
+            // própria session já expirou muito antes. Passado o prazo, o órfão
+            // fica inequivocamente morto.
+            //
+            // redeem_by governa só o RESGATE. Assinatura que já resgatou mantém
+            // o desconto pelo tempo do `duration` — 'forever' segue sendo para
+            // sempre.
+            const prazoDeResgate = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+
+            const stripeCoupon = await stripe.coupons.create({
+                ...desconto,
+                ...duracaoParams,
+                redeem_by: prazoDeResgate
+            });
             stripeCouponId = stripeCoupon.id;
         }
 
@@ -310,7 +376,33 @@ Deno.serve(async (req) => {
             sessionParams.discounts = [{ coupon: stripeCouponId }];
         }
 
-        const session = await stripe.checkout.sessions.create(sessionParams);
+        // O cupom Stripe é criado ANTES da session. Se a session falhar, ele
+        // fica órfão e nada mais o alcança — o `stripeCouponId` morre com a
+        // requisição. Limpar aqui é a única chance.
+        //
+        // A falha da limpeza é engolida de propósito: ela não pode substituir o
+        // erro de verdade, que é o da session. Um cupom sobrando é problema
+        // pequeno; esconder a causa do checkout ter falhado é grande.
+        //
+        // O `throw` devolve o erro original para o catch de fora, então a
+        // resposta ao cliente continua exatamente a mesma de antes.
+        let session;
+        try {
+            session = await stripe.checkout.sessions.create(sessionParams);
+        } catch (erroDaSession) {
+            if (stripeCouponId) {
+                try {
+                    await stripe.coupons.del(stripeCouponId);
+                    console.log('Cupom Stripe órfão removido após falha da session:', stripeCouponId);
+                } catch (erroDaLimpeza) {
+                    console.error(
+                        'Falha ao remover cupom Stripe órfão',
+                        stripeCouponId, '-', erroDaLimpeza.message
+                    );
+                }
+            }
+            throw erroDaSession;
+        }
 
         return Response.json({ success: true, url: session.url });
 

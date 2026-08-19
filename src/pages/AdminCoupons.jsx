@@ -37,6 +37,58 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 
+// Preços dos planos, só para o preview do desconto. É CÓPIA de
+// base44/shared/plans.ts — o Base44 não compartilha código entre o front e as
+// functions. Ao mudar preço, mude lá primeiro; um grep por PLANOS acha as
+// cópias. Antes daqui o preview era hardcoded em R$ 2,00, sobra da época de
+// teste, e mostrava o desconto sobre um preço que não existe mais.
+const PLANOS_PRECO = { monthly: 59, annual: 499 };
+
+const brl = (v) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+// Espelha o cálculo do validateCoupon: teto no preço cheio (desconto nunca
+// maior que o produto) e piso de R$ 0,01.
+function precoComDesconto(preco, tipo, valor) {
+  const v = Number(valor) || 0;
+  const desconto = tipo === "percentage" ? (preco * v) / 100 : v;
+  return Math.max(0.01, preco - Math.min(desconto, preco));
+}
+
+// A frase do efeito da duração em UM plano. É aqui que mora o aviso do anual:
+// duration_in_months é contado em MESES CORRIDOS, não em cobranças, e o anual
+// cobra uma vez a cada 12 meses — então qualquer valor abaixo de 12 alcança só
+// a primeira cobrança, e o cupom vira um 'once' caro sem ninguém perceber.
+function efeitoDaDuracao(plano, { duration, duration_in_months, discount_type, discount_value }) {
+  const cheio = PLANOS_PRECO[plano];
+  const comDesconto = brl(precoComDesconto(cheio, discount_type, discount_value));
+  const semDesconto = brl(cheio);
+
+  if (duration === "forever") return `${comDesconto} em todas as cobranças.`;
+  if (duration === "once") return `${comDesconto} na 1ª cobrança, depois ${semDesconto}.`;
+
+  const meses = Number(duration_in_months);
+  if (!Number.isInteger(meses) || meses <= 0) return "Informe por quantos meses o desconto vale.";
+
+  if (plano === "monthly") {
+    return `${comDesconto} nas ${meses} primeiras cobranças, depois ${semDesconto}.`;
+  }
+  if (meses < 12) {
+    return `${comDesconto} APENAS na 1ª cobrança, depois ${semDesconto} — o anual cobra a cada 12 meses, e ${meses} meses não alcançam a 2ª.`;
+  }
+  // 12 meses ou mais no anual: quantas cobranças isso alcança depende de como o
+  // Stripe trata o mês exato do aniversário, e isso NÃO está verificado. Mandar
+  // conferir é melhor do que exibir um número que pode estar errado.
+  return `${comDesconto} nas cobranças que caírem dentro dos primeiros ${meses} meses, depois ${semDesconto}. Confira no Stripe quantas cobranças isso alcança.`;
+}
+
+// Rótulos curtos para o card da lista. Sem isto, dois cupons de 20% com
+// durações diferentes ficam idênticos na listagem.
+const DURACAO_LABEL = {
+  forever: "Para sempre",
+  once: "1ª cobrança",
+  repeating: "Por meses"
+};
+
 export default function AdminCoupons() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -50,6 +102,8 @@ export default function AdminCoupons() {
     description: "",
     discount_type: "percentage",
     discount_value: 0,
+    duration: "forever",
+    duration_in_months: null,
     valid_from: "",
     valid_until: "",
     usage_limit: null,
@@ -57,9 +111,25 @@ export default function AdminCoupons() {
     active: true
   });
 
+  const [message, setMessage] = useState(null);
+
   useEffect(() => {
     checkAdmin();
   }, []);
+
+  // Mesma mecânica do AdminTrials. Antes desta etapa a tela não tinha NENHUM
+  // caminho de erro: a escrita ia direto na entidade e uma recusa do RLS morria
+  // no console. Agora as recusas de validação vêm do backend com uma mensagem
+  // útil, e engoli-las seria pior do que o silêncio de antes.
+  const avisar = (type, text) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 8000);
+  };
+
+  // As recusas de regra chegam como 4xx e viram exceção no SDK, não retorno.
+  // A mensagem do backend é a parte útil — ela diz QUAL regra barrou.
+  const mensagemDoErro = (error, padrao) =>
+    error?.response?.data?.error || error?.message || padrao;
 
   const checkAdmin = async () => {
     const userData = await base44.auth.me();
@@ -72,8 +142,8 @@ export default function AdminCoupons() {
   };
 
   const loadData = async () => {
-    const couponsData = await base44.entities.Coupon.list("-created_date");
-    setCoupons(couponsData);
+    const resCupons = await base44.functions.invoke('adminCoupons', { action: 'list' });
+    setCoupons(resCupons?.data?.coupons || []);
 
     const resUso = await base44.functions.invoke('adminListRecords', { entity: 'CouponUsage' });
     const usageData = resUso?.data?.records || [];
@@ -101,6 +171,12 @@ export default function AdminCoupons() {
         description: couponToEdit.description || "",
         discount_type: couponToEdit.discount_type || "percentage",
         discount_value: couponToEdit.discount_value || 0,
+        // Mesmo fallback do createStripeCheckout: cupom gravado antes do campo
+        // existir chega sem `duration`, e o comportamento dele sempre foi
+        // 'forever'. Abrir para editar não pode mostrar o campo em branco e
+        // deixar o admin achar que a duração está indefinida.
+        duration: couponToEdit.duration || "forever",
+        duration_in_months: couponToEdit.duration_in_months ?? null,
         valid_from: couponToEdit.valid_from ? couponToEdit.valid_from.split('T')[0] : "",
         valid_until: couponToEdit.valid_until ? couponToEdit.valid_until.split('T')[0] : "",
         usage_limit: couponToEdit.usage_limit,
@@ -114,6 +190,8 @@ export default function AdminCoupons() {
         description: "",
         discount_type: "percentage",
         discount_value: 0,
+        duration: "forever",
+        duration_in_months: null,
         valid_from: "",
         valid_until: "",
         usage_limit: null,
@@ -130,31 +208,57 @@ export default function AdminCoupons() {
       code: formData.code.toUpperCase().trim(),
       valid_from: formData.valid_from ? new Date(formData.valid_from).toISOString() : null,
       valid_until: formData.valid_until ? new Date(formData.valid_until).toISOString() : null,
-      usage_limit: formData.usage_limit === "" || formData.usage_limit === null ? null : parseInt(formData.usage_limit)
+      usage_limit: formData.usage_limit === "" || formData.usage_limit === null ? null : parseInt(formData.usage_limit),
+      // Fora do 'repeating' o campo vai como null, nunca com o número que
+      // sobrou de uma edição anterior. O Stripe RECUSA duration_in_months
+      // junto com 'once' ou 'forever', e o createStripeCheckout só descarta o
+      // valor porque confere a duração antes de montar os parâmetros —
+      // gravar lixo aqui seria contar com aquela defesa para sempre.
+      duration_in_months: formData.duration === "repeating"
+        ? parseInt(formData.duration_in_months)
+        : null
     };
 
-    if (editingCoupon) {
-      await base44.entities.Coupon.update(editingCoupon.id, couponData);
-    } else {
-      await base44.entities.Coupon.create(couponData);
+    try {
+      if (editingCoupon) {
+        await base44.functions.invoke('adminCoupons', {
+          action: 'update', id: editingCoupon.id, data: couponData
+        });
+      } else {
+        await base44.functions.invoke('adminCoupons', { action: 'create', data: couponData });
+      }
+      setShowDialog(false);
+      await loadData();
+    } catch (error) {
+      // O diálogo fica ABERTO de propósito: fechá-lo jogaria fora o que o admin
+      // digitou, e a recusa quase sempre é de um campo que dá para corrigir ali
+      // mesmo.
+      avisar('error', mensagemDoErro(error, 'Não foi possível salvar o cupom.'));
     }
-
-    setShowDialog(false);
-    await loadData();
   };
 
   const handleDelete = async (couponId) => {
     if (confirm("Tem certeza que deseja excluir este cupom?")) {
-      await base44.entities.Coupon.delete(couponId);
-      await loadData();
+      try {
+        await base44.functions.invoke('adminCoupons', { action: 'delete', id: couponId });
+        await loadData();
+      } catch (error) {
+        avisar('error', mensagemDoErro(error, 'Não foi possível excluir o cupom.'));
+      }
     }
   };
 
   const handleToggleActive = async (coupon) => {
-    await base44.entities.Coupon.update(coupon.id, {
-      active: !coupon.active
-    });
-    await loadData();
+    try {
+      // Update PARCIAL: só o campo active. É o caso que obrigou o adminCoupons
+      // a validar apenas o que vem no corpo.
+      await base44.functions.invoke('adminCoupons', {
+        action: 'update', id: coupon.id, data: { active: !coupon.active }
+      });
+      await loadData();
+    } catch (error) {
+      avisar('error', mensagemDoErro(error, 'Não foi possível alterar o cupom.'));
+    }
   };
 
   const handleCopyCode = (code) => {
@@ -200,6 +304,18 @@ export default function AdminCoupons() {
             Novo Cupom
           </Button>
         </div>
+
+        {message && (
+          <div
+            className={`p-4 rounded-lg border text-sm ${
+              message.type === 'error'
+                ? 'bg-red-50 border-red-200 text-red-800'
+                : 'bg-green-50 border-green-200 text-green-800'
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -289,6 +405,15 @@ export default function AdminCoupons() {
                             ? `${coupon.discount_value}% OFF`
                             : `R$ ${coupon.discount_value} OFF`
                           }
+                        </p>
+                        {/* Sem esta linha, dois cupons de 20% com durações
+                            diferentes ficam indistinguíveis na listagem. O
+                            fallback para 'forever' é o mesmo do checkout: cupom
+                            gravado antes do campo existir não tem duration. */}
+                        <p className="text-sm font-medium text-purple-600 mt-1">
+                          {coupon.duration === 'repeating' && coupon.duration_in_months > 0
+                            ? `Por ${coupon.duration_in_months} ${coupon.duration_in_months === 1 ? 'mês' : 'meses'}`
+                            : DURACAO_LABEL[coupon.duration] || DURACAO_LABEL.forever}
                         </p>
                       </div>
 
@@ -417,18 +542,90 @@ export default function AdminCoupons() {
                 <Input
                   type="number"
                   min="0"
-                  max={formData.discount_type === 'percentage' ? 100 : 2}
+                  // Sem teto no valor fixo. O max={2} daqui era sobra da época
+                  // de teste, quando o plano custava R$ 2 — ele impedia
+                  // cadastrar qualquer cupom em reais utilizável nos planos de
+                  // hoje. Quem ensina o efeito agora é o preview, que mostra os
+                  // dois planos com os preços reais.
+                  max={formData.discount_type === 'percentage' ? 100 : undefined}
                   value={formData.discount_value}
                   onChange={(e) => setFormData({ ...formData, discount_value: parseFloat(e.target.value) })}
-                  placeholder={formData.discount_type === 'percentage' ? '20' : '1'}
+                  placeholder={formData.discount_type === 'percentage' ? '20' : '10'}
                 />
                 <p className="text-xs text-gray-500">
                   {formData.discount_type === 'percentage'
                     ? 'Percentual de desconto (0-100)'
-                    : 'Valor em reais do desconto (máx R$2)'
+                    : 'Valor em reais abatido de cada cobrança'
                   }
                 </p>
               </div>
+
+              <div className="space-y-2">
+                <Label>Duração do Desconto *</Label>
+                <Select
+                  value={formData.duration}
+                  onValueChange={(value) => setFormData({ ...formData, duration: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="forever">Para sempre — desconta em todas as renovações</SelectItem>
+                    <SelectItem value="repeating">Pelos primeiros meses — você escolhe quantos</SelectItem>
+                    <SelectItem value="once">Apenas a primeira cobrança</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {formData.duration === 'repeating' && (
+                <div className="space-y-2">
+                  <Label>Quantos meses de desconto *</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={formData.duration_in_months ?? ""}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      duration_in_months: e.target.value ? parseInt(e.target.value) : null
+                    })}
+                    placeholder="6"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Contado em <strong>meses corridos</strong>, não em cobranças. No plano
+                    mensal, 6 meses = 6 cobranças. No plano anual, que cobra uma vez a cada
+                    12 meses, qualquer valor de 1 a 12 desconta só a primeira cobrança.
+                  </p>
+                </div>
+              )}
+
+              {formData.duration === 'repeating'
+                && formData.duration_in_months > 0
+                && formData.duration_in_months < 12 && (
+                <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-amber-900">
+                      <p className="font-bold">
+                        No plano anual isto vira desconto de uma cobrança só.
+                      </p>
+                      <p className="mt-1">
+                        Este cupom vale para os <strong>dois planos</strong> — não existe
+                        forma de restringi-lo ao mensal. No anual, {formData.duration_in_months}{' '}
+                        {formData.duration_in_months === 1 ? 'mês não alcança' : 'meses não alcançam'}{' '}
+                        a 2ª cobrança, que só acontece no 12º mês. O efeito fica idêntico ao de
+                        &quot;apenas a primeira cobrança&quot;, descontando{' '}
+                        <strong>
+                          {brl(PLANOS_PRECO.annual - precoComDesconto(
+                            PLANOS_PRECO.annual, formData.discount_type, formData.discount_value
+                          ))}
+                        </strong>{' '}
+                        de uma vez.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label>Descrição</Label>
@@ -504,23 +701,48 @@ export default function AdminCoupons() {
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-blue-900">Preview do desconto:</p>
-                      <p className="text-sm text-blue-800 mt-1">
-                        Preço original: R$ 2,00<br />
-                        Desconto: {formData.discount_type === 'percentage'
-                          ? `${formData.discount_value}% (R$ ${((2 * formData.discount_value) / 100).toFixed(2)})`
-                          : `R$ ${Math.min(formData.discount_value, 2).toFixed(2)}`
-                        }<br />
-                        <span className="font-bold">
-                          Preço final: R$ {formData.discount_type === 'percentage'
-                            ? Math.max(0.01, 2 - (2 * formData.discount_value) / 100).toFixed(2)
-                            : Math.max(0.01, 2 - Math.min(formData.discount_value, 2)).toFixed(2)
-                          }
-                        </span>
+                    <div className="w-full">
+                      <p className="text-sm font-medium text-blue-900">
+                        O que o assinante vai pagar:
+                      </p>
+                      <div className="mt-2 space-y-2 text-sm text-blue-800">
+                        <div>
+                          <span className="font-semibold">
+                            Mensal ({brl(PLANOS_PRECO.monthly)}/mês):
+                          </span>{' '}
+                          {efeitoDaDuracao('monthly', formData)}
+                        </div>
+                        <div>
+                          <span className="font-semibold">
+                            Anual ({brl(PLANOS_PRECO.annual)}/ano):
+                          </span>{' '}
+                          {efeitoDaDuracao('annual', formData)}
+                        </div>
+                      </div>
+                      <p className="text-xs text-blue-700 mt-2">
+                        O mesmo cupom vale para os dois planos.
                       </p>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* A MESMA mensagem aparece aqui e na página, e não é
+                  redundância: o Dialog é um modal que cobre a página inteira,
+                  então o banner de lá fica ATRÁS dele. Erro de salvar acontece
+                  sempre com o diálogo aberto — sem esta cópia, a recusa do
+                  backend some da vista e a tela parece não ter feito nada.
+                  Erro de excluir e de ativar/desativar acontece com o diálogo
+                  fechado, e aí quem aparece é o da página. */}
+              {message && (
+                <div
+                  className={`p-3 rounded-lg border text-sm ${
+                    message.type === 'error'
+                      ? 'bg-red-50 border-red-200 text-red-800'
+                      : 'bg-green-50 border-green-200 text-green-800'
+                  }`}
+                >
+                  {message.text}
                 </div>
               )}
 
@@ -531,7 +753,14 @@ export default function AdminCoupons() {
                 <Button
                   onClick={handleSave}
                   className="bg-purple-600 hover:bg-purple-700 gap-2"
-                  disabled={!formData.code || formData.discount_value <= 0}
+                  disabled={
+                    !formData.code
+                    || formData.discount_value <= 0
+                    // Espelha a validação do createStripeCheckout. Sem isto o
+                    // cupom seria salvo como repeating sem meses e só quebraria
+                    // na cara do assinante, na hora de abrir o checkout.
+                    || (formData.duration === 'repeating' && !(formData.duration_in_months > 0))
+                  }
                 >
                   <Save className="w-4 h-4" />
                   Salvar Cupom

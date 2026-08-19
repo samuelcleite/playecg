@@ -207,32 +207,38 @@ Deno.serve(async (req) => {
       resposta = { raw: bruto };
     }
 
-    // recipients e errors VERBATIM, e o motivo é diagnóstico, não capricho.
+    // O SINAL CONFIÁVEL É `errors`. NÃO É `recipients`.
     //
-    // Quando nenhuma subscription carrega o external_id alvo, o OneSignal
-    // responde 200 OK com recipients: 0 e um `errors` explicando o motivo — que
-    // é EXATAMENTE o estado do mundo enquanto o binário do Despia não for
-    // reconstruído com o OneSignal embutido. Se esta função devolvesse só
-    // { success: true }, perderíamos o único sinal que distingue "não funciona"
-    // de "ainda não rebuildado".
+    // A API rich NÃO devolve recipients: ela aceita a mensagem, responde na
+    // hora, e só depois resolve o alias e conta os destinatários. Um envio
+    // comprovadamente entregue no device voltou assim:
+    //   { id: "31a1aee1-...", recipients: ausente, errors: null }
+    // Ou seja: `recipients` chega indefinido SEMPRE, e por isso é repassado
+    // como null — "a API não informou" — e não como 0. Fabricar o 0 fazia a
+    // tela de admin acusar "nenhum dispositivo inscrito" em envio que
+    // funcionou.
     //
-    // O FORMATO DE `errors` NÃO É GARANTIDO. No teste real contra a API rich,
-    // um external_id sem subscription voltou como ARRAY DE STRINGS
-    // (["All included players are not subscribed"]) — esse é o formato
-    // observado, e é só isso que sabemos.
+    // Quem separa sucesso de problema é `errors`:
+    //   errors: null            -> o OneSignal aceitou a mensagem
+    //   errors: <qualquer coisa> -> ele sinalizou algo, e o conteúdo diz o quê
+    // Antes do rebuild do binário, um external_id sem subscription voltava
+    // errors: ["All included players are not subscribed"]. Depois do rebuild,
+    // com a vinculação valendo, passou a vir null.
     //
-    // O repasse verbatim e o tratamento defensivo de quem renderiza continuam
-    // valendo mesmo assim: este é um cenário de erro entre vários, e não temos
-    // base para afirmar que os outros respondem igual. Ver o renderErros em
-    // AdminNotifications.jsx, que aceita string, array e objeto.
+    // A CONTAGEM REAL DE ENTREGA VIVE NO PAINEL DO ONESIGNAL (Delivery), não
+    // nesta resposta. Não há como obtê-la aqui de forma síncrona.
+    //
+    // O FORMATO DE `errors` NÃO É GARANTIDO: em erro real observamos array de
+    // strings, e em sucesso observamos null. É só isso que sabemos, então o
+    // repasse é verbatim e quem renderiza trata os formatos defensivamente —
+    // ver o renderErros em AdminNotifications.jsx.
     //
     // `success` reflete a CHAMADA ter dado certo (HTTP 2xx), não a entrega.
-    // Quem lê recipients para saber se chegou a alguém é a tela de admin.
     return Response.json({
       success: upstream.ok,
       status: upstream.status,
       id: resposta?.id ?? null,
-      recipients: resposta?.recipients ?? 0,
+      recipients: resposta?.recipients ?? null,
       errors: resposta?.errors ?? null,
       external_id_alvo: String(conta.id)
     });
