@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { savePushSubscription } from "@/functions/savePushSubscription";
 import { getVapidPublicKey } from "@/functions/getVapidPublicKey";
-import { base44 } from "@/api/base44Client";
-import { refreshCurrentUser } from "@/lib/currentUser";
+import { consultarPromoPush, resgatarPromoPush } from "@/lib/promocaoPush";
 import { Bell, X, Loader2, Gift, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isIOSNativeApp } from "@/utils/platform";
@@ -20,9 +19,11 @@ import {
 // resgatou: ele pergunta e obedece. É o que permite desligar a promoção mudando
 // uma variável de ambiente, sem tocar no app nem publicar versão.
 //
-// A consulta só acontece no app iOS, a única plataforma onde a promoção vale
-// (o Android não tem push e a web é irrelevante em volume). Assim nenhum outro
-// cliente paga uma requisição por uma oferta que nunca veria.
+// A promoção NÃO é retroativa: o resgate acontece apenas na sequência do gesto
+// que concedeu a permissão. Quem já tinha notificações ativas antes da campanha
+// não vê oferta nenhuma — o benefício paga por uma ativação que não existiria,
+// não por uma que já aconteceu. Ver src/lib/promocaoPush.js, que explica por que
+// o corte é pelo fluxo e não por uma data.
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -90,48 +91,18 @@ export default function NotificationBanner() {
   };
 
   const checkPromo = async () => {
-    if (!isIOSNativeApp()) return;
-    try {
-      const res = await base44.functions.invoke("promocoes", { acao: "status" });
-      const d = res?.data;
-      // Só interessa a promoção que está no ar E disponível para esta pessoa.
-      // Qualquer outra coisa deixa o banner exatamente como era — inclusive
-      // falha de rede, que não pode transformar um banner que funciona num
-      // banner quebrado.
-      if (d?.success && d.ativa && d.elegivel) setPromo({ dias: d.dias });
-    } catch (error) {
-      console.error("Promoção indisponível:", error);
-    }
+    // null cobre desligada, inelegível, já resgatada e falha de rede — para o
+    // banner os quatro são o mesmo: continuar exatamente como era antes de a
+    // campanha existir.
+    setPromo(await consultarPromoPush());
   };
 
-  // Resgate. Chamado depois de a permissão ter sido concedida — mas quem
-  // confirma que ela foi mesmo concedida é o SERVIDOR, contra o OneSignal, não
-  // este código. O `utils/pushNativo.js` avisa que aqui do lado do app não
-  // existe confirmação de nada; se a verificação de lá discordar, o resgate é
-  // recusado e a mensagem dela é que vai à tela.
   const resgatar = async () => {
     setResgatando(true);
     setErroPromo(null);
-    try {
-      const res = await base44.functions.invoke("promocoes", {
-        acao: "resgatar",
-        promocao: "push_ios"
-      });
-      const d = res?.data;
-      if (d?.success) {
-        setResgatado({ dias: d.dias });
-        // Sem isto o app segue tratando a pessoa como gratuita até o próximo
-        // carregamento: o currentUser tem cache por carregamento de página, e
-        // ele acabou de ficar velho.
-        await refreshCurrentUser();
-      } else {
-        setErroPromo(d?.error || "Não foi possível liberar seu acesso agora.");
-      }
-    } catch (error) {
-      setErroPromo(
-        error?.response?.data?.error || "Não foi possível liberar seu acesso agora."
-      );
-    }
+    const r = await resgatarPromoPush();
+    if (r.ok) setResgatado({ dias: r.dias });
+    else setErroPromo(r.erro);
     setResgatando(false);
   };
 
@@ -210,58 +181,17 @@ export default function NotificationBanner() {
     );
   }
 
-  // Não mostrar se: não suportado, indeterminado, já foi fechado.
+  // Não mostrar se: não suportado, indeterminado, já inscrito, já foi fechado.
   // "indeterminado" só acontece no app iOS e significa que não deu para saber o
   // estado da permissão — ver utils/pushNativo.js.
+  //
+  // `subscribed` volta a sumir mesmo com promoção no ar, e isso é o que torna a
+  // campanha NÃO retroativa: quem já tinha notificações ativas não recebe
+  // oferta. Houve uma versão deste componente que mostrava aqui um card de
+  // resgate — ela dava sete dias a quem não mudaria comportamento nenhum, que é
+  // exatamente o que a promoção não deveria pagar.
   if (status === "loading" || status === "unsupported" || status === "indeterminado"
-      || dismissed) return null;
-
-  // Já inscrito: normalmente não há nada a dizer, e o componente some. A exceção
-  // é quem tem a promoção disponível e já havia ativado as notificações antes —
-  // pelo Perfil, ou antes de a campanha existir. Sem este ramo, essa pessoa
-  // nunca veria a oferta, apesar de já ter cumprido o que ela pede.
-  if (status === "subscribed") {
-    if (!promo) return null;
-    return (
-      <div className="mx-4 mb-5 rounded-2xl overflow-hidden shadow-lg border-2 border-ecg-green/60 bg-gradient-to-r from-ecg-midnight to-[#1B3A5C]">
-        <div className="flex items-center gap-4 px-4 py-4">
-          <div className="w-12 h-12 rounded-2xl bg-ecg-green/20 border-2 border-ecg-green flex items-center justify-center flex-shrink-0">
-            <Gift className="w-6 h-6 text-ecg-green" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-black text-white text-sm leading-tight">
-              🎁 Você tem {promo.dias} dias de Premium para resgatar
-            </p>
-            <p className="text-ecg-green/80 text-xs mt-0.5 leading-tight">
-              Suas notificações já estão ativas — é só pegar.
-            </p>
-          </div>
-          <button
-            onClick={() => setDismissed(true)}
-            className="text-white/40 hover:text-white/70 flex-shrink-0 p-1"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="px-4 pb-4">
-          <Button
-            onClick={resgatar}
-            disabled={resgatando}
-            className="w-full bg-ecg-green text-ecg-midnight font-black hover:bg-ecg-green/90 rounded-xl h-10 text-sm"
-          >
-            {resgatando ? (
-              <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Liberando...</>
-            ) : (
-              `Resgatar ${promo.dias} dias grátis →`
-            )}
-          </Button>
-          {erroPromo && (
-            <p className="text-xs text-red-200 mt-2 text-center">{erroPromo}</p>
-          )}
-        </div>
-      </div>
-    );
-  }
+      || status === "subscribed" || dismissed) return null;
 
   if (status === "denied") {
     return (

@@ -282,6 +282,11 @@ pessoa ativou é o servidor, consultando o OneSignal pelo `external_id`
 (= `Account.id`) — nunca o app, que por construção não sabe. Detalhes e
 armadilhas em [`ARQUITETURA_AUTH.md`](ARQUITETURA_AUTH.md) §4.
 
+**Ela NÃO é retroativa:** só ganha quem concede a permissão depois de a campanha
+estar no ar. Quem já tinha notificações ativas não vê oferta nenhuma. O corte é
+pelo fluxo porque a API do OneSignal não expõe quando a permissão foi dada —
+e o campo que existiria marcaria o primeiro open do app, não o aceite.
+
 ⚠️ **A promoção não funciona enquanto o binário do Despia não tiver o OneSignal
 embutido** — sem subscription lá, ela recusa todo mundo. Confira uma subscription
 real no painel do OneSignal antes de ligar a variável.

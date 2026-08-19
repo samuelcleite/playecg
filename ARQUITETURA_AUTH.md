@@ -179,6 +179,26 @@ quem ganhou, usou e deixou vencer não ganha de novo. E quem já está em cortes
 a concessão manual estende o prazo nesse caso, e aqui a decisão é oposta de propósito, para que
 promoção automática não empilhe prazo sem ninguém ter decidido.
 
+**NÃO É RETROATIVA, e o corte é pelo fluxo.** Só ganha quem concede a permissão a partir de
+agora: o resgate é chamado na sequência do gesto que autorizou — nos dois lugares onde isso pode
+acontecer ([NotificationBanner.jsx](src/components/NotificationBanner.jsx) e
+[EnableNotifications.jsx](src/components/EnableNotifications.jsx), ambos por
+[promocaoPush.js](src/lib/promocaoPush.js)) — e em nenhum outro momento. Nenhuma tela oferece
+resgate a quem já está inscrito.
+
+O corte **não** é por data, e não é por escolha: o servidor não tem como saber quando a permissão
+foi dada. A API do OneSignal não expõe data de criação da subscription (conferido na
+documentação do *View user* em 19/08/2026: o objeto Subscription traz `id`, `type`, `token`,
+`enabled`, `notification_types`, `session_time`, `session_count`, `sdk`, `device_model`,
+`device_os`, `app_version` — nenhum timestamp). E se expusesse, mediria a coisa errada: no iOS a
+subscription nasce no primeiro open do app, com `notification_types` negativo, e só muda de
+estado quando a pessoa autoriza — um corte por data recusaria justamente quem instalou há meses
+e aceitou hoje.
+
+*Furo conhecido:* quem já tem push e chamar a function pelo console ganha, porque do lado do
+servidor ela cumpre o critério. Aceito — custa sete dias, e fechá-lo exigiria fotografar a base
+inteira antes de ligar a campanha.
+
 > ⚠️ **Depende de um binário que pode não estar de pé.** Enquanto o app do Despia não for
 > reconstruído com o SDK do OneSignal embutido, nenhuma conta tem subscription lá e a promoção
 > recusa todo mundo com `sem_inscricao` — o mesmo estado que o `sendOneSignalPush` documenta ao
