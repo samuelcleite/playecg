@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Stethoscope, Loader2, CheckCircle2, XCircle, Search } from "lucide-react";
+import { Stethoscope, Loader2, CheckCircle2, XCircle, Search, Gift } from "lucide-react";
 
 // PromoDiagnostico — por que a promoção deu (ou não deu) para uma pessoa.
 //
@@ -40,6 +40,8 @@ export default function PromoDiagnostico() {
   const [carregando, setCarregando] = useState(false);
   const [r, setR] = useState(null);
   const [erro, setErro] = useState(null);
+  const [liberando, setLiberando] = useState(false);
+  const [liberado, setLiberado] = useState(null);
 
   const diagnosticar = async () => {
     const alvo = email.trim().toLowerCase();
@@ -61,7 +63,42 @@ export default function PromoDiagnostico() {
     setCarregando(false);
   };
 
+  // Libera a promoção para quem JÁ tinha as notificações ativas — os únicos que
+  // a tela do app não alcança, porque a promoção não é retroativa e o iOS não
+  // reabre o prompt de permissão já decidida.
+  //
+  // O botão só aparece quando o diagnóstico mostrou inscrição iOS confirmada: é
+  // uma liberação para quem cumpriu o combinado, não um atalho para conceder
+  // premium a quem se pedir. O backend recusa de novo se não for o caso — aqui
+  // a checagem existe só para não oferecer um botão que vai falhar.
+  const liberar = async () => {
+    if (!window.confirm(
+      `Liberar ${r.dias} dias de Premium para ${r.user_email}?\n\n` +
+      `A inscrição de notificações dele já foi confirmada no OneSignal.`
+    )) return;
+
+    setLiberando(true);
+    setErro(null);
+    try {
+      const res = await base44.functions.invoke("promocoes", {
+        acao: "resgatar_admin",
+        promocao: "push_ios",
+        user_email: r.user_email
+      });
+      if (res?.data?.success) {
+        setLiberado({ dias: res.data.dias, ate: res.data.trial_ends_at });
+        await diagnosticar();
+      } else {
+        setErro(res?.data?.error || "Não foi possível liberar.");
+      }
+    } catch (error) {
+      setErro(error?.response?.data?.error || error?.message || "Erro ao liberar");
+    }
+    setLiberando(false);
+  };
+
   const os = r?.onesignal;
+  const podeLiberar = r?.conta_encontrada && r?.elegivel && r?.promocao_ativa && os?.inscrita_ios;
 
   return (
     <Card className="border-none shadow-lg">
@@ -102,6 +139,31 @@ export default function PromoDiagnostico() {
                 abaixo existe para quem duvidar dela. */}
             <div className={`rounded-xl p-4 ${r.elegivel && os?.inscrita_ios ? "bg-green-50 border border-green-200" : "bg-amber-50 border border-amber-200"}`}>
               <p className="text-sm font-semibold text-gray-900">{r.veredito}</p>
+
+              {podeLiberar && !liberado && (
+                <div className="mt-3">
+                  <Button
+                    onClick={liberar}
+                    disabled={liberando}
+                    className="bg-purple-600 hover:bg-purple-700 gap-2"
+                  >
+                    {liberando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
+                    Liberar os {r.dias} dias para esta pessoa
+                  </Button>
+                  <p className="text-xs text-gray-600 mt-2">
+                    Use quando a pessoa já tinha as notificações ativas e por isso a tela
+                    não ofereceu — é o caso que a promoção, sendo não-retroativa, não alcança
+                    sozinha. Serve também para testar a cadeia inteira sem reinstalar o app.
+                  </p>
+                </div>
+              )}
+
+              {liberado && (
+                <p className="mt-3 text-sm font-semibold text-green-800">
+                  ✅ {liberado.dias} dias liberados — vale até{" "}
+                  {new Date(liberado.ate).toLocaleDateString("pt-BR")}.
+                </p>
+              )}
             </div>
 
             <div>

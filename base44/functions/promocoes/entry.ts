@@ -574,6 +574,98 @@ Deno.serve(async (req) => {
     else if (emCortesia) motivo = 'ja_em_cortesia';
     else if (!elegibilidade.ok) motivo = elegibilidade.code;
 
+    // ── RESGATE PELO ADMIN ───────────────────────────────────────────────────
+    //
+    // Concede a promoção a um e-mail, sem exigir que a permissão tenha acabado
+    // de ser dada naquele aparelho. É o único jeito de alcançar quem JÁ tinha as
+    // notificações ativas — a tela, de propósito, não oferece resgate a essa
+    // pessoa (a promoção não é retroativa), e no iOS não há como fazê-la passar
+    // pelo fluxo de novo: uma permissão já decidida não reabre o prompt do
+    // sistema, e reativar pelos Ajustes devolve o app ao estado "já concedida".
+    //
+    // Serve para duas coisas concretas:
+    //   - TESTAR a cadeia inteira sem reinstalar o app;
+    //   - SUPORTE, quando alguém cumpriu o combinado e ficou sem o prêmio por
+    //     causa de um erro nosso.
+    //
+    // TODAS as outras regras continuam valendo, e a mais importante é a
+    // verificação no OneSignal: este caminho NÃO é um "conceder porque eu
+    // quero". Se a pessoa não tem inscrição ativa lá, ele recusa igual. Para
+    // conceder cortesia por decisão sua, sem critério, o caminho é a tela de
+    // concessão — que é honesta sobre ser isso.
+    //
+    // Também não fura o "uma vez por pessoa": quem já resgatou é recusado.
+    if (acao === 'resgatar_admin') {
+      if (identity.role !== 'admin') {
+        return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+      }
+
+      const alvo = String(user_email || '').trim().toLowerCase();
+      if (!alvo) {
+        return Response.json({ error: 'Informe user_email', success: false }, { status: 400 });
+      }
+
+      if (dias === 0) {
+        return Response.json(
+          { error: 'Promoção desligada (PROMO_PUSH_DIAS ausente ou 0).', success: false },
+          { status: 409 }
+        );
+      }
+
+      const contasAlvo = await base44.asServiceRole.entities.Account.filter({ email: alvo });
+      const contaAlvo = contasAlvo && contasAlvo.length > 0 ? contasAlvo[0] : null;
+      if (!contaAlvo) {
+        return Response.json({ error: 'Conta não encontrada', success: false }, { status: 404 });
+      }
+
+      const elegAlvo = avaliarElegibilidade(contaAlvo, agora);
+      if (!elegAlvo.ok) {
+        return Response.json({ error: elegAlvo.error, code: elegAlvo.code, success: false }, { status: 409 });
+      }
+      if (elegAlvo.emCortesia) {
+        return Response.json(
+          { error: 'Esta conta já está em cortesia.', code: 'ja_em_cortesia', success: false },
+          { status: 409 }
+        );
+      }
+      if (await jaResgatou(base44, alvo, promo.origem)) {
+        return Response.json(
+          { error: 'Esta conta já resgatou esta promoção.', code: 'ja_resgatou', success: false },
+          { status: 409 }
+        );
+      }
+
+      const cumpriuAlvo = await promo.verificar(contaAlvo);
+      if (!cumpriuAlvo.ok) {
+        return Response.json(
+          { error: cumpriuAlvo.error, code: cumpriuAlvo.code, success: false },
+          { status: 409 }
+        );
+      }
+
+      const fimAlvo = await conceder(base44, contaAlvo, {
+        dias,
+        reason: `${promo.motivo} (liberado por ${identity.email})`,
+        // O autor fica registrado como o admin, não como a promoção: quem
+        // decidiu liberar foi uma pessoa, e o histórico não deve dizer que a
+        // regra rodou sozinha quando não rodou.
+        identity: { email: identity.email },
+        agora,
+        emCortesia: false,
+        fimAtual: null,
+        origem: promo.origem
+      });
+
+      console.log('promocoes: resgate por admin —', alvo, '+', dias, 'dias, por', identity.email);
+
+      return Response.json({
+        success: true,
+        user_email: alvo,
+        dias,
+        trial_ends_at: fimAlvo.toISOString()
+      });
+    }
+
     if (acao === 'status') {
       // O `status` NÃO consulta o OneSignal. Ele responde "esta conta pode
       // ganhar?", não "esta conta já cumpriu?" — quem cumpriu é conferido no
@@ -591,7 +683,10 @@ Deno.serve(async (req) => {
     }
 
     if (acao !== 'resgatar') {
-      return Response.json({ error: "acao precisa ser 'status' ou 'resgatar'", success: false }, { status: 400 });
+      return Response.json(
+        { error: "acao precisa ser 'status', 'resgatar', 'diagnostico' ou 'resgatar_admin'", success: false },
+        { status: 400 }
+      );
     }
 
     if (!podeTentar) {
