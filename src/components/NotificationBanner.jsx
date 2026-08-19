@@ -374,8 +374,14 @@ export default function NotificationBanner() {
           <p className="font-black text-white text-sm leading-tight">
             🔔 Ative as notificações!
           </p>
+          {/* Promessa ABERTA de propósito. A frase anterior — "alertas do Caso
+              do Dia" — prometia uma tela que saiu do app (ver o comentário no
+              Dashboard.jsx, onde o card foi removido): quem ativasse esperando
+              aquilo não receberia nunca. Falar de "novidades e lembretes" cobre
+              o que a gente de fato manda hoje e continua valendo quando o que a
+              gente manda mudar de novo. */}
           <p className="text-ecg-green/80 text-xs mt-0.5 leading-tight">
-            Receba alertas do Caso do Dia e não perca sua sequência!
+            Receba novidades e lembretes para manter seu ritmo de estudos!
           </p>
         </div>
 
