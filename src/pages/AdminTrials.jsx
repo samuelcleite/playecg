@@ -29,11 +29,13 @@ import {
   Mail,
   CalendarClock,
   Eraser,
-  Users
+  Users,
+  Stethoscope
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import TrialBulkGrant from "@/components/admin/TrialBulkGrant";
 import TrialAuditPanel from "@/components/admin/TrialAuditPanel";
+import PromoDiagnostico from "@/components/admin/PromoDiagnostico";
 import { motion, AnimatePresence } from "framer-motion";
 
 // AdminTrials — concessão e acompanhamento de acesso de cortesia.
@@ -320,6 +322,10 @@ export default function AdminTrials() {
               <Users className="w-4 h-4" />
               Em lote
             </TabsTrigger>
+            <TabsTrigger value="diagnostico" className="gap-2">
+              <Stethoscope className="w-4 h-4" />
+              Diagnóstico
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="individual" className="mt-4">
@@ -382,6 +388,10 @@ export default function AdminTrials() {
               duracoes={DURACOES}
               onConcluido={async () => { await loadData(); auditar(); }}
             />
+          </TabsContent>
+
+          <TabsContent value="diagnostico" className="mt-4">
+            <PromoDiagnostico />
           </TabsContent>
         </Tabs>
 

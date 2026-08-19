@@ -92,7 +92,11 @@ export default function EnableNotifications({ className }) {
           // Resgate na sequência do gesto que autorizou — e SÓ aqui. É esta
           // amarração que mantém a promoção não-retroativa: não existe caminho
           // na tela que ofereça o resgate a quem já estava inscrito.
-          if (estado === "concedida" && promo) {
+          //
+          // Sem condicionar a `promo` (a consulta de status pode não ter
+          // voltado ainda quando a pessoa toca no botão) — quem decide se há
+          // promoção é o servidor. Ver src/lib/promocaoPush.js.
+          if (estado === "concedida") {
             const r = await resgatarPromoPush();
             if (r.ok) setResgatado({ dias: r.dias });
           }

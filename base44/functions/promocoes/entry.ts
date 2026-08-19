@@ -323,6 +323,90 @@ async function conceder(base44, conta, { dias, reason, identity, agora, emCortes
 }
 
 
+// A MESMA consulta do verificarPushIOS, mas devolvendo o que ela viu em vez de
+// um sim/não. Só o diagnóstico usa.
+//
+// Repete a chamada em vez de o verificador devolver detalhe porque as duas têm
+// públicos opostos: o verificador responde ao USUÁRIO e não pode vazar estado
+// interno nem status HTTP de terceiro; este responde ao ADMIN, e quanto mais
+// cru, melhor. Misturar os dois faria a mensagem do usuário carregar coisas que
+// só o admin deveria ver.
+async function inspecionarOneSignal(conta) {
+  const appId = Deno.env.get('ONESIGNAL_APP_ID');
+  const apiKey = Deno.env.get('ONESIGNAL_REST_API_KEY');
+
+  if (!appId || !apiKey) {
+    return {
+      configurado: false,
+      erro: 'ONESIGNAL_APP_ID ou ONESIGNAL_REST_API_KEY ausente no ambiente',
+      tem_usuario: false,
+      inscrita_ios: false
+    };
+  }
+
+  const url = `${ONESIGNAL_BASE}/apps/${encodeURIComponent(appId)}/users/by/external_id/${encodeURIComponent(String(conta.id))}`;
+
+  let resp;
+  try {
+    resp = await fetch(url, { headers: { Authorization: `Key ${apiKey}` } });
+  } catch (e) {
+    return { configurado: true, erro: `rede: ${e.message}`, tem_usuario: false, inscrita_ios: false };
+  }
+
+  const bruto = await resp.text();
+  let corpo = null;
+  try {
+    corpo = JSON.parse(bruto);
+  } catch (_e) {
+    // Resposta não-JSON é o sintoma clássico de chave inválida. Vale mais o
+    // texto cru do que um "erro ao processar".
+    return {
+      configurado: true,
+      status_http: resp.status,
+      erro: 'resposta não-JSON',
+      corpo_cru: bruto.slice(0, 300),
+      tem_usuario: false,
+      inscrita_ios: false
+    };
+  }
+
+  if (resp.status === 404) {
+    return { configurado: true, status_http: 404, tem_usuario: false, inscrita_ios: false, subscriptions: [] };
+  }
+
+  if (!resp.ok) {
+    return {
+      configurado: true,
+      status_http: resp.status,
+      erro: corpo?.errors ? JSON.stringify(corpo.errors).slice(0, 300) : 'status inesperado',
+      tem_usuario: false,
+      inscrita_ios: false
+    };
+  }
+
+  const subs = Array.isArray(corpo?.subscriptions) ? corpo.subscriptions : [];
+
+  return {
+    configurado: true,
+    status_http: resp.status,
+    tem_usuario: true,
+    // O external_id que o OneSignal conhece, para conferir contra o Account.id.
+    aliases: corpo?.identity || null,
+    // Só o que interessa de cada subscription — token de push não transita.
+    subscriptions: subs.map(s => ({
+      type: s?.type ?? null,
+      enabled: s?.enabled ?? null,
+      notification_types: s?.notification_types ?? null,
+      device_os: s?.device_os ?? null
+    })),
+    inscrita_ios: subs.some(s =>
+      s?.type === 'iOSPush' &&
+      s?.enabled !== false &&
+      !(typeof s?.notification_types === 'number' && s.notification_types <= 0)
+    )
+  };
+}
+
 // Dias que a promoção vale agora, lidos do ambiente a cada chamada — é isso que
 // faz o desligamento valer na hora, sem republicar function. Qualquer coisa que
 // não seja inteiro positivo significa desligada.
@@ -354,7 +438,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Não autenticado', success: false }, { status: 401 });
     }
 
-    const { acao, promocao } = await req.json();
+    const { acao, promocao, user_email } = await req.json();
 
     // hasOwnProperty, e não PROMOCOES[id] direto: com o acesso direto, um id
     // igual a "constructor" ou "toString" acha o membro herdado do
@@ -371,6 +455,90 @@ Deno.serve(async (req) => {
 
     const dias = diasDaPromocao(promo);
     const email = (identity.email || '').trim().toLowerCase();
+    const agora = new Date();
+
+    // ── DIAGNÓSTICO (admin) ──────────────────────────────────────────────────
+    //
+    // Responde, para um e-mail qualquer, POR QUE a promoção deu ou não deu — a
+    // cadeia inteira, etapa por etapa, incluindo o que o OneSignal respondeu.
+    //
+    // Existe porque a primeira falha em produção foi impossível de diagnosticar
+    // do lado de fora: a tela simplesmente não mostrava a oferta, e "não
+    // apareceu" cobre pelo menos cinco causas diferentes — promoção desligada,
+    // conta inelegível, já resgatada, sem inscrição no OneSignal, ou a pessoa já
+    // ter a permissão concedida (caso em que o banner some de propósito, porque
+    // a promoção não é retroativa).
+    //
+    // É a única ação que exige admin, e a única que aceita um e-mail do corpo em
+    // vez de usar a identidade — as duas coisas andam juntas: um usuário comum
+    // não pode consultar a situação de outro.
+    if (acao === 'diagnostico') {
+      if (identity.role !== 'admin') {
+        return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+      }
+
+      const alvo = String(user_email || '').trim().toLowerCase();
+      if (!alvo) {
+        return Response.json({ error: 'Informe user_email', success: false }, { status: 400 });
+      }
+
+      const contasAlvo = await base44.asServiceRole.entities.Account.filter({ email: alvo });
+      const contaAlvo = contasAlvo && contasAlvo.length > 0 ? contasAlvo[0] : null;
+
+      if (!contaAlvo) {
+        return Response.json({
+          success: true,
+          user_email: alvo,
+          promocao_ativa: dias > 0,
+          dias,
+          conta_encontrada: false,
+          veredito: 'Nenhuma conta com esse e-mail. O usuário precisa ter entrado no app ao menos uma vez.'
+        });
+      }
+
+      const elegAlvo = avaliarElegibilidade(contaAlvo, agora);
+      const emCortesiaAlvo = elegAlvo.ok && elegAlvo.emCortesia;
+      const resgatouAlvo = await jaResgatou(base44, alvo, promo.origem);
+
+      // A consulta crua ao OneSignal, com o que ela respondeu de verdade. É o
+      // elo que ninguém consegue inspecionar de fora, e o que distingue "a
+      // vinculação não funciona" de "a pessoa não autorizou".
+      const oneSignal = await inspecionarOneSignal(contaAlvo);
+
+      let veredito;
+      if (dias === 0) {
+        veredito = 'Promoção DESLIGADA: a variável PROMO_PUSH_DIAS está ausente, 0 ou não-numérica.';
+      } else if (resgatouAlvo) {
+        veredito = 'Esta conta JÁ resgatou a promoção. Uma vez por pessoa, para sempre.';
+      } else if (!elegAlvo.ok) {
+        veredito = `Conta inelegível (${elegAlvo.code}): ${elegAlvo.error}`;
+      } else if (emCortesiaAlvo) {
+        veredito = 'Conta já está em cortesia. A promoção não empilha prazo.';
+      } else if (!oneSignal.inscrita_ios) {
+        veredito = oneSignal.tem_usuario
+          ? 'A conta existe no OneSignal, mas sem subscription iOS inscrita. A pessoa não autorizou, ou desligou depois.'
+          : 'A conta NÃO existe no OneSignal para este external_id. A vinculação (AuthContext → pushNativo) não chegou lá.';
+      } else {
+        veredito = 'TUDO PRONTO: esta conta receberia a cortesia ao resgatar. Se a tela não ofereceu, é porque a permissão já estava concedida quando o app abriu — o banner só aparece para quem ainda vai autorizar (a promoção não é retroativa).';
+      }
+
+      return Response.json({
+        success: true,
+        user_email: alvo,
+        promocao_ativa: dias > 0,
+        dias,
+        conta_encontrada: true,
+        account_id: contaAlvo.id,
+        subscription_type: contaAlvo.subscription_type || null,
+        trial_ends_at: contaAlvo.trial_ends_at || null,
+        lifetime_access: contaAlvo.lifetime_access === true,
+        elegivel: elegAlvo.ok && !emCortesiaAlvo && !resgatouAlvo,
+        ja_resgatou: resgatouAlvo,
+        em_cortesia: emCortesiaAlvo,
+        onesignal: oneSignal,
+        veredito
+      });
+    }
 
     // Desligada: responde igual nas duas ações e nem olha a conta. Menos
     // trabalho, e principalmente: nenhum caminho de escrita alcançável enquanto
@@ -384,8 +552,6 @@ Deno.serve(async (req) => {
     if (!conta) {
       return Response.json({ error: 'Conta não encontrada', success: false }, { status: 404 });
     }
-
-    const agora = new Date();
 
     // A MESMA regra da concessão manual, pela mesma função (cópia verificada por
     // hash). Quem já paga não recebe cortesia — aqui isso importa dobrado,

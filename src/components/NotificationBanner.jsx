@@ -104,7 +104,10 @@ export default function NotificationBanner() {
     setErroPromo(null);
     const r = await resgatarPromoPush();
     if (r.ok) setResgatado({ dias: r.dias });
-    else setErroPromo(r.erro);
+    // Recusa silenciosa (não havia promoção para esta pessoa) não vira mensagem:
+    // quem ativou notificações sem saber de promoção nenhuma não deve receber um
+    // aviso sobre um prêmio que nunca lhe foi oferecido.
+    else if (!r.silencioso) setErroPromo(r.erro);
     setResgatando(false);
   };
 
@@ -124,7 +127,13 @@ export default function NotificationBanner() {
             // Resgate na sequência do mesmo gesto: a pessoa clicou por causa do
             // presente, e pedir um segundo clique para recebê-lo perderia
             // justamente quem já fez a parte difícil.
-            if (promo) await resgatar();
+            //
+            // SEM `if (promo)`. A condição existia e era uma corrida perdida:
+            // quem tocasse no botão antes de a consulta de status responder
+            // ativava as notificações e não ganhava nada — e depois o banner
+            // some, porque a promoção não é retroativa. Cumpria o combinado e
+            // ficava sem prêmio, sem segunda chance. Quem decide é o servidor.
+            await resgatar();
           } else {
             setStatus("denied");
           }
