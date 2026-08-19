@@ -184,7 +184,14 @@ Três trilhos independentes. **Nenhum sistema de cupom atravessa os três.**
 
 - **Fonte única de verdade:** campo `subscription_type` (`'free'` \| `'premium'`)
   na entidade **`Account`** — não mais no `User`, congelado desde o corte de
-  julho/2026. Os dois webhooks escrevem nele.
+  julho/2026. Continua sendo o único campo que **concede** acesso: nem
+  `lifetime_access` nem `trial_ends_at` dão acesso sozinhos, eles só mudam o que
+  os caminhos de expiração podem fazer.
+- **Quem escreve nele são treze functions** (19/08/2026), não só os dois
+  webhooks — as regras que cada uma precisa respeitar estão nos invariantes 8 e 9
+  do [`ARQUITETURA_AUTH.md`](ARQUITETURA_AUTH.md). Não confie neste número:
+  `npm run check:invariantes` conta e enumera a cada execução, e falha se uma
+  delas esquecer o tratamento.
 - Planos: **mensal R$59** (`monthly`), **anual R$499** (`annual`) e **vitalício
   R$400** (`lifetime`). O Product ID anual da Apple ainda usa sufixo `.yearly`.
 - **Preço e price ID vivem em `base44/shared/plans.ts`.** Aquele arquivo não
@@ -243,9 +250,12 @@ barreira que sobra é a que ninguém lembrou que existia.
 
 Pagamento único de R$400, acesso permanente. **Oferta privada:** não aparece no
 paywall e não é linkada de lugar nenhum — só chega quem tem a URL `/vitalicio`.
-Limite de vagas na env `LIFETIME_VAGAS` (padrão 100). Elegível só quem está
-`subscription_type: 'free'` no momento da compra; a trava vive no
-`createStripeCheckout`, no backend, porque o link circula por WhatsApp.
+Limite de vagas na env `LIFETIME_VAGAS` (padrão 100). Elegível quem **não tem
+plano pago** no momento da compra — `subscription_type: 'free'` **ou** em acesso
+de cortesia (16/08/2026: antes era só `'free'`). Quem está experimentando é o
+público da oferta, e recusá-lo mandava de volta ao paywall a pessoa mais perto de
+comprar. A trava vive no `createStripeCheckout`, no backend, porque o link
+circula por WhatsApp.
 
 **Só web/Stripe.** Fora das lojas de propósito: a ponte Despia do iOS só aceita
 assinatura, e o Android exigiria one-time product no Play Console.
@@ -286,6 +296,13 @@ armadilhas em [`ARQUITETURA_AUTH.md`](ARQUITETURA_AUTH.md) §4.
 estar no ar. Quem já tinha notificações ativas não vê oferta nenhuma. O corte é
 pelo fluxo porque a API do OneSignal não expõe quando a permissão foi dada —
 e o campo que existiria marcaria o primeiro open do app, não o aceite.
+
+**Reclamou que não recebeu? Aba Diagnóstico**, na tela de cortesias: informe o
+e-mail e ela mostra a cadeia inteira (campanha, conta, elegibilidade, e o que o
+OneSignal respondeu de verdade), terminando num veredito. Quando a inscrição está
+confirmada, um botão libera os dias para aquela pessoa — é o único jeito de
+alcançar quem já tinha push ativo, já que no iOS não dá para refazer o gesto de
+autorizar (ver §6). A verificação no OneSignal continua valendo nesse caminho.
 
 ⚠️ **A promoção não funciona enquanto o binário do Despia não tiver o OneSignal
 embutido** — sem subscription lá, ela recusa todo mundo. Confira uma subscription
@@ -334,6 +351,30 @@ Variáveis de configuração (não são segredos): `LIFETIME_VAGAS` (padrão 100
 **App Store Connect rejeita silenciosamente upload de versão já publicada.**
 Se um build não aparece no TestFlight, o motivo é quase sempre esse — suba o
 `versionName` (botão "Small" do Despia).
+
+### Push nativo: o que só se aprende testando (19/08/2026)
+
+**Permissão de notificação decidida NÃO reabre o prompt — e isso quebra o teste
+óbvio.** Desligar as notificações nos Ajustes do iPhone e tentar reativar pelo
+app *não* recria o fluxo de primeira ativação: o iOS responde "negado" na hora,
+sem diálogo, o `pedirPermissaoNativa` gasta os 10s do laço e conclui
+"não concedida". Reativar pelos Ajustes também não serve — aí o app já vê
+"concedida" e pula a etapa. **Para testar um fluxo que depende do gesto de
+autorizar, só reinstalando o app ou usando um aparelho virgem.** Trocar de conta
+no mesmo iPhone não adianta: a permissão é do app, não da conta. Foi isso que
+impediu de testar a promoção de push com um usuário que já tinha ativado, e é
+por isso que a tela de cortesias ganhou o `resgatar_admin`.
+
+**Para saber se o binário do Despia tem o SDK do OneSignal, olhe o banner.** Se
+o banner de notificações aparece no app, o comando `checkNativePushPermissions://`
+respondeu — logo o SDK está compilado. Se não tivesse, o estado seria
+`indeterminado` e o componente renderizaria nada (ver
+[pushNativo.js](src/utils/pushNativo.js)). É um teste de cinco segundos que
+substitui a espera pelo painel. *Como se sabe:* observado numa foto do aparelho,
+com o banner visível, quando ainda se supunha que o rebuild não tinha saído.
+Cuidado com o limite dessa inferência: ela prova que a ponte processa o comando,
+não que a vinculação do `external_id` está gravando — isso só o painel do
+OneSignal (Audience → Subscriptions) confirma.
 
 Páginas públicas exigidas pela Apple/Google: `/termos`, `/privacidade`,
 `/suporte`, `/excluir-conta`. Links externos não abrem na WebView do Despia —
