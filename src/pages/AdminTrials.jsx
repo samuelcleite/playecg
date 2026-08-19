@@ -402,6 +402,15 @@ export default function AdminTrials() {
                 <div>
                   <p className="text-sm text-gray-600">Viraram premium</p>
                   <p className="text-3xl font-bold text-gray-900">{resumo.premium}</p>
+                  {/* Recorte da promoção automática dentro do total. Sem ele,
+                      não dá para saber se a campanha se paga: o número cheio
+                      mistura quem você escolheu a dedo com quem entrou sozinho
+                      por ter ativado as notificações. */}
+                  {resumo.promocao_total > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {resumo.promocao_virou_premium} de {resumo.promocao_total} vindos de promoção
+                    </p>
+                  )}
                 </div>
                 <Crown className="w-10 h-10 text-amber-600" />
               </CardContent>
@@ -505,6 +514,14 @@ export default function AdminTrials() {
                           {t.lifetime_access && (
                             <Badge className="bg-purple-100 text-purple-800 border-purple-300">
                               Vitalício
+                            </Badge>
+                          )}
+                          {t.origens?.some(o => o !== "admin") && (
+                            <Badge className="bg-purple-100 text-purple-800 border-purple-300">
+                              <span className="flex items-center gap-1">
+                                <Gift className="w-3 h-3" />
+                                Promoção
+                              </span>
                             </Badge>
                           )}
                           {t.concessoes > 1 && (

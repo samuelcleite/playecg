@@ -49,6 +49,11 @@
       "default": "grant",
       "description": "'extension' quando a concessão apenas empurrou o vencimento de uma cortesia que já estava em curso. Distingue 'ganhou 7 dias duas vezes' de 'ganhou 7 e depois mais 7'."
     },
+    "origem": {
+      "type": "string",
+      "default": "admin",
+      "description": "Quem originou a concessão: 'admin' (alguém clicou na tela de cortesias) ou o id de uma promoção automática, como 'promo_push_ios'. É por este campo que uma promoção sabe que a conta já resgatou — a regra 'uma vez por pessoa' se apoia nele, não numa flag na Account. Sem enum de propósito: promoção nova não deveria exigir alteração de schema."
+    },
     "revoked_at": {
       "type": "string",
       "format": "date-time",
