@@ -275,6 +275,22 @@ de relatório, não de acesso.
 acesso do assinante vencer. Ver invariante 9 e a auditoria `auditTrialInvariants`,
 cujo resultado abre no topo da tela.
 
+**Promoção automática (só iOS):** ativar notificações vale N dias, pela function
+`promocoes`. Liga e desliga pela env **`PROMO_PUSH_DIAS`** no Base44 — ausente ou
+`0` desliga na hora, sem deploy; `7` liga valendo 7 dias. Quem confirma que a
+pessoa ativou é o servidor, consultando o OneSignal pelo `external_id`
+(= `Account.id`) — nunca o app, que por construção não sabe. Detalhes e
+armadilhas em [`ARQUITETURA_AUTH.md`](ARQUITETURA_AUTH.md) §4.
+
+**Ela NÃO é retroativa:** só ganha quem concede a permissão depois de a campanha
+estar no ar. Quem já tinha notificações ativas não vê oferta nenhuma. O corte é
+pelo fluxo porque a API do OneSignal não expõe quando a permissão foi dada —
+e o campo que existiria marcaria o primeiro open do app, não o aceite.
+
+⚠️ **A promoção não funciona enquanto o binário do Despia não tiver o OneSignal
+embutido** — sem subscription lá, ela recusa todo mundo. Confira uma subscription
+real no painel do OneSignal antes de ligar a variável.
+
 Estorno: `charge.refunded` **total** revoga o acesso (direito de arrependimento
 do CDC); **parcial não revoga**. A cobrança é identificada como vitalícia pelo
 registro em `Payment` (`payment_method: 'STRIPE_LIFETIME'`, casado pelo
@@ -299,7 +315,10 @@ evento chegou, o dinheiro já foi cobrado. Vender 101 é aceito de propósito.
   duração `forever`.
 
 Secrets em uso no Base44: `STRIPE_SECRET_KEY`, `REVENUECAT_SECRET_KEY` (sk_, v1),
-`REVENUECAT_WEBHOOK_AUTH`.
+`REVENUECAT_WEBHOOK_AUTH`, `ONESIGNAL_APP_ID`, `ONESIGNAL_REST_API_KEY`.
+
+Variáveis de configuração (não são segredos): `LIFETIME_VAGAS` (padrão 100),
+`PROMO_PUSH_DIAS` (ausente/`0` = promoção de notificações desligada).
 
 ---
 

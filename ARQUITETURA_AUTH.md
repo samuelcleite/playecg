@@ -151,6 +151,60 @@ Acesso de cortesia (tela `AdminTrials`, só web):
 | `adminExpireTrials` | Varredura das cortesias vencidas. Higiene de relatório, não de acesso — ver §5.9. |
 | `auditTrialInvariants` | Procura contas em estado impossível (pagante com marca de cortesia, vitalício rebaixado, cortesia sem registro). **Só leitura.** Lista vazia é o resultado esperado. |
 
+### Promoção automática — `promocoes`
+
+**É o único caminho de concessão que não exige admin**, e por isso o único em que
+o critério precisa ser provado, não afirmado. Duas ações: `status` (o que a tela pode oferecer)
+e `resgatar` (concede, se o critério estiver mesmo cumprido). Juntas na mesma function de
+propósito — separadas, a regra de elegibilidade divergiria entre as duas, e o sintoma seria a
+tela oferecendo o que o backend recusa.
+
+A primeira promoção é `push_ios`: ativar notificações no app iOS vale N dias.
+
+**Quem confirma é o servidor, contra o OneSignal** — nunca o cliente. O
+[pushNativo.js](src/utils/pushNativo.js) diz com todas as letras que do lado do app "não existe
+confirmação de nada": o `despia()` resolve exista ou não a ponte nativa. O servidor pergunta ao
+OneSignal se há subscription **iOSPush** inscrita para o `external_id` daquela conta (que é o
+`Account.id`). É daí que sai o recorte iOS-only: a plataforma vem do fato, não do user agent.
+Qualquer falha na consulta **não concede** — conceder no escuro é dar premium a quem não cumpriu.
+
+**Ligar e desligar:** variável `PROMO_PUSH_DIAS` no painel do Base44. Ausente, `0` ou não-numérica
+= desligada; `7` = ligada valendo 7 dias. Uma variável só, e não um par `ativa`/`dias`, porque
+duas podem discordar. Zerar desliga na hora, sem deploy: o `status` passa a responder
+`ativa: false` e a oferta some da tela, porque quem decide se ela aparece é a function.
+Desligar **não revoga** quem já resgatou.
+
+**Uma vez por pessoa**, para sempre: a resposta vem do `TrialGrant.origem`, que é histórico —
+quem ganhou, usou e deixou vencer não ganha de novo. E quem já está em cortesia **não** recebe:
+a concessão manual estende o prazo nesse caso, e aqui a decisão é oposta de propósito, para que
+promoção automática não empilhe prazo sem ninguém ter decidido.
+
+**NÃO É RETROATIVA, e o corte é pelo fluxo.** Só ganha quem concede a permissão a partir de
+agora: o resgate é chamado na sequência do gesto que autorizou — nos dois lugares onde isso pode
+acontecer ([NotificationBanner.jsx](src/components/NotificationBanner.jsx) e
+[EnableNotifications.jsx](src/components/EnableNotifications.jsx), ambos por
+[promocaoPush.js](src/lib/promocaoPush.js)) — e em nenhum outro momento. Nenhuma tela oferece
+resgate a quem já está inscrito.
+
+O corte **não** é por data, e não é por escolha: o servidor não tem como saber quando a permissão
+foi dada. A API do OneSignal não expõe data de criação da subscription (conferido na
+documentação do *View user* em 19/08/2026: o objeto Subscription traz `id`, `type`, `token`,
+`enabled`, `notification_types`, `session_time`, `session_count`, `sdk`, `device_model`,
+`device_os`, `app_version` — nenhum timestamp). E se expusesse, mediria a coisa errada: no iOS a
+subscription nasce no primeiro open do app, com `notification_types` negativo, e só muda de
+estado quando a pessoa autoriza — um corte por data recusaria justamente quem instalou há meses
+e aceitou hoje.
+
+*Furo conhecido:* quem já tem push e chamar a function pelo console ganha, porque do lado do
+servidor ela cumpre o critério. Aceito — custa sete dias, e fechá-lo exigiria fotografar a base
+inteira antes de ligar a campanha.
+
+> ⚠️ **Depende de um binário que pode não estar de pé.** Enquanto o app do Despia não for
+> reconstruído com o SDK do OneSignal embutido, nenhuma conta tem subscription lá e a promoção
+> recusa todo mundo com `sem_inscricao` — o mesmo estado que o `sendOneSignalPush` documenta ao
+> explicar por que repassa `recipients` verbatim. Só ligue a variável depois de ver uma
+> subscription real no painel do OneSignal (Audience → Subscriptions, coluna External ID).
+
 ### Webhooks (sem sessão)
 `stripeWebhook` (assinatura HMAC), `revenuecatWebhook` (segredo compartilhado),
 `googleAuthUrl`/`googleSignIn`/`appleSignIn` (token do provedor).

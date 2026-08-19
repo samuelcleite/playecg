@@ -191,6 +191,10 @@ Deno.serve(async (req) => {
         lifetime_access: conta?.lifetime_access === true,
         concessoes: lista.length,
         dias_totais: lista.reduce((s, g) => s + (Number(g.days) || 0), 0),
+        // De onde vieram as concessões desta pessoa. Grants criados antes do
+        // campo existir não têm `origem` e contam como 'admin', que é o que
+        // eram: naquele momento não havia outro caminho.
+        origens: [...new Set(lista.map(g => g.origem || 'admin'))],
         primeira_concessao: primeiro.granted_at || primeiro.created_date || null,
         ultima_concessao: ultimo.granted_at || ultimo.created_date || null,
         ultimo_prazo: ultimo.expires_at || null,
@@ -205,12 +209,19 @@ Deno.serve(async (req) => {
     // o que o admin quer conferir.
     trials.sort((a, b) => new Date(b.ultima_concessao || 0) - new Date(a.ultima_concessao || 0));
 
+    // Quem ganhou por promoção automática, e quantos desses viraram premium. É
+    // a conta que responde se a campanha se paga — a mesma pergunta que o
+    // TrialGrant existe para responder, agora separada por origem.
+    const daPromocao = trials.filter(t => t.origens.some(o => o !== 'admin'));
+
     const resumo = {
       ativos: trials.filter(t => t.estado === 'ativo').length,
       expirados: trials.filter(t => t.estado === 'expirado').length,
       revogados: trials.filter(t => t.estado === 'revogado').length,
       premium: trials.filter(t => t.estado === 'premium').length,
       total: trials.length,
+      promocao_total: daPromocao.length,
+      promocao_virou_premium: daPromocao.filter(t => t.estado === 'premium').length,
       // Contas que a expiração preguiçosa ainda não alcançou porque a pessoa não
       // abriu o app depois do vencimento. É o número que o botão "Expirar
       // vencidos" zera.

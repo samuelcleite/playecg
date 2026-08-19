@@ -188,7 +188,16 @@ function avaliarElegibilidade(conta, agora) {
   return { ok: true, emCortesia, fimAtual };
 }
 
-async function conceder(base44, conta, { dias, reason, identity, agora, emCortesia, fimAtual }) {
+// A ESCRITA DA CONCESSÃO, EM UM LUGAR SÓ.
+//
+// Cópia idêntica em `promocoes` — o Base44 não resolve import entre functions
+// (ver ARQUITETURA_AUTH.md §2) e as duas precisam escrever exatamente as mesmas
+// coisas. `npm run check:invariantes` compara as cópias por hash: mudar aqui sem
+// mudar lá quebra o check.
+//
+// `origem` diz quem originou a concessão ('admin' ou o id de uma promoção). É
+// dela que a regra "uma promoção por pessoa" se alimenta.
+async function conceder(base44, conta, { dias, reason, identity, agora, emCortesia, fimAtual, origem = 'admin' }) {
   // Extensão soma ao prazo que ainda resta, em vez de reiniciar a partir de
   // hoje: quem tem 3 dias restantes e ganha mais 7 fica com 10, não com 7.
   const base = emCortesia ? fimAtual : agora;
@@ -216,7 +225,8 @@ async function conceder(base44, conta, { dias, reason, identity, agora, emCortes
     expires_at: fimNovo.toISOString(),
     days: dias,
     reason: (reason || '').trim(),
-    kind: emCortesia ? 'extension' : 'grant'
+    kind: emCortesia ? 'extension' : 'grant',
+    origem
   });
 
   return fimNovo;

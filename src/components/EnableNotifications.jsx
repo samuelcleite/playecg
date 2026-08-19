@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { savePushSubscription } from "@/functions/savePushSubscription";
 import { getVapidPublicKey } from "@/functions/getVapidPublicKey";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Bell, BellOff, CheckCircle2, Loader2 } from "lucide-react";
+import { consultarPromoPush, resgatarPromoPush } from "@/lib/promocaoPush";
+import { Bell, BellOff, CheckCircle2, Loader2, Gift } from "lucide-react";
 import { isIOSNativeApp } from "@/utils/platform";
 import {
   estadoDaPermissaoNativa,
@@ -29,8 +31,16 @@ export default function EnableNotifications({ className }) {
   // travado — sobretudo para quem já recusou antes, que não vê diálogo nenhum.
   const [pedindo, setPedindo] = useState(false);
 
+  // A promoção vale aqui pelo mesmo motivo que vale no banner do Dashboard:
+  // este é o OUTRO lugar onde a permissão pode ser concedida. Sem isto, o mesmo
+  // gesto pagaria numa tela e não na outra — e a pessoa que ativou pelo Perfil
+  // nunca receberia, sem jeito de saber por quê.
+  const [promo, setPromo] = useState(null);
+  const [resgatado, setResgatado] = useState(null);
+
   useEffect(() => {
     checkStatus();
+    consultarPromoPush().then(setPromo).catch(() => {});
   }, []);
 
   const checkStatus = async () => {
@@ -79,6 +89,13 @@ export default function EnableNotifications({ className }) {
         try {
           const estado = await pedirPermissaoNativa();
           setStatus(estado === "concedida" ? "subscribed" : "denied");
+          // Resgate na sequência do gesto que autorizou — e SÓ aqui. É esta
+          // amarração que mantém a promoção não-retroativa: não existe caminho
+          // na tela que ofereça o resgate a quem já estava inscrito.
+          if (estado === "concedida" && promo) {
+            const r = await resgatarPromoPush();
+            if (r.ok) setResgatado({ dias: r.dias });
+          }
         } finally {
           setPedindo(false);
         }
@@ -125,9 +142,34 @@ export default function EnableNotifications({ className }) {
 
   if (status === "subscribed") {
     return (
-      <div className={`flex items-center gap-2 text-sm text-green-600 ${className || ""}`}>
-        <CheckCircle2 className="w-4 h-4" />
-        Notificações ativadas
+      <div className={`space-y-2 ${className || ""}`}>
+        <div className="flex items-center gap-2 text-sm text-green-600">
+          <CheckCircle2 className="w-4 h-4" />
+          Notificações ativadas
+        </div>
+        {/* Só aparece para quem acabou de ganhar NESTA tela. Quem já estava
+            inscrito não vê nada — a promoção não é retroativa.
+
+            A festa é menor que a do Dashboard de propósito: ali o card ocupa a
+            largura toda e pode explodir; aqui isto vive dentro de um bloco de
+            configurações, e confete no meio dos ajustes vira barulho. O pop e o
+            destaque bastam para a pessoa perceber que ganhou. */}
+        {resgatado && (
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 320, damping: 15 }}
+            className="rounded-xl border-2 border-ecg-green bg-gradient-to-r from-ecg-green/15 to-emerald-50 px-3 py-2.5"
+          >
+            <p className="flex items-center gap-2 font-black text-emerald-800 text-sm">
+              <Gift className="w-4 h-4" />
+              🎉 {resgatado.dias} dias de Premium liberados!
+            </p>
+            <p className="text-emerald-700/80 text-xs mt-0.5">
+              Trilha completa e casos ilimitados. Aproveite!
+            </p>
+          </motion.div>
+        )}
       </div>
     );
   }
@@ -180,10 +222,18 @@ export default function EnableNotifications({ className }) {
     >
       {loading ? (
         <Loader2 className="w-4 h-4 animate-spin" />
+      ) : promo ? (
+        <Gift className="w-4 h-4" />
       ) : (
         <Bell className="w-4 h-4" />
       )}
-      {pedindo ? "Aguardando sua permissão..." : loading ? "Ativando..." : "Ativar Notificações"}
+      {pedindo
+        ? "Aguardando sua permissão..."
+        : loading
+          ? "Ativando..."
+          : promo
+            ? `Ativar e ganhar ${promo.dias} dias de Premium grátis`
+            : "Ativar Notificações"}
     </Button>
   );
 }

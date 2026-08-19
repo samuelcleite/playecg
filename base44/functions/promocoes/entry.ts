@@ -1,0 +1,484 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+
+// promocoes — cortesia automática em troca de uma ação verificável do usuário.
+// -----------------------------------------------------------------------------
+// A primeira (e por ora única) promoção: ativar as notificações no app iOS vale
+// 7 dias de premium.
+//
+// DUAS AÇÕES, UMA FUNCTION:
+//   { acao: 'status'   } → o que a tela precisa saber para oferecer (ou calar)
+//   { acao: 'resgatar' } → concede, se o critério estiver mesmo cumprido
+//
+// Juntas de propósito. Separadas, a regra de elegibilidade viveria em dois
+// lugares e divergiria — e o sintoma seria a tela oferecendo o que o backend
+// recusa, ou escondendo o que ele daria. Uma regra, dois modos de perguntar.
+//
+// ─── QUEM VERIFICA O CRITÉRIO ────────────────────────────────────────────────
+//
+// O SERVIDOR, sempre, perguntando ao OneSignal. Nunca o cliente.
+//
+// Isto não é zelo abstrato. O `utils/pushNativo.js` diz, com todas as letras,
+// que do lado do app "não existe confirmação de nada": o despia() resolve
+// incondicionalmente, exista ou não a ponte nativa. O estado que o app conhece é
+// palpite — e mesmo que fosse certeza, chegaria aqui como um campo no corpo de
+// um POST, que qualquer pessoa com o console aberto reescreve. É o mesmo
+// raciocínio da trava do vitalício: se o critério vem do cliente, ele não é
+// critério, é sugestão.
+//
+// O que o servidor confirma: existe, no OneSignal, uma subscription **iOSPush**
+// inscrita para o external_id daquela conta — que é o `Account.id`, o mesmo
+// identificador que o RevenueCat usa. É por isso que a promoção é iOS-only sem
+// precisar confiar no user agent: a plataforma vem do fato, não da afirmação.
+//
+// FALHA FECHADO. OneSignal fora do ar, chave errada, resposta inesperada → não
+// concede. Conceder no escuro é dar premium a quem não cumpriu; não conceder é
+// um "tente de novo" para quem cumpriu.
+//
+// ─── COMO DESLIGAR ───────────────────────────────────────────────────────────
+//
+// Variável de ambiente `PROMO_PUSH_DIAS` no painel do Base44:
+//
+//     ausente, 0, ou não-numérica  →  promoção DESLIGADA
+//     7                            →  ligada, valendo 7 dias
+//
+// Uma variável só, e não um par ativa/dias, porque duas podem discordar. Zerar
+// desliga na hora, sem deploy e sem republicar function: o `status` passa a
+// responder `ativa: false` e a tela some sozinha, porque quem decide se a oferta
+// aparece é esta function, não o frontend.
+//
+// Desligar NÃO revoga quem já resgatou. As cortesias concedidas seguem seu
+// prazo e vencem sozinhas, como qualquer outra.
+//
+// ─── DEPENDÊNCIA EXTERNA QUE PODE NÃO ESTAR DE PÉ ────────────────────────────
+//
+// Enquanto o binário do Despia não for reconstruído com o SDK do OneSignal
+// embutido, NENHUMA conta terá subscription lá — e esta function vai recusar
+// todo mundo com `sem_inscricao`. É o mesmo estado que o `sendOneSignalPush`
+// documenta ao explicar por que repassa `recipients` verbatim. Ligue a promoção
+// só depois de ver uma subscription real no painel do OneSignal
+// (Audience → Subscriptions, coluna External ID).
+// -----------------------------------------------------------------------------
+
+// O catálogo de promoções. Hoje tem uma entrada; a forma existe para que a
+// segunda não vire uma function inteira copiada — só mais uma linha aqui e um
+// verificador ao lado.
+//
+// `verificar` recebe a conta e devolve { ok, code, error }. É a única parte que
+// muda de uma promoção para outra: o resto do caminho (elegibilidade, uma vez
+// por pessoa, concessão) é comum e vive fora do catálogo.
+const PROMOCOES = {
+  push_ios: {
+    id: 'push_ios',
+    envDias: 'PROMO_PUSH_DIAS',
+    // Vai para o TrialGrant e é o que responde "esta conta já resgatou".
+    origem: 'promo_push_ios',
+    motivo: 'Ativou as notificações no app iOS',
+    verificar: verificarPushIOS
+  }
+};
+
+const ONESIGNAL_BASE = 'https://api.onesignal.com';
+
+// Consulta o usuário no OneSignal pelo external_id (= Account.id) e diz se há
+// uma subscription de iOS inscrita.
+//
+// A API "rich" é a mesma família que o sendOneSignalPush usa (Authorization:
+// `Key ...`, host api.onesignal.com). Se a chave configurada for legada, aquela
+// function responde 401 e esta também — a migração está documentada lá.
+async function verificarPushIOS(conta) {
+  const appId = Deno.env.get('ONESIGNAL_APP_ID');
+  const apiKey = Deno.env.get('ONESIGNAL_REST_API_KEY');
+  if (!appId || !apiKey) {
+    console.error('promocoes: OneSignal não configurado');
+    return { ok: false, code: 'indisponivel', error: 'Não foi possível confirmar agora. Tente de novo em alguns minutos.' };
+  }
+
+  const url = `${ONESIGNAL_BASE}/apps/${encodeURIComponent(appId)}/users/by/external_id/${encodeURIComponent(String(conta.id))}`;
+
+  let resp;
+  try {
+    resp = await fetch(url, { headers: { Authorization: `Key ${apiKey}` } });
+  } catch (e) {
+    console.error('promocoes: rede OneSignal:', e.message);
+    return { ok: false, code: 'indisponivel', error: 'Não foi possível confirmar agora. Tente de novo em alguns minutos.' };
+  }
+
+  // 404 = o external_id não existe lá. É o caso de quem nunca abriu o app iOS
+  // com o binário novo, e também o estado de TODO MUNDO enquanto o rebuild não
+  // sai. Não é erro: é "ainda não cumpriu".
+  if (resp.status === 404) {
+    return { ok: false, code: 'sem_inscricao', error: 'Não encontramos suas notificações ativas neste aparelho.' };
+  }
+
+  if (!resp.ok) {
+    console.error('promocoes: status inesperado do OneSignal:', resp.status);
+    return { ok: false, code: 'indisponivel', error: 'Não foi possível confirmar agora. Tente de novo em alguns minutos.' };
+  }
+
+  let corpo;
+  try {
+    corpo = await resp.json();
+  } catch (_e) {
+    return { ok: false, code: 'indisponivel', error: 'Não foi possível confirmar agora. Tente de novo em alguns minutos.' };
+  }
+
+  const subs = Array.isArray(corpo?.subscriptions) ? corpo.subscriptions : [];
+
+  // iOSPush E inscrita. Os dois campos são checados porque significam coisas
+  // diferentes: `enabled` é o device estar apto, `notification_types` positivo é
+  // a pessoa não ter desligado. Um device que existe mas está opted-out não
+  // cumpre o combinado.
+  //
+  // Tolerância deliberada a campo AUSENTE (`!== false`, `!(x <= 0)`): a API já
+  // mudou de modelo uma vez, e o custo dos dois erros é assimétrico — recusar
+  // quem cumpriu é uma promessa quebrada na cara do usuário; aceitar um caso
+  // ambíguo custa sete dias.
+  const inscrita = subs.some(s =>
+    s?.type === 'iOSPush' &&
+    s?.enabled !== false &&
+    !(typeof s?.notification_types === 'number' && s.notification_types <= 0)
+  );
+
+  if (!inscrita) {
+    return { ok: false, code: 'sem_inscricao', error: 'Não encontramos suas notificações ativas neste aparelho.' };
+  }
+
+  return { ok: true };
+}
+
+function b64urlToBytes(input) {
+  let s = input.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  const bin = atob(s);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+function b64urlToStr(input) {
+  let s = input.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  return atob(s);
+}
+
+// Verifica um JWT HS256 assinado com a mesma JWT_SECRET e os mesmos parâmetros
+// (crypto.subtle nativo, sem dependência externa) que googleSignIn/appleSignIn
+// usam para assinar. Qualquer falha (base64 inválido, assinatura, exp) => null,
+// para cair de volta no fluxo de sessão Base44 em vez de derrubar a função.
+async function verifyJwtHS256(token, secret) {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const [headerB64, payloadB64, sigB64] = parts;
+    const header = JSON.parse(b64urlToStr(headerB64));
+    if (header.alg !== 'HS256') return null;
+    const payload = JSON.parse(b64urlToStr(payloadB64));
+
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+
+    const valid = await crypto.subtle.verify(
+      'HMAC',
+      key,
+      b64urlToBytes(sigB64),
+      new TextEncoder().encode(`${headerB64}.${payloadB64}`)
+    );
+    if (!valid) return null;
+
+    if (typeof payload.exp !== 'number' || payload.exp < Math.floor(Date.now() / 1000)) {
+      return null;
+    }
+
+    return payload;
+  } catch (_e) {
+    return null;
+  }
+}
+
+// Aceita tanto o JWT próprio (googleSignIn/appleSignIn) quanto a sessão Base44.
+// JWT NUNCA concede admin: role é sempre 'user' nesse caminho, por decisão de
+// arquitetura — mesmo que o payload assinado carregue um campo role.
+async function resolveIdentity(req, base44) {
+  const authHeader = req.headers.get('authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const secret = Deno.env.get('JWT_SECRET');
+    if (secret) {
+      const token = authHeader.slice('Bearer '.length).trim();
+      const payload = await verifyJwtHS256(token, secret);
+      if (payload && payload.email) {
+        return { email: payload.email, role: 'user', source: 'jwt' };
+      }
+    }
+  }
+
+  // base44.auth.me() LANÇA (não retorna null) quando o Authorization traz um
+  // Bearer que não é JWT próprio válido nem sessão Base44 — tratamos a exceção
+  // como não autenticado: null, o contrato já esperado por quem chama (=> 401).
+  let user;
+  try {
+    user = await base44.auth.me();
+  } catch (_e) {
+    return null;
+  }
+  if (user) {
+    return { email: user.email, role: user.role, source: 'base44' };
+  }
+
+  return null;
+}
+
+function avaliarElegibilidade(conta, agora) {
+  if (!conta) {
+    // Não criamos a conta aqui. Cortesia para quem ainda não se cadastrou não
+    // teria onde pousar — a Account nasce no primeiro login, com o google_id ou
+    // apple_id que só o fluxo de sign-in conhece.
+    return {
+      ok: false,
+      code: 'account_not_found',
+      status: 404,
+      error: 'Nenhuma conta com esse e-mail. O usuário precisa ter entrado no app ao menos uma vez.'
+    };
+  }
+
+  if (conta.lifetime_access === true) {
+    return {
+      ok: false,
+      code: 'lifetime',
+      status: 409,
+      error: 'Esta conta tem acesso vitalício — cortesia não acrescenta nada.'
+    };
+  }
+
+  // Cortesia em curso? A data no futuro é o que distingue "premium nosso" de
+  // "premium pago". Uma data vencida não conta: quem está premium com trial
+  // vencido é alguém que a expiração preguiçosa ainda não alcançou, e o
+  // tratamento correto é o mesmo do free.
+  const fimAtual = conta.trial_ends_at ? new Date(conta.trial_ends_at) : null;
+  const emCortesia = !!(fimAtual && !isNaN(fimAtual.getTime()) && fimAtual > agora);
+
+  // INVARIANTE trial_ends_at
+  // Premium SEM trial_ends_at no futuro é premium pago, e pagante não recebe
+  // cortesia: o carimbo faria o getMyAccount rebaixá-lo quando a data chegar.
+  // Estender o acesso de quem paga não é caso de uso — se um dia for, o caminho
+  // é outro campo, não este.
+  if (conta.subscription_type === 'premium' && !emCortesia) {
+    return {
+      ok: false,
+      code: 'ja_premium',
+      status: 409,
+      error: 'Esta conta já é premium por assinatura paga. Conceder cortesia aqui faria o acesso dela vencer.'
+    };
+  }
+
+  return { ok: true, emCortesia, fimAtual };
+}
+
+// A ESCRITA DA CONCESSÃO, EM UM LUGAR SÓ.
+//
+// Cópia idêntica em `promocoes` — o Base44 não resolve import entre functions
+// (ver ARQUITETURA_AUTH.md §2) e as duas precisam escrever exatamente as mesmas
+// coisas. `npm run check:invariantes` compara as cópias por hash: mudar aqui sem
+// mudar lá quebra o check.
+//
+// `origem` diz quem originou a concessão ('admin' ou o id de uma promoção). É
+// dela que a regra "uma promoção por pessoa" se alimenta.
+async function conceder(base44, conta, { dias, reason, identity, agora, emCortesia, fimAtual, origem = 'admin' }) {
+  // Extensão soma ao prazo que ainda resta, em vez de reiniciar a partir de
+  // hoje: quem tem 3 dias restantes e ganha mais 7 fica com 10, não com 7.
+  const base = emCortesia ? fimAtual : agora;
+  const fimNovo = new Date(base.getTime() + dias * 24 * 60 * 60 * 1000);
+
+  await base44.asServiceRole.entities.Account.update(conta.id, {
+    // subscription_type é o que CONCEDE o acesso; trial_ends_at é só o prazo.
+    subscription_type: 'premium',
+    trial_ends_at: fimNovo.toISOString(),
+    // A extensão preserva o início da cortesia original: o campo marca desde
+    // quando esta conta está em cortesia, e é com ele que os caminhos de
+    // expiração descobrem se um pagamento veio depois.
+    trial_started_at: emCortesia
+      ? (conta.trial_started_at || agora.toISOString())
+      : agora.toISOString()
+    // subscription_start_date NÃO entra aqui. Ver cabeçalho.
+  });
+
+  await base44.asServiceRole.entities.TrialGrant.create({
+    user_email: (conta.email || '').trim().toLowerCase(),
+    // Da IDENTIDADE, nunca do corpo: o autor de uma concessão é a única coisa
+    // que o registro de auditoria não pode aceitar do cliente.
+    granted_by: identity.email,
+    granted_at: agora.toISOString(),
+    expires_at: fimNovo.toISOString(),
+    days: dias,
+    reason: (reason || '').trim(),
+    kind: emCortesia ? 'extension' : 'grant',
+    origem
+  });
+
+  return fimNovo;
+}
+
+
+// Dias que a promoção vale agora, lidos do ambiente a cada chamada — é isso que
+// faz o desligamento valer na hora, sem republicar function. Qualquer coisa que
+// não seja inteiro positivo significa desligada.
+function diasDaPromocao(promo) {
+  const bruto = Deno.env.get(promo.envDias);
+  const n = Number(bruto);
+  if (!Number.isInteger(n) || n < 1) return 0;
+  return n;
+}
+
+// Já resgatou esta promoção alguma vez? A pergunta é sobre HISTÓRICO, não sobre
+// estado: quem ganhou, usou e deixou vencer não ganha de novo. Por isso a
+// resposta vem do TrialGrant (que guarda tudo) e não da Account (que guarda só
+// o agora).
+async function jaResgatou(base44, email, origem) {
+  const grants = await base44.asServiceRole.entities.TrialGrant.filter({ user_email: email });
+  return grants.some(g => g.origem === origem);
+}
+
+Deno.serve(async (req) => {
+  try {
+    const base44 = createClientFromRequest(req);
+    const identity = await resolveIdentity(req, base44);
+
+    // Promoção é para usuário logado comum — este é o único caminho de
+    // concessão que NÃO exige admin. Daí todo o cuidado com a verificação: o
+    // gate aqui é a identidade, e o critério é confirmado contra o OneSignal.
+    if (!identity) {
+      return Response.json({ error: 'Não autenticado', success: false }, { status: 401 });
+    }
+
+    const { acao, promocao } = await req.json();
+
+    // hasOwnProperty, e não PROMOCOES[id] direto: com o acesso direto, um id
+    // igual a "constructor" ou "toString" acha o membro herdado do
+    // Object.prototype e passa como promoção válida. Mesmo furo que o
+    // createStripeCheckout já corrigiu no seletor de planos — aqui o estrago
+    // seria menor (a leitura da env falharia e cairia em "desligada"), mas o
+    // padrão da casa é este.
+    const id = promocao || 'push_ios';
+    const promo = Object.prototype.hasOwnProperty.call(PROMOCOES, id) ? PROMOCOES[id] : null;
+
+    if (!promo) {
+      return Response.json({ error: 'Promoção desconhecida', success: false }, { status: 400 });
+    }
+
+    const dias = diasDaPromocao(promo);
+    const email = (identity.email || '').trim().toLowerCase();
+
+    // Desligada: responde igual nas duas ações e nem olha a conta. Menos
+    // trabalho, e principalmente: nenhum caminho de escrita alcançável enquanto
+    // a variável estiver zerada.
+    if (dias === 0) {
+      return Response.json({ success: true, ativa: false, elegivel: false, motivo: 'desligada' });
+    }
+
+    const contas = await base44.asServiceRole.entities.Account.filter({ email });
+    const conta = contas && contas.length > 0 ? contas[0] : null;
+    if (!conta) {
+      return Response.json({ error: 'Conta não encontrada', success: false }, { status: 404 });
+    }
+
+    const agora = new Date();
+
+    // A MESMA regra da concessão manual, pela mesma função (cópia verificada por
+    // hash). Quem já paga não recebe cortesia — aqui isso importa dobrado,
+    // porque este caminho é automático e ninguém revisa cada caso.
+    const elegibilidade = avaliarElegibilidade(conta, agora);
+
+    // Cortesia em curso também não recebe. A concessão manual ESTENDE nesse
+    // caso, e aqui a decisão é oposta de propósito: promoção automática que
+    // empilha vira acúmulo silencioso — a pessoa ganha do admin, ganha da
+    // promoção, e o prazo que aparece na tela não corresponde a nada que
+    // alguém tenha decidido. A promoção é para quem não tem acesso.
+    const emCortesia = elegibilidade.ok && elegibilidade.emCortesia;
+
+    const resgatou = await jaResgatou(base44, email, promo.origem);
+
+    const podeTentar = elegibilidade.ok && !emCortesia && !resgatou;
+
+    let motivo = null;
+    if (resgatou) motivo = 'ja_resgatou';
+    else if (emCortesia) motivo = 'ja_em_cortesia';
+    else if (!elegibilidade.ok) motivo = elegibilidade.code;
+
+    if (acao === 'status') {
+      // O `status` NÃO consulta o OneSignal. Ele responde "esta conta pode
+      // ganhar?", não "esta conta já cumpriu?" — quem cumpriu é conferido no
+      // resgate. Assim a tela pode perguntar isto em todo carregamento sem
+      // pendurar uma ida a servidor externo no caminho, e a verificação cara
+      // acontece uma vez, no clique.
+      return Response.json({
+        success: true,
+        promocao: promo.id,
+        ativa: true,
+        dias,
+        elegivel: podeTentar,
+        motivo
+      });
+    }
+
+    if (acao !== 'resgatar') {
+      return Response.json({ error: "acao precisa ser 'status' ou 'resgatar'", success: false }, { status: 400 });
+    }
+
+    if (!podeTentar) {
+      return Response.json(
+        {
+          success: false,
+          ativa: true,
+          elegivel: false,
+          motivo,
+          error: resgatou
+            ? 'Você já resgatou esta promoção.'
+            : emCortesia
+              ? 'Você já está com acesso de cortesia ativo.'
+              : elegibilidade.error
+        },
+        { status: 409 }
+      );
+    }
+
+    // A confirmação de verdade, contra o OneSignal. Só aqui, e só depois de a
+    // conta ter passado por todo o resto — não faz sentido gastar uma ida à
+    // rede para alguém que não poderia receber de qualquer jeito.
+    const cumpriu = await promo.verificar(conta);
+    if (!cumpriu.ok) {
+      return Response.json(
+        { success: false, ativa: true, elegivel: true, motivo: cumpriu.code, error: cumpriu.error },
+        { status: 409 }
+      );
+    }
+
+    const fimNovo = await conceder(base44, conta, {
+      dias,
+      reason: promo.motivo,
+      // Não há admin nesta concessão: quem "concedeu" foi a regra. Gravar o
+      // e-mail do próprio usuário em granted_by faria o histórico dizer que ele
+      // se autoconcedeu premium, que é exatamente a leitura errada.
+      identity: { email: `promocao:${promo.id}` },
+      agora,
+      emCortesia: false,
+      fimAtual: null,
+      origem: promo.origem
+    });
+
+    console.log('promocoes:', promo.id, '->', email, '+', dias, 'dias até', fimNovo.toISOString());
+
+    return Response.json({
+      success: true,
+      promocao: promo.id,
+      dias,
+      trial_ends_at: fimNovo.toISOString()
+    });
+  } catch (error) {
+    console.error('Erro em promocoes:', error);
+    return Response.json({ error: error.message, success: false }, { status: 500 });
+  }
+});

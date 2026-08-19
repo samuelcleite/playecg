@@ -104,13 +104,27 @@ const DISPENSAS = {
   },
   'adminGrantTrial': {
     lifetime: 'Não rebaixa ninguém: só promove. A recusa de conta vitalícia está em avaliarElegibilidade.'
+  },
+  'promocoes': {
+    lifetime: 'Não rebaixa ninguém: só promove. A recusa de conta vitalícia está em avaliarElegibilidade, cópia verificada por hash.'
   }
 };
 
 // Funções cujas cópias precisam ser idênticas entre si (depois de normalizadas).
-// São as que DECIDEM acesso, não as utilitárias: uma divergência aqui significa
-// dois lugares do sistema discordando sobre quem perde o premium.
-const COPIAS_IDENTICAS = ['avaliarCortesia'];
+// São as que DECIDEM ou ESCREVEM acesso, não as utilitárias: uma divergência
+// aqui significa dois lugares do sistema discordando sobre quem ganha ou perde
+// o premium.
+//
+//   avaliarCortesia      — quem é rebaixado quando a cortesia vence
+//                          (getMyAccount, adminExpireTrials)
+//   avaliarElegibilidade — quem pode RECEBER cortesia. É a regra que impede um
+//                          assinante pagante de ganhar data de validade, e ela
+//                          vale igual para a concessão manual e para a
+//                          promoção automática (adminGrantTrial, promocoes)
+//   conceder             — o que é escrito ao conceder. As duas precisam gravar
+//                          os mesmos campos, ou o histórico fica com buracos
+//                          que só aparecem meses depois, na hora de medir
+const COPIAS_IDENTICAS = ['avaliarCortesia', 'avaliarElegibilidade', 'conceder'];
 
 const ESCREVE_FREE = /subscription_type:\s*['"]free['"]/;
 const ESCREVE_PREMIUM = /subscription_type:\s*['"]premium['"]/;
