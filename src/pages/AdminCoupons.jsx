@@ -111,9 +111,25 @@ export default function AdminCoupons() {
     active: true
   });
 
+  const [message, setMessage] = useState(null);
+
   useEffect(() => {
     checkAdmin();
   }, []);
+
+  // Mesma mecânica do AdminTrials. Antes desta etapa a tela não tinha NENHUM
+  // caminho de erro: a escrita ia direto na entidade e uma recusa do RLS morria
+  // no console. Agora as recusas de validação vêm do backend com uma mensagem
+  // útil, e engoli-las seria pior do que o silêncio de antes.
+  const avisar = (type, text) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 8000);
+  };
+
+  // As recusas de regra chegam como 4xx e viram exceção no SDK, não retorno.
+  // A mensagem do backend é a parte útil — ela diz QUAL regra barrou.
+  const mensagemDoErro = (error, padrao) =>
+    error?.response?.data?.error || error?.message || padrao;
 
   const checkAdmin = async () => {
     const userData = await base44.auth.me();
@@ -126,8 +142,8 @@ export default function AdminCoupons() {
   };
 
   const loadData = async () => {
-    const couponsData = await base44.entities.Coupon.list("-created_date");
-    setCoupons(couponsData);
+    const resCupons = await base44.functions.invoke('adminCoupons', { action: 'list' });
+    setCoupons(resCupons?.data?.coupons || []);
 
     const resUso = await base44.functions.invoke('adminListRecords', { entity: 'CouponUsage' });
     const usageData = resUso?.data?.records || [];
@@ -203,28 +219,46 @@ export default function AdminCoupons() {
         : null
     };
 
-    if (editingCoupon) {
-      await base44.entities.Coupon.update(editingCoupon.id, couponData);
-    } else {
-      await base44.entities.Coupon.create(couponData);
+    try {
+      if (editingCoupon) {
+        await base44.functions.invoke('adminCoupons', {
+          action: 'update', id: editingCoupon.id, data: couponData
+        });
+      } else {
+        await base44.functions.invoke('adminCoupons', { action: 'create', data: couponData });
+      }
+      setShowDialog(false);
+      await loadData();
+    } catch (error) {
+      // O diálogo fica ABERTO de propósito: fechá-lo jogaria fora o que o admin
+      // digitou, e a recusa quase sempre é de um campo que dá para corrigir ali
+      // mesmo.
+      avisar('error', mensagemDoErro(error, 'Não foi possível salvar o cupom.'));
     }
-
-    setShowDialog(false);
-    await loadData();
   };
 
   const handleDelete = async (couponId) => {
     if (confirm("Tem certeza que deseja excluir este cupom?")) {
-      await base44.entities.Coupon.delete(couponId);
-      await loadData();
+      try {
+        await base44.functions.invoke('adminCoupons', { action: 'delete', id: couponId });
+        await loadData();
+      } catch (error) {
+        avisar('error', mensagemDoErro(error, 'Não foi possível excluir o cupom.'));
+      }
     }
   };
 
   const handleToggleActive = async (coupon) => {
-    await base44.entities.Coupon.update(coupon.id, {
-      active: !coupon.active
-    });
-    await loadData();
+    try {
+      // Update PARCIAL: só o campo active. É o caso que obrigou o adminCoupons
+      // a validar apenas o que vem no corpo.
+      await base44.functions.invoke('adminCoupons', {
+        action: 'update', id: coupon.id, data: { active: !coupon.active }
+      });
+      await loadData();
+    } catch (error) {
+      avisar('error', mensagemDoErro(error, 'Não foi possível alterar o cupom.'));
+    }
   };
 
   const handleCopyCode = (code) => {
@@ -270,6 +304,18 @@ export default function AdminCoupons() {
             Novo Cupom
           </Button>
         </div>
+
+        {message && (
+          <div
+            className={`p-4 rounded-lg border text-sm ${
+              message.type === 'error'
+                ? 'bg-red-50 border-red-200 text-red-800'
+                : 'bg-green-50 border-green-200 text-green-800'
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
