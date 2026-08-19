@@ -52,12 +52,27 @@ export async function consultarPromoPush() {
   }
 }
 
+// Motivos que significam "não havia promoção para esta pessoa" — e não "deu
+// erro". Recusa por esses motivos é silenciosa na tela: dizer "você já resgatou"
+// a quem nem sabia que existia promoção é ruído, não informação.
+const RECUSAS_SILENCIOSAS = ['desligada', 'ja_resgatou', 'ja_em_cortesia', 'ja_premium', 'lifetime'];
+
 // Resgata. Chamar SÓ na sequência de uma permissão recém-concedida — é isso que
 // mantém a promoção não-retroativa.
 //
-// Devolve { ok: true, dias } ou { ok: false, erro }. Quem confirma que a
-// permissão existe mesmo é o servidor, contra o OneSignal: o utils/pushNativo.js
-// avisa que deste lado não existe confirmação de nada.
+// CHAME SEM CONDICIONAR AO STATUS. Antes isto só era chamado quando a consulta
+// de status já tivesse voltado dizendo "elegível", e nisso havia uma corrida
+// perdida: quem tocasse no botão antes de a consulta responder ativava as
+// notificações e não ganhava nada — e o banner some depois disso, porque a
+// promoção não é retroativa. A pessoa cumpria o combinado e ficava sem o
+// prêmio, sem segunda chance.
+//
+// Quem decide é o servidor, que é a única parte com informação completa. Uma
+// chamada a mais quando não há promoção custa nada perto disso.
+//
+// Devolve { ok: true, dias } ou { ok: false, erro, silencioso }. Quem confirma
+// que a permissão existe mesmo é o servidor, contra o OneSignal: o
+// utils/pushNativo.js avisa que deste lado não existe confirmação de nada.
 export async function resgatarPromoPush() {
   try {
     const res = await base44.functions.invoke("promocoes", {
@@ -72,11 +87,17 @@ export async function resgatarPromoPush() {
       await refreshCurrentUser();
       return { ok: true, dias: d.dias };
     }
-    return { ok: false, erro: d?.error || "Não foi possível liberar seu acesso agora." };
-  } catch (error) {
     return {
       ok: false,
-      erro: error?.response?.data?.error || "Não foi possível liberar seu acesso agora."
+      erro: d?.error || "Não foi possível liberar seu acesso agora.",
+      silencioso: RECUSAS_SILENCIOSAS.includes(d?.motivo)
+    };
+  } catch (error) {
+    const dados = error?.response?.data;
+    return {
+      ok: false,
+      erro: dados?.error || "Não foi possível liberar seu acesso agora.",
+      silencioso: RECUSAS_SILENCIOSAS.includes(dados?.motivo)
     };
   }
 }
