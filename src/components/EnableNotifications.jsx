@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { savePushSubscription } from "@/functions/savePushSubscription";
 import { getVapidPublicKey } from "@/functions/getVapidPublicKey";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { consultarPromoPush, resgatarPromoPush } from "@/lib/promocaoPush";
 import { Bell, BellOff, CheckCircle2, Loader2, Gift } from "lucide-react";
@@ -141,18 +142,33 @@ export default function EnableNotifications({ className }) {
 
   if (status === "subscribed") {
     return (
-      <div className={`space-y-1 ${className || ""}`}>
+      <div className={`space-y-2 ${className || ""}`}>
         <div className="flex items-center gap-2 text-sm text-green-600">
           <CheckCircle2 className="w-4 h-4" />
           Notificações ativadas
         </div>
-        {/* Só aparece para quem acabou de ganhar nesta tela. Quem já estava
-            inscrito não vê nada — a promoção não é retroativa. */}
+        {/* Só aparece para quem acabou de ganhar NESTA tela. Quem já estava
+            inscrito não vê nada — a promoção não é retroativa.
+
+            A festa é menor que a do Dashboard de propósito: ali o card ocupa a
+            largura toda e pode explodir; aqui isto vive dentro de um bloco de
+            configurações, e confete no meio dos ajustes vira barulho. O pop e o
+            destaque bastam para a pessoa perceber que ganhou. */}
         {resgatado && (
-          <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
-            <Gift className="w-4 h-4" />
-            {resgatado.dias} dias de Premium liberados!
-          </div>
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 320, damping: 15 }}
+            className="rounded-xl border-2 border-ecg-green bg-gradient-to-r from-ecg-green/15 to-emerald-50 px-3 py-2.5"
+          >
+            <p className="flex items-center gap-2 font-black text-emerald-800 text-sm">
+              <Gift className="w-4 h-4" />
+              🎉 {resgatado.dias} dias de Premium liberados!
+            </p>
+            <p className="text-emerald-700/80 text-xs mt-0.5">
+              Trilha completa e casos ilimitados. Aproveite!
+            </p>
+          </motion.div>
         )}
       </div>
     );
@@ -216,7 +232,7 @@ export default function EnableNotifications({ className }) {
         : loading
           ? "Ativando..."
           : promo
-            ? `Ativar e ganhar ${promo.dias} dias de Premium`
+            ? `Ativar e ganhar ${promo.dias} dias de Premium grátis`
             : "Ativar Notificações"}
     </Button>
   );

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { savePushSubscription } from "@/functions/savePushSubscription";
 import { getVapidPublicKey } from "@/functions/getVapidPublicKey";
+import { motion } from "framer-motion";
 import { consultarPromoPush, resgatarPromoPush } from "@/lib/promocaoPush";
-import { Bell, X, Loader2, Gift, CheckCircle2 } from "lucide-react";
+import Confete from "@/components/Confete";
+import { Bell, X, Loader2, Gift, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isIOSNativeApp } from "@/utils/platform";
 import {
@@ -156,28 +158,67 @@ export default function NotificationBanner() {
     }
   };
 
-  // Acabou de ganhar: o banner vira o aviso do presente, e não é dispensável.
-  // O resgate poderia ser silencioso — o premium já está valendo —, mas presente
-  // que ninguém percebe não produz nem gratidão nem vontade de renovar quando
-  // vencer. Some sozinho no próximo carregamento, quando a promoção deixar de
-  // estar elegível para esta conta.
+  // Acabou de ganhar: o banner vira a comemoração, e não é dispensável.
+  //
+  // O resgate poderia ser silencioso — o premium já está valendo no instante em
+  // que o servidor responde. Mas presente que ninguém percebe não vira nem
+  // gratidão nem vontade de renovar quando vencer, e é a renovação que paga a
+  // promoção. Por isso a festa: o pop de entrada, o confete e o card inteiro
+  // dizendo o que a pessoa ganhou.
+  //
+  // Some sozinho no próximo carregamento, quando a promoção já não estiver
+  // elegível para esta conta.
   if (resgatado) {
     return (
-      <div className="mx-4 mb-5 rounded-2xl overflow-hidden shadow-lg border-2 border-ecg-green bg-gradient-to-r from-ecg-midnight to-[#1B3A5C]">
-        <div className="flex items-center gap-4 px-4 py-4">
-          <div className="w-12 h-12 rounded-2xl bg-ecg-green/20 border-2 border-ecg-green flex items-center justify-center flex-shrink-0">
-            <CheckCircle2 className="w-6 h-6 text-ecg-green" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-black text-white text-sm leading-tight">
-              🎉 {resgatado.dias} dias de Premium liberados!
-            </p>
-            <p className="text-ecg-green/80 text-xs mt-0.5 leading-tight">
-              Trilha completa, teoria e casos ilimitados. Aproveite!
-            </p>
-          </div>
+      <motion.div
+        // Spring com overshoot: o card cresce um tiquinho além do tamanho final
+        // e assenta. É o "pop" — a diferença entre um aviso que aparece e um
+        // presente que chega.
+        initial={{ scale: 0.7, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 320, damping: 16 }}
+        className="relative mx-4 mb-5 rounded-2xl overflow-hidden shadow-2xl border-2 border-ecg-green bg-gradient-to-br from-ecg-green via-[#16A34A] to-ecg-midnight"
+      >
+        <Confete />
+
+        <div className="relative px-4 py-5 text-center">
+          <motion.div
+            initial={{ scale: 0, rotate: -30 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 260, damping: 12, delay: 0.15 }}
+            className="text-5xl mb-2 leading-none"
+          >
+            🎉
+          </motion.div>
+
+          <motion.p
+            initial={{ y: 8, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="font-black text-white text-xl leading-tight drop-shadow"
+          >
+            Premium liberado!
+          </motion.p>
+
+          <motion.p
+            initial={{ y: 8, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="font-black text-white text-3xl leading-none mt-1 drop-shadow"
+          >
+            {resgatado.dias} dias grátis
+          </motion.p>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.55 }}
+            className="text-white/90 text-sm font-semibold mt-3"
+          >
+            Trilha completa, teoria e casos ilimitados. Aproveite! 🚀
+          </motion.p>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -217,41 +258,116 @@ export default function NotificationBanner() {
     );
   }
 
+  // COM PROMOÇÃO: o banner inteiro muda de assunto.
+  //
+  // Não é o mesmo card com uma frase trocada. O que se vende aqui é o presente —
+  // "7 dias de Premium de graça" —, e as notificações viram a condição, escrita
+  // menor, embaixo. Invertido (notificação em cima, brinde embaixo) a oferta
+  // fica parecendo um detalhe de um pedido de permissão, que é justamente o que
+  // as pessoas ignoram.
+  //
+  // A entrada tem pop, e o selo "GRÁTIS" pulsa: é uma oferta por tempo limitado
+  // competindo com o resto da tela pela atenção de quem só queria estudar.
+  if (promo) {
+    return (
+      <motion.div
+        initial={{ scale: 0.85, opacity: 0, y: -8 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 18 }}
+        className="relative mx-4 mb-5 rounded-2xl overflow-hidden shadow-2xl border-2 border-ecg-green bg-gradient-to-br from-ecg-green via-[#16A34A] to-ecg-midnight"
+      >
+        <button
+          onClick={() => setDismissed(true)}
+          className="absolute top-2 right-2 z-10 text-white/50 hover:text-white p-1"
+          aria-label="Fechar"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="px-4 pt-5 pb-4 text-center">
+          <motion.div
+            animate={{ rotate: [0, -12, 12, -8, 8, 0], scale: [1, 1.12, 1] }}
+            transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 2.5 }}
+            className="text-4xl leading-none mb-2"
+          >
+            🎁
+          </motion.div>
+
+          <p className="font-black text-white text-lg leading-tight drop-shadow">
+            Ative suas notificações e ganhe
+          </p>
+
+          <div className="flex items-center justify-center gap-2 mt-1">
+            <p className="font-black text-white text-3xl leading-none drop-shadow">
+              {promo.dias} dias de Premium
+            </p>
+            <motion.span
+              animate={{ scale: [1, 1.15, 1] }}
+              transition={{ duration: 1.2, repeat: Infinity }}
+              className="bg-yellow-300 text-ecg-midnight text-[11px] font-black px-2 py-0.5 rounded-full shadow"
+            >
+              DE GRAÇA
+            </motion.span>
+          </div>
+
+          <p className="text-white/90 text-xs font-semibold mt-2 flex items-center justify-center gap-1">
+            <Sparkles className="w-3.5 h-3.5" />
+            Sem cartão, sem cobrança. É só tocar no botão.
+          </p>
+        </div>
+
+        <div className="px-4 pb-4">
+          <motion.div
+            animate={{ scale: [1, 1.03, 1] }}
+            transition={{ duration: 1.8, repeat: Infinity }}
+          >
+            <Button
+              onClick={handleEnable}
+              disabled={loading}
+              className="w-full bg-white text-ecg-midnight font-black hover:bg-white/90 rounded-xl h-12 text-base shadow-lg"
+            >
+              {pedindo ? (
+                <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Aguardando sua permissão...</>
+              ) : resgatando ? (
+                <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Liberando seu Premium...</>
+              ) : loading ? (
+                <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Ativando...</>
+              ) : (
+                <><Gift className="w-5 h-5 mr-2" /> Quero meus {promo.dias} dias grátis</>
+              )}
+            </Button>
+          </motion.div>
+          {erroPromo && (
+            <p className="text-xs text-white bg-red-500/80 rounded-lg px-2 py-1.5 mt-2 text-center">
+              {erroPromo}
+            </p>
+          )}
+        </div>
+      </motion.div>
+    );
+  }
+
+  // SEM PROMOÇÃO: o banner original, palavra por palavra. É o que a tela mostra
+  // quando a campanha está desligada, e é para onde ela volta quando acabar.
   return (
     <div className="mx-4 mb-5 rounded-2xl overflow-hidden shadow-lg border-2 border-ecg-green/60 bg-gradient-to-r from-ecg-midnight to-[#1B3A5C]">
       <div className="flex items-center gap-4 px-4 py-4">
         {/* Ícone animado */}
         <div className="relative flex-shrink-0">
           <div className="w-12 h-12 rounded-2xl bg-ecg-green/20 border-2 border-ecg-green flex items-center justify-center">
-            {promo ? <Gift className="w-6 h-6 text-ecg-green" /> : <Bell className="w-6 h-6 text-ecg-green" />}
+            <Bell className="w-6 h-6 text-ecg-green" />
           </div>
           <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-500 border-2 border-white animate-ping" />
           <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-500 border-2 border-white" />
         </div>
 
-        {/* Texto. Com promoção no ar, o que o banner vende é o presente — as
-            notificações viram o meio, não o fim. Sem ela, a mensagem é a
-            original, palavra por palavra. */}
         <div className="flex-1 min-w-0">
-          {promo ? (
-            <>
-              <p className="font-black text-white text-sm leading-tight">
-                🎁 Ganhe {promo.dias} dias de Premium
-              </p>
-              <p className="text-ecg-green/80 text-xs mt-0.5 leading-tight">
-                É só ativar as notificações. Sem cartão, sem cobrança.
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="font-black text-white text-sm leading-tight">
-                🔔 Ative as notificações!
-              </p>
-              <p className="text-ecg-green/80 text-xs mt-0.5 leading-tight">
-                Receba alertas do Caso do Dia e não perca sua sequência!
-              </p>
-            </>
-          )}
+          <p className="font-black text-white text-sm leading-tight">
+            🔔 Ative as notificações!
+          </p>
+          <p className="text-ecg-green/80 text-xs mt-0.5 leading-tight">
+            Receba alertas do Caso do Dia e não perca sua sequência!
+          </p>
         </div>
 
         {/* Botão fechar */}
@@ -263,7 +379,8 @@ export default function NotificationBanner() {
         </button>
       </div>
 
-      {/* CTA */}
+      {/* CTA. Sem estado de promoção aqui: este ramo só é alcançado quando
+          `promo` é nulo — o caminho com oferta retorna bem antes. */}
       <div className="px-4 pb-4">
         <Button
           onClick={handleEnable}
@@ -272,19 +389,12 @@ export default function NotificationBanner() {
         >
           {pedindo ? (
             <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Aguardando sua permissão...</>
-          ) : resgatando ? (
-            <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Liberando seu Premium...</>
           ) : loading ? (
             <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Ativando...</>
-          ) : promo ? (
-            `Ativar e ganhar ${promo.dias} dias →`
           ) : (
             "Ativar notificações agora →"
           )}
         </Button>
-        {erroPromo && (
-          <p className="text-xs text-red-200 mt-2 text-center">{erroPromo}</p>
-        )}
       </div>
     </div>
   );
