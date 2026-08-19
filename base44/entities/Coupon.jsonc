@@ -72,10 +72,24 @@
     "discount_value"
   ],
   "rls": {
-    "read": {},
-    "write": {
+    "read": {
       "user_condition": {
-        "role": "admin"
+        "role": "__service_only__"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__service_only__"
       }
     }
   }
