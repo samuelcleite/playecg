@@ -19,7 +19,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 // recordQuizAttempt e do updateUserProgress. Com service role, o RLS não protege
 // mais nada; o filtro explícito é a barreira.
 //
-// Filtros aceitos (todos opcionais): module_id, phase_id, quiz_type, correct.
+// Filtros aceitos (todos opcionais): module_id, phase_id, quiz_type, correct e
+// `since` (ISO 8601, ver o bloco onde ele é lido).
 // `sort` e `limit` são repassados como vinham nas chamadas originais.
 // -----------------------------------------------------------------------------
 
@@ -130,6 +131,20 @@ Deno.serve(async (req) => {
     const sort = body.sort || '-created_date';
     const limit = typeof body.limit === 'number' && body.limit > 0 ? body.limit : null;
 
+    // `since` (ISO 8601): devolve só as tentativas a partir deste instante.
+    //
+    // Existe para a contagem do limite diário do plano gratuito, que roda a
+    // CADA questão respondida. Sem ele, o Quiz baixava o histórico inteiro da
+    // pessoa — de 500 em 500, até esgotar — para depois descartar tudo que não
+    // fosse de hoje no navegador. Com o app tomando 429 do Base44, a leitura
+    // mais frequente do app era também a mais desperdiçada.
+    //
+    // O corte é aplicado aqui e não como operador no filtro do SDK de
+    // propósito: assim não dependemos de a plataforma suportar comparação de
+    // data no `filter`, e o comportamento é o mesmo em qualquer versão.
+    const desde = typeof body.since === 'string' ? new Date(body.since) : null;
+    const corte = desde && !isNaN(desde.getTime()) ? desde : null;
+
     let attempts = [];
     if (limit) {
       attempts = await base44.asServiceRole.entities.QuizAttempt.filter(query, sort, limit);
@@ -140,10 +155,25 @@ Deno.serve(async (req) => {
       // truncar aqui vira limite de plano aplicado errado.
       const batchSize = 500;
       let skip = 0;
+
+      // A parada antecipada só é válida se a ordem for do mais novo para o mais
+      // antigo — é ela que garante que, ao ver o primeiro registro anterior ao
+      // corte, todos os seguintes também são. Com qualquer outra ordenação
+      // filtramos sem interromper, o que continua correto, só não economiza.
+      const podeParar = corte && sort === '-created_date';
+
       while (true) {
         const batch = await base44.asServiceRole.entities.QuizAttempt.filter(query, sort, batchSize, skip);
         if (!batch || batch.length === 0) break;
-        attempts = attempts.concat(batch);
+
+        if (corte) {
+          const dentro = batch.filter(a => new Date(a.created_date) >= corte);
+          attempts = attempts.concat(dentro);
+          if (podeParar && dentro.length < batch.length) break;
+        } else {
+          attempts = attempts.concat(batch);
+        }
+
         if (batch.length < batchSize) break;
         skip += batchSize;
       }

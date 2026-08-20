@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { ECGCase } from "@/entities/ECGCase";
-import { getCurrentUser } from '@/lib/currentUser';
+import { getCurrentUser, clearCurrentUserCache } from '@/lib/currentUser';
+import { comTimeout, descreverErro, detalheTecnico } from '@/lib/carregamento';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +59,9 @@ export default function Quiz() {
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Mesmo defeito que travava o ModuleDetail: sem isto, qualquer falha no
+  // carregamento deixava "Carregando caso..." na tela para sempre.
+  const [loadError, setLoadError] = useState(null);
   const [startTime, setStartTime] = useState(null);
   const [attemptedCaseIds, setAttemptedCaseIds] = useState([]);
   const [allCasesCompleted, setAllCasesCompleted] = useState(false);
@@ -146,13 +150,33 @@ export default function Quiz() {
   };
 
   const loadData = async () => {
-    const userData = await getCurrentUser();
+    try {
+      setLoadError(null);
+      await executarCarga();
+    } catch (error) {
+      console.error('Quiz: falha ao carregar', error);
+      setLoadError(error);
+      setLoading(false);
+    }
+  };
+
+  const executarCarga = async () => {
+    const userData = await comTimeout(getCurrentUser(), undefined, 'sua conta');
+    if (!userData) {
+      const erro = new Error('Não foi possível carregar sua conta.');
+      erro.code = 'sem_conta';
+      throw erro;
+    }
     setUser(userData);
 
     // Buscar tentativas e casos em paralelo (os casos não dependem das tentativas)
     const [attempts, allCases] = await Promise.all([
-      base44.functions.invoke('getMyQuizAttempts', {}).then(r => r?.data?.attempts || []),
-      ECGCase.list(),
+      comTimeout(
+        base44.functions.invoke('getMyQuizAttempts', {}),
+        undefined,
+        'suas tentativas'
+      ).then(r => r?.data?.attempts || []),
+      comTimeout(ECGCase.list(), undefined, 'casos de ECG'),
     ]);
 
     // Verificar limite para usuários gratuitos (reutiliza 'attempts')
@@ -207,7 +231,21 @@ export default function Quiz() {
     await loadNextCase(attemptedIds, allCases);
   };
 
+  // Casca própria porque os botões de "próxima questão" chamam isto direto, sem
+  // await e sem catch: uma falha aqui escapava como rejeição não tratada com o
+  // setLoading(true) da primeira linha já aplicado — spinner eterno de novo.
   const loadNextCase = async (attemptedIds = attemptedCaseIds, prefetchedCases = null) => {
+    try {
+      setLoadError(null);
+      await carregarProximoCaso(attemptedIds, prefetchedCases);
+    } catch (error) {
+      console.error('Quiz: falha ao carregar o próximo caso', error);
+      setLoadError(error);
+      setLoading(false);
+    }
+  };
+
+  const carregarProximoCaso = async (attemptedIds, prefetchedCases) => {
     setLoading(true);
     setSelectedAnswers([]);
     setShowResult(false);
@@ -216,7 +254,7 @@ export default function Quiz() {
     setShowCorrectAnswer(false);
     setCaseContent(null);
 
-    const allCases = prefetchedCases || await ECGCase.list();
+    const allCases = prefetchedCases || await comTimeout(ECGCase.list(), undefined, 'casos de ECG');
     const unansweredCases = allCases.filter(c => !attemptedIds.includes(c.id));
 
     if (unansweredCases.length > 0) {
@@ -333,14 +371,16 @@ export default function Quiz() {
         // Re-verificar limite após registrar a tentativa
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const todayDate = today.toISOString().split('T')[0];
-        const resTodas = await base44.functions.invoke('getMyQuizAttempts', {});
-        const allAttempts = resTodas?.data?.attempts || [];
-        const todayAttempts = allAttempts.filter(attempt => {
-          const attemptDate = new Date(attempt.created_date);
-          attemptDate.setHours(0, 0, 0, 0);
-          return attemptDate.toISOString().split('T')[0] === todayDate;
+        // `since` com a meia-noite LOCAL: esta re-verificação roda a cada
+        // questão respondida e só precisa do dia de hoje. Antes ela baixava o
+        // histórico inteiro para descartar tudo menos hoje aqui no navegador.
+        // O corte vai no fuso local de propósito — é o mesmo "hoje" que o
+        // checkFreeLimit usa para contar, e cortar em UTC daria dias diferentes
+        // para quem responde perto da virada.
+        const resTodas = await base44.functions.invoke('getMyQuizAttempts', {
+          since: today.toISOString()
         });
+        const todayAttempts = resTodas?.data?.attempts || [];
         const result = checkFreeLimit(todayAttempts);
         if (result.limited) {
           setNextAvailableTime(result.nextAvailableTime);
@@ -526,6 +566,50 @@ export default function Quiz() {
           <Loader2 className="w-12 h-12 animate-spin text-[#1976D2] mx-auto mb-4" />
           <p className="text-gray-600">Carregando caso...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Precisa vir antes do bloco de limite diário e de tudo que depende de
+  // `currentCase`: quando a carga falha, nada disso foi preenchido, e mostrar
+  // "limite atingido" ou "acabaram os casos" seria mentira.
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <Card className="w-full max-w-md border-2 border-amber-200 shadow-xl">
+          <CardContent className="p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-5">
+              <AlertTriangle className="w-8 h-8 text-amber-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">
+              Não foi possível carregar o quiz
+            </h2>
+            <p className="text-gray-600 mb-6">{descreverErro(loadError)}</p>
+            <div className="space-y-3">
+              <Button
+                onClick={() => {
+                  clearCurrentUserCache();
+                  setLoading(true);
+                  loadData();
+                }}
+                className="w-full bg-[#0D3B66] hover:bg-[#1976D2] text-white gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Tentar novamente
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate(createPageUrl("Dashboard"))}
+                className="w-full"
+              >
+                Voltar ao Dashboard
+              </Button>
+            </div>
+            <p className="mt-6 text-xs text-gray-400 break-words">
+              {detalheTecnico(loadError)}
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
