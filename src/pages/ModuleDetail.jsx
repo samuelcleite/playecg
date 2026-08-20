@@ -119,7 +119,9 @@ export default function ModuleDetail() {
   }, [showPhaseCompletion, isReview, completedCasesCount, totalPhaseCases, module, phase]);
 
   const findNextPhase = async () => {
-    const phasesData = await base44.entities.Phase.list();
+    // filter e não list: só as fases DESTE módulo interessam, e a linha de
+    // baixo já as filtrava em memória depois de baixar as de todos.
+    const phasesData = await base44.entities.Phase.filter({ module_id: module.id });
     const modulePhasesOrdered = phasesData
       .filter(p => p.module_id === module.id)
       .sort((a, b) => a.order - b.order);
@@ -171,8 +173,13 @@ export default function ModuleDetail() {
 
     // --- CRÍTICO: tudo que só depende de moduleId/phaseId/email roda em paralelo ---
     const [moduleData, phaseData, progressResp, allUserAttempts] = await Promise.all([
-      comTimeout(base44.entities.Module.list(), undefined, 'lista de módulos'),
-      comTimeout(base44.entities.Phase.list(), undefined, 'lista de fases'),
+      // Estas duas eram `.list()` e traziam TODOS os módulos e TODAS as fases do
+      // app para escolher um de cada por `.find`. É leitura de entidade que
+      // conta na cota do Base44 — e foi um estouro dessa cota
+      // ("App entity read traffic volume limit exceeded") que apareceu nos logs.
+      // O `.find`/`.filter` logo abaixo continua correto sobre o conjunto menor.
+      comTimeout(base44.entities.Module.filter({ id: moduleId }), undefined, 'lista de módulos'),
+      comTimeout(base44.entities.Phase.filter({ module_id: moduleId }), undefined, 'lista de fases'),
       // getUserProgress via service role (evita problema de RLS no modo "agindo como")
       comTimeout(
         base44.functions.invoke('getUserProgress', { user_email: userData.email }),

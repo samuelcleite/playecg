@@ -77,7 +77,7 @@ export default function ConteudoECG() {
       // que é justamente o que não tem phase_id.
       const [contents, modules] = await Promise.all([
         comTimeout(base44.entities.Content.filter({ module_id: moduleId }), undefined, 'conteúdo do módulo'),
-        comTimeout(base44.entities.Module.list(), undefined, 'lista de módulos')
+        comTimeout(base44.entities.Module.filter({ id: moduleId }), undefined, 'lista de módulos')
       ]);
 
       const moduleContent = contents.find(c => !c.phase_id);
@@ -92,8 +92,10 @@ export default function ConteudoECG() {
       // Content.filter que o Quiz já usa para carregar o conteúdo de um caso.
       const [contents, modules, phases] = await Promise.all([
         comTimeout(base44.entities.Content.filter({ module_id: moduleId, phase_id: phaseId }), undefined, 'conteúdo da fase'),
-        comTimeout(base44.entities.Module.list(), undefined, 'lista de módulos'),
-        comTimeout(base44.entities.Phase.list(), undefined, 'lista de fases')
+        // Mesma troca do ModuleDetail: só o módulo e as fases desta trilha, em
+        // vez do catálogo inteiro para escolher um de cada por `.find`.
+        comTimeout(base44.entities.Module.filter({ id: moduleId }), undefined, 'lista de módulos'),
+        comTimeout(base44.entities.Phase.filter({ module_id: moduleId }), undefined, 'lista de fases')
       ]);
 
       const phaseContent = contents?.[0] || null;
