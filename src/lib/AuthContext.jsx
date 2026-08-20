@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 import { getToken, clearToken } from '@/lib/customAuth';
+import { primeCurrentUser } from '@/lib/currentUser';
 import { initAndroidPurchases } from '@/utils/purchasesAndroid';
 import { vincularPushAoUsuario } from '@/utils/pushNativo';
 
@@ -165,6 +166,9 @@ export const AuthProvider = ({ children }) => {
         return false;
       }
       setUser(account);
+      // Abastece o cache do currentUser: sem isto, o Layout e as telas buscam
+      // esta MESMA Account de novo um segundo depois. Ver primeCurrentUser.
+      primeCurrentUser(account);
       setAuthMode(temJwt ? 'jwt' : 'base44');
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
@@ -182,6 +186,7 @@ export const AuthProvider = ({ children }) => {
           const account = res?.data?.account;
           if (account) {
             setUser(account);
+            primeCurrentUser(account);
             setAuthMode(temJwt ? 'jwt' : 'base44');
             setIsAuthenticated(true);
             setIsLoadingAuth(false);
