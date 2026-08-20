@@ -44,16 +44,23 @@ export async function getCurrentUser() {
   if (cache) return cache
   if (inflight) return inflight
 
-  inflight = buscar()
+  const meu = buscar()
     .then(account => {
       cache = account
       return account
     })
     .finally(() => {
-      inflight = null
+      // Só zera se `inflight` ainda for ESTA busca. Uma tela que desiste por
+      // timeout e chama clearCurrentUserCache() para tentar de novo deixa a
+      // busca antiga viva; quando ela finalmente responde, este finally rodaria
+      // em cima da busca NOVA e a apagaria do controle — duas telas montando em
+      // seguida voltariam a disparar requisições duplicadas, que é justamente o
+      // que o `inflight` existe para evitar.
+      if (inflight === meu) inflight = null
     })
 
-  return inflight
+  inflight = meu
+  return meu
 }
 
 // Invalida o cache e busca de novo. Usar depois de qualquer escrita no perfil
