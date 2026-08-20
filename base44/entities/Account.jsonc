@@ -67,6 +67,19 @@
       "format": "date-time",
       "description": "Início da cortesia em curso. Existe só para os caminhos de expiração compararem com subscription_start_date: data de assinatura mais recente que esta significa que a pessoa pagou depois de ganhar a cortesia, e então o vencimento do trial não pode rebaixá-la. Sai junto com trial_ends_at."
     },
+    "referred_by_coupon_id": {
+      "type": "string",
+      "description": "Id do Coupon de parceria que trouxe este usuário. É a CHAVE DO RELATÓRIO: a receita por parceiro sai de Payment -> Account -> este campo -> Coupon.partner_name, então o nome do parceiro nunca é copiado para cá e corrigir o nome no cupom corrige o relatório inteiro. Vazio = ninguém indicou."
+    },
+    "referred_by_code": {
+      "type": "string",
+      "description": "O código como estava no momento da atribuição (ex: FULANO20). Redundante com o Coupon apontado acima, e de propósito: se o cupom for excluído, o id vira ponteiro morto e só este campo resta para saber o que aconteceu."
+    },
+    "referred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Quando a atribuição foi gravada. Base para qualquer regra de janela — de conversão ou de comissão — que venha a ser adotada; a regra em si NÃO vive aqui."
+    },
     "specialty": {
       "type": "string",
       "description": "Especialidade médica do usuário"
