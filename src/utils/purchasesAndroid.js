@@ -86,6 +86,10 @@ export const PURCHASE_SUCCESS = "success";
 export const PURCHASE_CANCELLED = "cancelled";
 export const PURCHASE_UNAVAILABLE = "unavailable";
 export const PURCHASE_PENDING = "pending";
+// A oferta do parceiro não veio no device e quem chamou ainda não decidiu se
+// aceita o preço cheio. Não é erro e não abre a folha do Google: é uma pergunta
+// devolvida para a tela fazer ao usuário.
+export const PURCHASE_OFFER_UNAVAILABLE = "offer_unavailable";
 
 // Código do RevenueCat para "usuário cancelou"; chega como string pela ponte.
 const RC_CANCELLED_CODE = "1";
@@ -109,9 +113,53 @@ function hasEntitlement(customerInfo) {
   return Boolean(customerInfo?.entitlements?.active?.[RC_ENTITLEMENT]);
 }
 
+// Acha a oferta do Play pela tag. As ofertas NÃO são produtos e não viram
+// package no painel do RevenueCat: elas são subscriptionOptions dentro do
+// StoreProduct, resolvidas no device. Por isso não há offering alternativa a
+// procurar — a `current` é a única, e o que muda é a option comprada dentro
+// dela.
+//
+// subscriptionOptions é anulável nos types (é conceito do Google; no iOS vem
+// null), daí o `?? []`.
+function acharOfertaPorTag(aPackage, tag) {
+  if (!tag) return null;
+  const opcoes = aPackage?.product?.subscriptionOptions ?? [];
+  return opcoes.find((o) => (o.tags ?? []).includes(tag)) ?? null;
+}
+
+// Envolve a compra com o tratamento de cancelamento, que é igual nos três
+// caminhos. Sem teto de tempo de propósito: a pessoa pode levar minutos
+// legitimamente na folha de pagamento do Google Play.
+async function concluirCompra(executar) {
+  try {
+    const { customerInfo } = await executar();
+    return hasEntitlement(customerInfo) ? PURCHASE_SUCCESS : PURCHASE_PENDING;
+  } catch (error) {
+    if (error?.code === RC_CANCELLED_CODE || error?.userCancelled) {
+      return PURCHASE_CANCELLED;
+    }
+    throw error;
+  }
+}
+
 // Dispara a compra do plano no Android. Nunca usa product ID fixo: no Google
 // Play o identificador é subscriptionId:basePlanId e vem do Offering do painel.
-export async function purchaseAndroidPlan(plan, appUserId) {
+//
+// `offerTag` é a tag da oferta do parceiro no Play ('tier-a' / 'tier-b').
+// Sem ela, o caminho é EXATAMENTE o de antes — purchasePackage sobre o package
+// do plano. Isso é deliberado: a compra sem cupom é a maioria, e ela não pode
+// carregar o risco de uma regressão do caminho de parceria.
+//
+// `aceitarPrecoCheio` só é consultado quando a tag foi pedida e NÃO foi
+// encontrada no device. Nesse caso a função não decide sozinha: devolve
+// PURCHASE_OFFER_UNAVAILABLE para a tela perguntar. Cair calado no preço cheio
+// cobraria R$ 59,90 de quem digitou um código de desconto e viu a tela aceitar
+// — a pessoa descobriria na fatura.
+export async function purchaseAndroidPlan(
+  plan,
+  appUserId,
+  { offerTag = null, aceitarPrecoCheio = false } = {}
+) {
   if (!isAndroidNativeApp()) return PURCHASE_UNAVAILABLE;
 
   await initAndroidPurchases(appUserId);
@@ -121,17 +169,25 @@ export async function purchaseAndroidPlan(plan, appUserId) {
   // Play Console. Retorna em vez de lançar.
   if (!aPackage) return PURCHASE_UNAVAILABLE;
 
-  try {
-    // Sem teto de tempo aqui, de propósito: a pessoa pode levar minutos
-    // legitimamente na folha de pagamento do Google Play.
-    const { customerInfo } = await Purchases.purchasePackage({ aPackage });
-    return hasEntitlement(customerInfo) ? PURCHASE_SUCCESS : PURCHASE_PENDING;
-  } catch (error) {
-    if (error?.code === RC_CANCELLED_CODE || error?.userCancelled) {
-      return PURCHASE_CANCELLED;
-    }
-    throw error;
+  if (!offerTag) {
+    return concluirCompra(() => Purchases.purchasePackage({ aPackage }));
   }
+
+  const oferta = acharOfertaPorTag(aPackage, offerTag);
+  if (oferta) {
+    return concluirCompra(() =>
+      Purchases.purchaseSubscriptionOption({ subscriptionOption: oferta })
+    );
+  }
+
+  if (!aceitarPrecoCheio) return PURCHASE_OFFER_UNAVAILABLE;
+
+  // Preço cheio, com o usuário já avisado. defaultOption é anulável nos types;
+  // quando falta, cai no purchasePackage, que é o caminho de sempre.
+  const padrao = aPackage.product?.defaultOption ?? null;
+  return padrao
+    ? concluirCompra(() => Purchases.purchaseSubscriptionOption({ subscriptionOption: padrao }))
+    : concluirCompra(() => Purchases.purchasePackage({ aPackage }));
 }
 
 // Restaura compras anteriores no Android. Retorna true se o entitlement estiver
