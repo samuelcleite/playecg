@@ -32,6 +32,18 @@
       "type": "number",
       "description": "Só tem efeito quando duration = repeating; obrigatório nesse caso e ignorado nos demais. Contado em MESES CORRIDOS, nunca em cobranças: no plano anual, que cobra uma vez a cada 12 meses, qualquer valor de 1 a 12 desconta apenas a primeira cobrança e nada nas seguintes."
     },
+    "partner_name": {
+      "type": "string",
+      "description": "Nome do parceiro/influenciador dono deste código. Preenchido = cupom de parceria; vazio = cupom comum. É a CHAVE DE AGRUPAMENTO do relatório de receita por parceiro, comparada por valor exato — um parceiro com mais de um cupom precisa do nome escrito igual nos dois."
+    },
+    "tier": {
+      "type": "string",
+      "enum": [
+        "tier-a",
+        "tier-b"
+      ],
+      "description": "Faixa de desconto nas lojas. Casa com a tag da oferta no Play Console (tier-a / tier-b) e com o código de oferta da App Store. NÃO é percentual: as ofertas foram configuradas por preço redondo, então o mesmo tier desconta proporções diferentes no mensal e no anual. Sem default de propósito — ausente significa cupom que não vale nas lojas, só no Stripe. Não substitui discount_type/discount_value, que continuam sendo o que o Stripe aplica na web."
+    },
     "valid_from": {
       "type": "string",
       "format": "date-time",
