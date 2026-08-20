@@ -1,6 +1,7 @@
 # Autenticação e backend do PlayECG
 
-> Atualizado em 2026-07-29, depois da migração do login hospedado do Base44 para auth próprio.
+> Atualizado em 2026-08-19. A base — migração do login hospedado para auth próprio — é de
+> 2026-07-29; o acesso de cortesia, a promoção automática e o invariante 9 entraram em agosto.
 >
 > **Este documento substitui o `AUDIT_AUTH.md`**, que era a fotografia do dia 26/07 — o mundo
 > *anterior* à migração. Aquele documento descrevia `base44.auth.me()` em toda tela, o `User`
@@ -154,10 +155,17 @@ Acesso de cortesia (tela `AdminTrials`, só web):
 ### Promoção automática — `promocoes`
 
 **É o único caminho de concessão que não exige admin**, e por isso o único em que
-o critério precisa ser provado, não afirmado. Duas ações: `status` (o que a tela pode oferecer)
-e `resgatar` (concede, se o critério estiver mesmo cumprido). Juntas na mesma function de
-propósito — separadas, a regra de elegibilidade divergiria entre as duas, e o sintoma seria a
-tela oferecendo o que o backend recusa.
+o critério precisa ser provado, não afirmado.
+
+| Ação | Quem chama | O que faz |
+|---|---|---|
+| `status` | usuário | Diz se há oferta para esta pessoa. Não consulta o OneSignal — a verificação cara fica no resgate. |
+| `resgatar` | usuário | Concede, se o critério estiver mesmo cumprido. |
+| `diagnostico` | **admin** | Por que deu ou não deu, para um e-mail qualquer. Só leitura. |
+| `resgatar_admin` | **admin** | Libera para quem já tinha push ativo — o público que a tela não alcança. |
+
+As quatro na mesma function de propósito: separadas, a regra de elegibilidade viveria em vários
+lugares e divergiria, e o sintoma seria a tela oferecendo o que o backend recusa.
 
 A primeira promoção é `push_ios`: ativar notificações no app iOS vale N dias.
 
@@ -198,6 +206,28 @@ e aceitou hoje.
 *Furo conhecido:* quem já tem push e chamar a function pelo console ganha, porque do lado do
 servidor ela cumpre o critério. Aceito — custa sete dias, e fechá-lo exigiria fotografar a base
 inteira antes de ligar a campanha.
+
+**O resgate NÃO pode ser condicionado ao status já ter carregado na tela.** Foi assim na
+primeira versão (`if (promo) resgatar()`) e produziu a primeira falha em produção: quem tocava no
+botão antes de a consulta responder ativava as notificações e não ganhava nada — e o banner some
+depois disso, porque a promoção não é retroativa. A pessoa cumpria o combinado e ficava sem
+prêmio, **sem segunda chance**. Hoje o resgate é sempre tentado depois da permissão concedida, e
+quem decide é o servidor. Recusa por "não havia promoção para você" é silenciosa na tela.
+
+### Quando alguém reclamar que não recebeu
+
+**Primeira parada: a aba Diagnóstico da tela de cortesias.** Ela existe porque "não funcionou"
+cobre cinco causas indistinguíveis de fora — campanha desligada, conta inelegível, já resgatada,
+sem inscrição no OneSignal, ou a permissão já estar concedida quando o app abriu (caso em que o
+banner some de propósito). Informe o e-mail e ela devolve a cadeia inteira, incluindo o que o
+OneSignal respondeu de verdade: status HTTP e as subscriptions cruas com `type`, `enabled` e
+`notification_types`.
+
+Se o veredito for "tudo pronto", o botão **Liberar os N dias** aparece — é o `resgatar_admin`. Ele
+**não** é um "conceder porque eu quero": a verificação no OneSignal continua valendo, e o "uma vez
+por pessoa" também. Para conceder sem critério, o caminho é a tela de concessão, que é honesta
+sobre ser isso. O `granted_by` fica com o e-mail do admin (quem decidiu foi uma pessoa), mas a
+`origem` continua sendo a da promoção, para a conta contar na medição da campanha.
 
 > ⚠️ **Depende de um binário que pode não estar de pé.** Enquanto o app do Despia não for
 > reconstruído com o SDK do OneSignal embutido, nenhuma conta tem subscription lá e a promoção
