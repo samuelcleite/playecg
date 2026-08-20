@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { getCurrentUser } from '@/lib/currentUser';
+import { getCurrentUser, clearCurrentUserCache } from '@/lib/currentUser';
+import { comTimeout, descreverErro, detalheTecnico } from '@/lib/carregamento';
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import TopBar from "@/components/TopBar";
@@ -55,6 +56,10 @@ export default function ModuleDetail() {
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Falha de carregamento. Antes disto, qualquer erro dentro do loadData
+  // deixava `loading` em true para sempre — o usuário via "Carregando
+  // módulo..." indefinidamente, sem mensagem e sem como tentar de novo.
+  const [loadError, setLoadError] = useState(null);
   // Plano free chegou até aqui: a trilha em Modules é aberta a todos e o pedido
   // de assinatura acontece nesta tela, na hora de abrir a fase.
   const [needsUpgrade, setNeedsUpgrade] = useState(false);
@@ -114,7 +119,9 @@ export default function ModuleDetail() {
   }, [showPhaseCompletion, isReview, completedCasesCount, totalPhaseCases, module, phase]);
 
   const findNextPhase = async () => {
-    const phasesData = await base44.entities.Phase.list();
+    // filter e não list: só as fases DESTE módulo interessam, e a linha de
+    // baixo já as filtrava em memória depois de baixar as de todos.
+    const phasesData = await base44.entities.Phase.filter({ module_id: module.id });
     const modulePhasesOrdered = phasesData
       .filter(p => p.module_id === module.id)
       .sort((a, b) => a.order - b.order);
@@ -125,7 +132,23 @@ export default function ModuleDetail() {
     }
   };
 
-  const loadData = async ({ skipReturnCase = false } = {}) => {
+  // loadData é só a casca de erro. Toda falha aqui dentro terminava num spinner
+  // eterno: sem catch, o `setLoading(false)` do fim nunca era alcançado, e a
+  // tela não tinha estado para "deu errado" — só "carregando" e "pronto".
+  // Modules.jsx já tratava assim (try/catch + desliga o loading), o que explica
+  // o relato de suporte em que a trilha abria e a fase não.
+  const loadData = async (opts = {}) => {
+    try {
+      setLoadError(null);
+      await executarCarga(opts);
+    } catch (error) {
+      console.error('ModuleDetail: falha ao carregar', error);
+      setLoadError(error);
+      setLoading(false);
+    }
+  };
+
+  const executarCarga = async ({ skipReturnCase = false } = {}) => {
     const urlParams = new URLSearchParams(window.location.search);
     const moduleId = urlParams.get('module_id');
     const phaseId = urlParams.get('phase_id');
@@ -135,28 +158,61 @@ export default function ModuleDetail() {
       return;
     }
 
-    const userData = await getCurrentUser();
+    const userData = await comTimeout(getCurrentUser(), undefined, 'sua conta');
+
+    // getCurrentUser devolve null (não lança) quando a resposta vem sem
+    // `account`. Sem esta guarda, o `userData.email` logo abaixo estourava um
+    // TypeError — e como o Modules chama getUserProgress sem email, a trilha
+    // continuava abrindo enquanto só esta tela quebrava.
+    if (!userData) {
+      const erro = new Error('Não foi possível carregar sua conta.');
+      erro.code = 'sem_conta';
+      throw erro;
+    }
     setUser(userData);
 
     // --- CRÍTICO: tudo que só depende de moduleId/phaseId/email roda em paralelo ---
     const [moduleData, phaseData, progressResp, allUserAttempts] = await Promise.all([
-      base44.entities.Module.list(),
-      base44.entities.Phase.list(),
+      // Estas duas eram `.list()` e traziam TODOS os módulos e TODAS as fases do
+      // app para escolher um de cada por `.find`. É leitura de entidade que
+      // conta na cota do Base44 — e foi um estouro dessa cota
+      // ("App entity read traffic volume limit exceeded") que apareceu nos logs.
+      // O `.find`/`.filter` logo abaixo continua correto sobre o conjunto menor.
+      comTimeout(base44.entities.Module.filter({ id: moduleId }), undefined, 'lista de módulos'),
+      comTimeout(base44.entities.Phase.filter({ module_id: moduleId }), undefined, 'lista de fases'),
       // getUserProgress via service role (evita problema de RLS no modo "agindo como")
-      base44.functions
-        .invoke('getUserProgress', { user_email: userData.email })
+      comTimeout(
+        base44.functions.invoke('getUserProgress', { user_email: userData.email }),
+        undefined,
+        'seu progresso'
+      ).catch(err => {
+        console.warn('Failed to load user progress:', err.message);
+        return null;
+      }),
+      // Tentativas apenas para saber se usuário já entrou na fase (verificar redirect)
+      //
+      // O catch aqui é deliberado e o valor de falha é `null`, não `[]`. Esta
+      // leitura só decide UM desvio de conveniência (mandar quem nunca entrou
+      // para a teoria antes do quiz) — derrubar a fase inteira por causa dela
+      // seria trocar um desvio por uma tela morta. E `[]` mentiria: significa
+      // "nunca entrou", o que empurraria para a teoria quem já estava no meio
+      // da fase. `null` = não sabemos, e não sabendo não se desvia.
+      comTimeout(
+        base44.functions.invoke('getMyQuizAttempts', {
+          module_id: moduleId,
+          phase_id: phaseId,
+          quiz_type: "module",
+          sort: "-created_date",
+          limit: 1
+        }),
+        undefined,
+        'suas tentativas'
+      )
+        .then(r => r?.data?.attempts || [])
         .catch(err => {
-          console.warn('Failed to load user progress:', err.message);
+          console.warn('Failed to load quiz attempts:', err.message);
           return null;
         }),
-      // Tentativas apenas para saber se usuário já entrou na fase (verificar redirect)
-      base44.functions.invoke('getMyQuizAttempts', {
-        module_id: moduleId,
-        phase_id: phaseId,
-        quiz_type: "module",
-        sort: "-created_date",
-        limit: 1
-      }).then(r => r?.data?.attempts || []),
     ]);
 
     const foundModule = moduleData.find(m => m.id === moduleId);
@@ -205,10 +261,24 @@ export default function ModuleDetail() {
     // Selecionar casos e buscar conteúdo da fase em paralelo (não dependem entre si)
     const [combinedCasesRaw, phaseContentData] = await Promise.all([
       // Selecionar e combinar casos (80% fase atual + 20% fases anteriores)
-      selectAndCombineCases(moduleId, phaseId, foundPhase, phaseData, completedCaseIds, review),
-      base44.entities.Content
-        .filter({ module_id: moduleId, phase_id: phaseId })
-        .then(r => r?.[0] || null),
+      comTimeout(
+        selectAndCombineCases(moduleId, phaseId, foundPhase, phaseData, completedCaseIds, review),
+        undefined,
+        'casos da fase'
+      ),
+      // Conteúdo teórico: como as tentativas, só alimenta o desvio para a
+      // teoria. Falhar aqui não pode custar a fase — sem conteúdo, segue direto
+      // para os casos, que é o mesmo que acontece nas fases que não têm teoria.
+      comTimeout(
+        base44.entities.Content.filter({ module_id: moduleId, phase_id: phaseId }),
+        undefined,
+        'conteúdo da fase'
+      )
+        .then(r => r?.[0] || null)
+        .catch(err => {
+          console.warn('Failed to load phase content:', err.message);
+          return null;
+        }),
     ]);
 
     let combinedCases = combinedCasesRaw;
@@ -238,7 +308,9 @@ export default function ModuleDetail() {
 
     // Só redirecionar para conteúdo se o usuário nunca fez NENHUMA tentativa nesta fase
     const fromParam = urlParams.get('from');
-    if (allUserAttempts.length === 0 && phaseContentData && fromParam !== 'phase_transition' && fromParam !== 'content') {
+    // `allUserAttempts === null` significa que a leitura falhou: nesse caso não
+    // desviamos, porque desviar por engano tira o usuário da fase que ele pediu.
+    if (allUserAttempts?.length === 0 && phaseContentData && fromParam !== 'phase_transition' && fromParam !== 'content') {
       navigate(`${createPageUrl("ConteudoECG")}?type=phase&module_id=${moduleId}&phase_id=${phaseId}&from=phase_transition`, { replace: true });
       return;
     }
@@ -607,6 +679,62 @@ export default function ModuleDetail() {
           <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-gray-600">Carregando módulo...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Falha de carregamento. Precisa vir antes do paywall e de tudo que depende de
+  // `cases`: quando a carga estoura, nenhum desses estados foi preenchido, e o
+  // que a pessoa precisa é poder tentar de novo — não um bloqueio de plano que
+  // seria falso, nem um spinner que nunca acaba.
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <Card className="w-full max-w-md border-2 border-amber-200 shadow-xl">
+          <CardContent className="p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-5">
+              <AlertTriangle className="w-8 h-8 text-amber-600" />
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">
+              Não foi possível abrir esta fase
+            </h2>
+            <p className="text-gray-600 mb-6">{descreverErro(loadError)}</p>
+
+            <div className="space-y-3">
+              <Button
+                onClick={() => {
+                  // Limpar o cache é o que faz o retry ser um retry de verdade.
+                  // Quando a falha foi timeout, a promessa original do
+                  // getCurrentUser continua pendurada e guardada em `inflight`
+                  // — sem limpar, a nova tentativa recebe a MESMA promessa que
+                  // já não respondia e falha de novo pelo mesmo motivo.
+                  clearCurrentUserCache();
+                  setLoading(true);
+                  loadData();
+                }}
+                className="w-full bg-[#0D3B66] hover:bg-[#1976D2] text-white gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Tentar novamente
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate(createPageUrl("Modules"))}
+                className="w-full gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Voltar à trilha
+              </Button>
+            </div>
+
+            {/* Linha para o suporte: é o que a pessoa consegue printar e mandar
+                quando o texto acima não basta para explicar o que houve. */}
+            <p className="mt-6 text-xs text-gray-400 break-words">
+              {detalheTecnico(loadError)}
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }

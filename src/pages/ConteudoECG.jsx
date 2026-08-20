@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { getCurrentUser } from '@/lib/currentUser';
+import { getCurrentUser, clearCurrentUserCache } from '@/lib/currentUser';
+import { comTimeout, descreverErro, detalheTecnico } from '@/lib/carregamento';
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
+  AlertTriangle,
+  RefreshCw,
   Loader2,
   Sparkles,
   BookOpen,
@@ -23,6 +26,9 @@ export default function ConteudoECG() {
   const [searchParams] = useSearchParams();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Mesma correção do ModuleDetail: esta tela é o destino do desvio para a
+  // teoria, então herdava o mesmo spinner eterno em qualquer falha de rede.
+  const [loadError, setLoadError] = useState(null);
   const [content, setContent] = useState(null);
   const [module, setModule] = useState(null);
   const [phase, setPhase] = useState(null);
@@ -33,7 +39,23 @@ export default function ConteudoECG() {
   }, []);
 
   const loadContent = async () => {
-    const userData = await getCurrentUser();
+    try {
+      setLoadError(null);
+      await executarCarga();
+    } catch (error) {
+      console.error('ConteudoECG: falha ao carregar', error);
+      setLoadError(error);
+      setLoading(false);
+    }
+  };
+
+  const executarCarga = async () => {
+    const userData = await comTimeout(getCurrentUser(), undefined, 'sua conta');
+    if (!userData) {
+      const erro = new Error('Não foi possível carregar sua conta.');
+      erro.code = 'sem_conta';
+      throw erro;
+    }
     setUser(userData);
 
     const type = searchParams.get('type');
@@ -44,7 +66,7 @@ export default function ConteudoECG() {
 
     if (type === 'intro') {
       // Buscar conteúdo de introdução
-      const contents = await base44.entities.Content.list();
+      const contents = await comTimeout(base44.entities.Content.list(), undefined, 'conteúdos');
       const introContent = contents.find(c => !c.module_id && !c.phase_id);
       setContent(introContent);
     } else if (type === 'module' && moduleId) {
@@ -54,8 +76,8 @@ export default function ConteudoECG() {
       // módulo — o geral mais os das fases — e o find local separa o geral,
       // que é justamente o que não tem phase_id.
       const [contents, modules] = await Promise.all([
-        base44.entities.Content.filter({ module_id: moduleId }),
-        base44.entities.Module.list()
+        comTimeout(base44.entities.Content.filter({ module_id: moduleId }), undefined, 'conteúdo do módulo'),
+        comTimeout(base44.entities.Module.filter({ id: moduleId }), undefined, 'lista de módulos')
       ]);
 
       const moduleContent = contents.find(c => !c.phase_id);
@@ -69,9 +91,11 @@ export default function ConteudoECG() {
       // são conhecidos, então volta só o conteúdo desta fase. É o mesmo
       // Content.filter que o Quiz já usa para carregar o conteúdo de um caso.
       const [contents, modules, phases] = await Promise.all([
-        base44.entities.Content.filter({ module_id: moduleId, phase_id: phaseId }),
-        base44.entities.Module.list(),
-        base44.entities.Phase.list()
+        comTimeout(base44.entities.Content.filter({ module_id: moduleId, phase_id: phaseId }), undefined, 'conteúdo da fase'),
+        // Mesma troca do ModuleDetail: só o módulo e as fases desta trilha, em
+        // vez do catálogo inteiro para escolher um de cada por `.find`.
+        comTimeout(base44.entities.Module.filter({ id: moduleId }), undefined, 'lista de módulos'),
+        comTimeout(base44.entities.Phase.filter({ module_id: moduleId }), undefined, 'lista de fases')
       ]);
 
       const phaseContent = contents?.[0] || null;
@@ -93,6 +117,50 @@ export default function ConteudoECG() {
           <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
           <p className="text-gray-600">Carregando conteúdo...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <Card className="w-full max-w-md border-2 border-amber-200 shadow-xl">
+          <CardContent className="p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-5">
+              <AlertTriangle className="w-8 h-8 text-amber-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">
+              Não foi possível abrir este conteúdo
+            </h2>
+            <p className="text-gray-600 mb-6">{descreverErro(loadError)}</p>
+            <div className="space-y-3">
+              <Button
+                onClick={() => {
+                  // Mesmo motivo do ModuleDetail: sem limpar, o retry reusa a
+                  // promessa pendurada do getCurrentUser.
+                  clearCurrentUserCache();
+                  setLoading(true);
+                  loadContent();
+                }}
+                className="w-full bg-[#0D3B66] hover:bg-[#1976D2] text-white gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Tentar novamente
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate(createPageUrl("Modules"))}
+                className="w-full gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Voltar à trilha
+              </Button>
+            </div>
+            <p className="mt-6 text-xs text-gray-400 break-words">
+              {detalheTecnico(loadError)}
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
