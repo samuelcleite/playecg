@@ -67,6 +67,19 @@
       "format": "date-time",
       "description": "Início da cortesia em curso. Existe só para os caminhos de expiração compararem com subscription_start_date: data de assinatura mais recente que esta significa que a pessoa pagou depois de ganhar a cortesia, e então o vencimento do trial não pode rebaixá-la. Sai junto com trial_ends_at."
     },
+    "pending_referral_coupon_id": {
+      "type": "string",
+      "description": "Id do Coupon de parceria que o usuário digitou e que AINDA NÃO virou atribuição. Intenção, não atribuição: quem digita e nunca compra nunca aparece no relatório de nenhum parceiro. O webhook de pagamento promove estes três campos para os referred_by_* e limpa os pendentes."
+    },
+    "pending_referral_code": {
+      "type": "string",
+      "description": "O código digitado, aguardando a compra confirmar. Sobrescrito livremente a cada novo código digitado — vale o que estiver aqui no momento do pagamento."
+    },
+    "pending_referral_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Quando o código pendente foi digitado. Não existe janela de conversão: pendência não expira. Serve para investigar uma pendência antiga que nunca converteu, e para medir o intervalo entre digitar e assinar."
+    },
     "referred_by_coupon_id": {
       "type": "string",
       "description": "Id do Coupon de parceria que trouxe este usuário. É a CHAVE DO RELATÓRIO: a receita por parceiro sai de Payment -> Account -> este campo -> Coupon.partner_name, então o nome do parceiro nunca é copiado para cá e corrigir o nome no cupom corrige o relatório inteiro. Vazio = ninguém indicou."
