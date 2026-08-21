@@ -328,6 +328,83 @@ Deno.serve(async (req) => {
             }
         }
 
+        // ── RENOVAÇÃO ────────────────────────────────────────────────────
+        // Até aqui uma assinatura de 12 meses gerava UMA linha de Payment: o
+        // checkout.session.completed só dispara na primeira compra. A receita
+        // recorrente — que é justamente o que o programa de parceria paga —
+        // não existia em lugar nenhum.
+        //
+        // SÓ 'subscription_cycle'. A primeira fatura da assinatura chega aqui
+        // como 'subscription_create' e JÁ virou Payment pelo
+        // checkout.session.completed; processá-la duplicaria a cobrança no
+        // relatório. Os outros motivos (subscription_update de proration,
+        // manual) ficam de fora de propósito: são ajustes, e entrariam no
+        // relatório como receita de parceiro sem ser. Ficam logados para
+        // aparecerem se um dia importarem.
+        if (event.type === 'invoice.paid') {
+            const invoice = event.data.object;
+            const motivo = invoice.billing_reason;
+
+            if (motivo !== 'subscription_cycle') {
+                console.log('invoice.paid ignorado, billing_reason:', motivo, invoice.id);
+            } else {
+                const email = invoice.customer_email;
+                if (!email) {
+                    console.error('invoice.paid sem customer_email:', invoice.id);
+                } else {
+                    // Dedup por reference_id. O Stripe re-tenta evento que não
+                    // respondeu 2xx, e sem isto cada re-tentativa viraria mais
+                    // uma linha de receita.
+                    const jaExiste = await base44.asServiceRole.entities.Payment.filter({
+                        reference_id: invoice.id
+                    });
+
+                    if (jaExiste && jaExiste.length > 0) {
+                        console.log('invoice.paid já registrado:', invoice.id);
+                    } else {
+                        const contas = await base44.asServiceRole.entities.Account.filter({
+                            email: email.trim().toLowerCase()
+                        });
+                        const conta = contas.length > 0 ? contas[0] : null;
+
+                        // O cupom vem da ATRIBUIÇÃO da conta, não da fatura. A
+                        // fatura não carrega o nosso coupon_id, e a atribuição
+                        // é o registro durável de quem trouxe este assinante.
+                        // Numa renovação, coupon_id significa "o cupom que
+                        // rege esta assinatura", não "desconto aplicado nesta
+                        // cobrança" — e gravá-lo aqui congela a atribuição no
+                        // momento do pagamento, para que uma reatribuição
+                        // futura não reescreva o histórico do parceiro antigo.
+                        const cupomDaAtribuicao = conta?.referred_by_coupon_id || null;
+
+                        // subtotal e total sempre existem na Invoice; a
+                        // diferença é o que os descontos abateram. Não depende
+                        // de total_discount_amounts, cuja forma varia entre
+                        // versões da API.
+                        const bruto = (invoice.subtotal ?? invoice.total ?? 0) / 100;
+                        const liquido = (invoice.total ?? 0) / 100;
+                        const desconto = Math.max(0, bruto - liquido);
+
+                        await base44.asServiceRole.entities.Payment.create({
+                            user_email: email,
+                            stripe_subscription_id: typeof invoice.subscription === 'string'
+                                ? invoice.subscription
+                                : invoice.subscription?.id || null,
+                            reference_id: invoice.id,
+                            amount: (invoice.amount_paid ?? invoice.total ?? 0) / 100,
+                            discount_amount: desconto,
+                            coupon_id: cupomDaAtribuicao,
+                            status: 'PAID',
+                            payment_method: 'STRIPE_SUBSCRIPTION',
+                            paid_at: new Date().toISOString()
+                        });
+
+                        console.log('🔁 Renovação registrada:', email, invoice.id);
+                    }
+                }
+            }
+        }
+
         if (event.type === 'customer.subscription.deleted') {
             const sub = event.data.object;
             const email = sub.metadata?.user_email;
