@@ -225,6 +225,51 @@ Deno.serve(async (req) => {
                 paid_at: new Date().toISOString()
             });
 
+            // ── ATRIBUIÇÃO DE PARCERIA ───────────────────────────────────
+            // Regra: vence quem estava aplicado NA COMPRA. Aqui isso é literal
+            // — o couponId vem da metadata da session, então é o cupom que de
+            // fato descontou esta cobrança. Um código digitado antes e trocado
+            // depois não deixa rastro nenhum.
+            //
+            // Escrita SEPARADA da que concede o premium, de propósito. Aquela
+            // mexe em subscription_type e trial_ends_at, e não pode ganhar
+            // companhia que possa falhar. Se esta aqui estourar, o acesso já
+            // está concedido e o pior caso é um parceiro não creditado.
+            //
+            // A pendência é limpa em TODA compra confirmada, inclusive quando
+            // não houve cupom: o momento da verdade passou, e uma pendência
+            // sobrevivente ficaria esperando um pagamento que não vem mais.
+            if (contas.length > 0) {
+                try {
+                    const atribuicao = {
+                        pending_referral_coupon_id: null,
+                        pending_referral_code: null,
+                        pending_referral_at: null
+                    };
+
+                    if (couponId) {
+                        const cupons = await base44.asServiceRole.entities.Coupon.filter({ id: couponId });
+                        const cupom = cupons.length > 0 ? cupons[0] : null;
+                        // Só cupom COM parceiro atribui. Cupom comum é desconto,
+                        // não indicação — e sobrescrever uma atribuição antiga
+                        // com "ninguém" apagaria o crédito de quem trouxe o
+                        // cliente da primeira vez.
+                        if (cupom && cupom.partner_name) {
+                            atribuicao.referred_by_coupon_id = cupom.id;
+                            atribuicao.referred_by_code = cupom.code;
+                            atribuicao.referred_at = new Date().toISOString();
+                        }
+                    }
+
+                    await base44.asServiceRole.entities.Account.update(contas[0].id, atribuicao);
+                } catch (erroAtribuicao) {
+                    console.error(
+                        'Falha ao gravar atribuição de parceria (acesso JÁ concedido):',
+                        erroAtribuicao.message
+                    );
+                }
+            }
+
             // Registrar uso de cupom
             if (couponId) {
                 const existing = await base44.asServiceRole.entities.CouponUsage.filter({
