@@ -37,6 +37,8 @@ const CAMPOS_PERMITIDOS = [
   'discount_value',
   'duration',
   'duration_in_months',
+  'partner_name',
+  'tier',
   'valid_from',
   'valid_until',
   'usage_limit',
@@ -45,6 +47,7 @@ const CAMPOS_PERMITIDOS = [
 ];
 
 const DURACOES = ['once', 'repeating', 'forever'];
+const TIERS = ['tier-a', 'tier-b'];
 const TIPOS_DESCONTO = ['percentage', 'fixed'];
 
 function b64urlToBytes(input) {
@@ -170,6 +173,24 @@ function prepararDados(entrada, { novo }) {
       return { erro: 'Desconto percentual não pode passar de 100' };
     }
     dados.discount_value = valor;
+  }
+
+  // PARCERIA. Os dois campos são opcionais e independentes do desconto do
+  // Stripe: partner_name diz de quem é o cupom, tier diz qual oferta comprar
+  // nas lojas. Vazio nos dois = cupom comum.
+  if (Object.prototype.hasOwnProperty.call(dados, 'partner_name')) {
+    const nome = typeof dados.partner_name === 'string' ? dados.partner_name.trim() : '';
+    // Normaliza para string vazia virar null: o relatório agrupa por valor
+    // exato, e "" e null como coisas diferentes criariam um parceiro fantasma.
+    dados.partner_name = nome || null;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(dados, 'tier')) {
+    if (dados.tier === '' || dados.tier === null || dados.tier === undefined) {
+      dados.tier = null;
+    } else if (!TIERS.includes(dados.tier)) {
+      return { erro: `Tier inválido: ${dados.tier}` };
+    }
   }
 
   // DURAÇÃO — mesma regra do createStripeCheckout.

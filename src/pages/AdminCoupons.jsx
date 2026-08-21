@@ -83,6 +83,14 @@ function efeitoDaDuracao(plano, { duration, duration_in_months, discount_type, d
 
 // Rótulos curtos para o card da lista. Sem isto, dois cupons de 20% com
 // durações diferentes ficam idênticos na listagem.
+// O que cada tier custa nas lojas. Preços das ofertas do Play e dos códigos
+// da App Store — não são percentuais: foram configurados por preço redondo,
+// então o mesmo tier desconta proporções diferentes no mensal e no anual.
+const TIER_LABEL = {
+  "tier-a": { nome: "Tier A", mensal: "R$ 49,90/mês", anual: "R$ 399,90/ano" },
+  "tier-b": { nome: "Tier B", mensal: "R$ 39,90/mês", anual: "R$ 349,90/ano" }
+};
+
 const DURACAO_LABEL = {
   forever: "Para sempre",
   once: "1ª cobrança",
@@ -104,6 +112,8 @@ export default function AdminCoupons() {
     discount_value: 0,
     duration: "forever",
     duration_in_months: null,
+    partner_name: "",
+    tier: "",
     valid_from: "",
     valid_until: "",
     usage_limit: null,
@@ -177,6 +187,8 @@ export default function AdminCoupons() {
         // deixar o admin achar que a duração está indefinida.
         duration: couponToEdit.duration || "forever",
         duration_in_months: couponToEdit.duration_in_months ?? null,
+        partner_name: couponToEdit.partner_name || "",
+        tier: couponToEdit.tier || "",
         valid_from: couponToEdit.valid_from ? couponToEdit.valid_from.split('T')[0] : "",
         valid_until: couponToEdit.valid_until ? couponToEdit.valid_until.split('T')[0] : "",
         usage_limit: couponToEdit.usage_limit,
@@ -192,6 +204,8 @@ export default function AdminCoupons() {
         discount_value: 0,
         duration: "forever",
         duration_in_months: null,
+        partner_name: "",
+        tier: "",
         valid_from: "",
         valid_until: "",
         usage_limit: null,
@@ -216,7 +230,11 @@ export default function AdminCoupons() {
       // gravar lixo aqui seria contar com aquela defesa para sempre.
       duration_in_months: formData.duration === "repeating"
         ? parseInt(formData.duration_in_months)
-        : null
+        : null,
+      // Campo vazio vai como null, nunca como "": o relatório agrupa por valor
+      // exato e uma string vazia viraria um parceiro fantasma na lista.
+      partner_name: formData.partner_name.trim() || null,
+      tier: formData.tier || null
     };
 
     try {
@@ -410,6 +428,14 @@ export default function AdminCoupons() {
                             diferentes ficam indistinguíveis na listagem. O
                             fallback para 'forever' é o mesmo do checkout: cupom
                             gravado antes do campo existir não tem duration. */}
+                        {coupon.partner_name && (
+                          <p className="text-sm font-semibold text-amber-700 mt-1">
+                            Parceria: {coupon.partner_name}
+                            {coupon.tier && TIER_LABEL[coupon.tier]
+                              ? ' · ' + TIER_LABEL[coupon.tier].nome
+                              : ' · sem faixa nas lojas'}
+                          </p>
+                        )}
                         <p className="text-sm font-medium text-purple-600 mt-1">
                           {coupon.duration === 'repeating' && coupon.duration_in_months > 0
                             ? `Por ${coupon.duration_in_months} ${coupon.duration_in_months === 1 ? 'mês' : 'meses'}`
@@ -560,6 +586,50 @@ export default function AdminCoupons() {
                 </p>
               </div>
 
+              <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-lg space-y-4">
+                <p className="text-sm font-semibold text-amber-900">
+                  Cupom de parceria (opcional)
+                </p>
+
+                <div className="space-y-2">
+                  <Label>Parceiro</Label>
+                  <Input
+                    value={formData.partner_name}
+                    onChange={(e) => setFormData({ ...formData, partner_name: e.target.value })}
+                    placeholder="Ex: Dra. Fulana"
+                  />
+                  <p className="text-xs text-gray-600">
+                    Deixe vazio se não for cupom de influenciador. O relatório agrupa por
+                    este nome <strong>exatamente como escrito</strong> — um parceiro com
+                    dois cupons precisa do nome idêntico nos dois.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Faixa de desconto nas lojas</Label>
+                  <Select
+                    value={formData.tier || "nenhum"}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, tier: value === "nenhum" ? "" : value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nenhum">Nenhuma — só vale na web</SelectItem>
+                      <SelectItem value="tier-a">Tier A — R$ 49,90/mês ou R$ 399,90/ano</SelectItem>
+                      <SelectItem value="tier-b">Tier B — R$ 39,90/mês ou R$ 349,90/ano</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-600">
+                    Sem faixa, o código não funciona no app iOS nem no Android — quem cobra
+                    lá é a loja, e o preço vem da oferta cadastrada nela. O desconto da web
+                    continua sendo o percentual acima, aplicado pelo Stripe.
+                  </p>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label>Duração do Desconto *</Label>
                 <Select
@@ -696,6 +766,26 @@ export default function AdminCoupons() {
                   onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
                 />
               </div>
+
+              {/* As ofertas das lojas duram 12 meses e não têm equivalente
+                  perpétuo. Um cupom de parceria "para sempre" na web criaria a
+                  divergência entre plataformas que a decisão de padronizar por
+                  baixo existe para evitar. */}
+              {formData.partner_name.trim() && formData.duration !== "repeating" && (
+                <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-amber-900">
+                      <p className="font-bold">Cupom de parceria com duração ilimitada.</p>
+                      <p className="mt-1">
+                        As ofertas das lojas duram <strong>12 meses</strong> e não têm versão
+                        perpétua. Com esta duração, o mesmo código descontaria para sempre na
+                        web e só 12 meses no app.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {formData.discount_value > 0 && (
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
