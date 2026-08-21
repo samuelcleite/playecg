@@ -37,6 +37,8 @@ export default function AdminCouponStats() {
     uniqueUsers: 0
   });
   const [expandedCoupon, setExpandedCoupon] = useState(null);
+  const [parceiros, setParceiros] = useState([]);
+  const [expandedPartner, setExpandedPartner] = useState(null);
 
   useEffect(() => {
     checkAdmin();
@@ -56,6 +58,9 @@ export default function AdminCouponStats() {
     const resCupons = await base44.functions.invoke('adminCoupons', { action: 'list' });
     const couponsData = resCupons?.data?.coupons || [];
     setCoupons(couponsData);
+
+    const resParceiros = await base44.functions.invoke('adminPartnerReport', {});
+    setParceiros(resParceiros?.data?.parceiros || []);
 
     const resUsos = await base44.functions.invoke('adminListRecords', {
       entity: 'CouponUsage', sort: '-used_at'
@@ -100,6 +105,75 @@ export default function AdminCouponStats() {
           <h1 className="text-3xl font-bold text-gray-900">Estatísticas de Cupons</h1>
           <p className="text-gray-500 mt-1">Análise de uso e performance dos cupons de desconto</p>
         </div>
+
+        {/* RECEITA POR PARCEIRO
+            Vem do Payment, não do CouponUsage: CouponUsage tem uma linha por
+            pessoa que resgatou e nunca mais muda, enquanto Payment tem uma
+            linha por cobrança — incluindo as renovações. Os cards de "Receita"
+            mais abaixo continuam sendo de primeira compra. */}
+        {parceiros.length > 0 && (
+          <Card className="border-none shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl">Receita por parceiro</CardTitle>
+              <p className="text-sm text-gray-500">
+                Soma de todas as cobranças pagas, incluindo renovações. Estorno não conta.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {parceiros.map((p) => (
+                <div key={p.partner_name} className="border rounded-lg overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedPartner(expandedPartner === p.partner_name ? null : p.partner_name)
+                    }
+                    className="w-full flex items-center justify-between p-4 hover:bg-gray-50 text-left"
+                  >
+                    <div>
+                      <p className="font-bold text-gray-900">{p.partner_name}</p>
+                      <p className="text-xs text-gray-500 font-mono">{p.codigos.join(', ')}</p>
+                    </div>
+                    <div className="flex items-center gap-6 text-right">
+                      <div>
+                        <p className="text-xs text-gray-500">Assinantes</p>
+                        <p className="font-bold text-blue-600">{p.assinantes}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Cobranças</p>
+                        <p className="font-bold text-gray-700">{p.cobrancas}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Receita</p>
+                        <p className="font-bold text-green-600">R$ {p.receita.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </button>
+
+                  {expandedPartner === p.partner_name && (
+                    <div className="border-t bg-gray-50 p-4">
+                      <p className="text-xs font-semibold text-gray-600 mb-2">Por mês</p>
+                      <div className="space-y-1">
+                        {p.meses.map((m) => (
+                          <div key={m.mes} className="flex justify-between text-sm">
+                            <span className="text-gray-700">{m.mes}</span>
+                            <span className="text-gray-600">
+                              {m.cobrancas} {m.cobrancas === 1 ? 'cobrança' : 'cobranças'}
+                              {' · '}
+                              <strong className="text-gray-900">R$ {m.receita.toFixed(2)}</strong>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-3">
+                        Desconto concedido no total: R$ {p.desconto.toFixed(2)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
