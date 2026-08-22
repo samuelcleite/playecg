@@ -65,16 +65,30 @@ function instrucaoDaLoja(store, cancelada) {
     : 'Sua assinatura é gerenciada pela loja onde você assinou. Para alterar ou cancelar, acesse a área de Assinaturas na App Store ou na Google Play.';
 }
 
-// Data por extenso, tolerante a nulo.
+// Converte para Date, ou null. QUALQUER entrada que não vire data válida sai
+// como null — inclusive `undefined`, que `new Date()` transforma num objeto
+// Date perfeitamente truthy cujo único conteúdo é NaN. Foi exatamente assim
+// que um comprador viu "Invalid Date" no lugar das duas datas da assinatura.
+function paraData(v) {
+  if (!v) return null;
+  const d = v instanceof Date ? v : new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// Data por extenso, tolerante a nulo E a data inválida.
 //
 // As datas de assinatura passaram a poder vir nulas do backend — o vitalício
 // manda `nextRenewal: null` de propósito, porque não existe próxima renovação.
 // Chamar toLocaleDateString direto num campo que pode ser null é uma tela
 // branca esperando acontecer, e trocar "data errada" por "app quebrado" seria
 // piorar. Travessão é o pior caso aceitável.
+//
+// O `paraData` aqui é a última barreira, não a primeira: quem monta o estado já
+// filtra. Ele existe porque a barreira anterior já falhou uma vez em produção.
 function dataLonga(d) {
-  if (!d) return '—';
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+  const data = paraData(d);
+  if (!data) return '—';
+  return data.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
 // Rótulo da linha "Forma de Pagamento". Sem `store`, não dá para nomear a loja.
@@ -98,6 +112,11 @@ export default function Profile() {
     city: ""
   });
   const [subscriptionInfo, setSubscriptionInfo] = useState(null);
+  // Falhou ao carregar o plano. Estado PRÓPRIO, e não um subscriptionInfo
+  // qualquer: a tela precisa poder dizer "não consegui" em vez de preencher
+  // o vazio com números plausíveis.
+  const [subscriptionErro, setSubscriptionErro] = useState(false);
+  const [recarregandoPlano, setRecarregandoPlano] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelSuccess, setCancelSuccess] = useState(false);
@@ -133,25 +152,72 @@ export default function Profile() {
     //
     // O que restou não depende um do outro e agora vai junto.
     const isPremium = userData.subscription_type === 'premium';
-    if (!isPremium) setSubscriptionInfo(null);
+    if (!isPremium) {
+      setSubscriptionInfo(null);
+      setSubscriptionErro(false);
+    }
 
     const [streak, userAchievements] = await Promise.all([
       calculateStreakDays(userData.email),
       loadUserAchievements(userData),
-      isPremium ? loadSubscriptionInfo() : null,
+      isPremium ? loadSubscriptionInfo(userData) : null,
     ]);
 
     setStreakDays(streak);
     setAchievements(userAchievements);
   };
 
-  const loadSubscriptionInfo = async () => {
+  // Monta o card de assinatura da tela.
+  //
+  // Recebe a conta POR PARÂMETRO. Ler o state `user` aqui não funcionava: o
+  // loadData chama isto no mesmo tick do setUser, então o closure ainda enxerga
+  // o valor anterior (null, no primeiro carregamento). Era daí que saíam as
+  // duas "Invalid Date" — `new Date(undefined)`.
+  const loadSubscriptionInfo = async (conta) => {
+    // VITALÍCIO NÃO DEPENDE DESTA FUNCTION.
+    //
+    // `lifetime_access` é a fonte da verdade do invariante (ver ARQUITETURA_AUTH
+    // §5.8) e já veio na Account que o getCurrentUser carregou — a tela não
+    // precisa de rede nenhuma para saber que esta pessoa comprou acesso
+    // permanente. Desenhar o card agora, antes da chamada, é o que garante que
+    // uma falha do getUserSubscriptionInfo (401, 429, timeout) não volte a
+    // exibir o comprador de vitalício como assinante mensal.
+    //
+    // A chamada continua acontecendo, mas só para ENRIQUECER: valor pago e data
+    // da compra saem do Payment, que a Account não tem.
+    const vitalicio = conta?.lifetime_access === true;
+    if (vitalicio) {
+      setSubscriptionInfo({
+        lifetime: true,
+        // null = ainda não sabemos quanto foi pago. A tela omite o valor em vez
+        // de chutar R$400: o preço do vitalício já mudou uma vez, e um número
+        // errado aqui é pior que número nenhum.
+        amount: null,
+        lastRenewal: paraData(conta.subscription_start_date),
+        nextRenewal: null,
+        paymentMethod: 'LIFETIME',
+        store: null,
+        paymentId: null,
+        willRenew: null
+      });
+    }
+
+    setSubscriptionErro(false);
+
     try {
       const response = await base44.functions.invoke('getUserSubscriptionInfo', {});
 
-      if (response.data.success && response.data.hasSubscription) {
+      if (response?.data?.success && response.data.hasSubscription) {
         const info = response.data.subscriptionInfo;
-        
+
+        // Backend discordando da Account sobre o vitalício: a Account vence.
+        // Não deveria acontecer (o backend lê a mesma flag), mas se acontecer,
+        // rebaixar na tela quem pagou por acesso permanente é o erro caro.
+        if (vitalicio && info.lifetime !== true) {
+          console.warn('getUserSubscriptionInfo não reconheceu o vitalício; mantendo a Account');
+          return;
+        }
+
         setSubscriptionInfo({
           // Acesso vitalício: pagamento único, sem renovação. A tela ramifica
           // por isto antes de olhar qualquer outro campo.
@@ -161,13 +227,13 @@ export default function Profile() {
           // assinatura abaixo é todo sobre renovação e valor pago, e aqui não
           // existe nem uma coisa nem outra.
           trial: info.trial === true,
-          trialEndsAt: info.trialEndsAt ? new Date(info.trialEndsAt) : null,
+          trialEndsAt: paraData(info.trialEndsAt),
           amount: info.amount,
           // As datas podem vir nulas — o vitalício manda `nextRenewal: null`
           // de propósito. Sem esta guarda, `new Date(null)` vira 01/01/1970 e
           // a tela exibiria isso como se fosse uma data de verdade.
-          lastRenewal: info.lastRenewal ? new Date(info.lastRenewal) : null,
-          nextRenewal: info.nextRenewal ? new Date(info.nextRenewal) : null,
+          lastRenewal: paraData(info.lastRenewal),
+          nextRenewal: paraData(info.nextRenewal),
           paymentMethod: info.paymentMethod,
           // 'APP_STORE' | 'PLAY_STORE' | null. null quando o backend não soube
           // dizer a loja (ou é uma resposta anterior a este campo).
@@ -177,40 +243,31 @@ export default function Profile() {
           // nesse caso a tela mantém o texto de renovação automática.
           willRenew: info.willRenew ?? null
         });
-      } else {
-        const startDate = user?.subscription_start_date 
-          ? new Date(user.subscription_start_date)
-          : new Date(user?.created_date);
-        
-        const nextRenewal = new Date(startDate);
-        nextRenewal.setDate(nextRenewal.getDate() + 30);
-
-        setSubscriptionInfo({
-          lifetime: false,
-          amount: 10.00,
-          lastRenewal: startDate,
-          nextRenewal: nextRenewal,
-          paymentMethod: 'Manual',
-          paymentId: null,
-          willRenew: null
-        });
+        return;
       }
+
+      // Resposta veio, mas sem assinatura para mostrar. NÃO inventar uma.
+      if (!vitalicio) setSubscriptionErro(true);
     } catch (error) {
       console.error('Error loading subscription info:', error);
-      
-      const startDate = new Date(user?.subscription_start_date || user?.created_date);
-      const nextRenewal = new Date(startDate);
-      nextRenewal.setDate(nextRenewal.getDate() + 30);
+      // NADA DE FALLBACK INVENTADO.
+      //
+      // Aqui existiam dois blocos que, diante de qualquer falha, montavam uma
+      // assinatura "Manual de R$10,00/mês" com datas tiradas de um state vazio.
+      // Um comprador do vitalício viu, um minuto depois de pagar R$400, o
+      // Perfil anunciar cobrança recorrente de R$10 e mandá-lo falar com o
+      // suporte. Falha de rede tem que aparecer como falha de rede.
+      if (!vitalicio) setSubscriptionErro(true);
+    }
+  };
 
-      setSubscriptionInfo({
-        lifetime: false,
-        amount: 10.00,
-        lastRenewal: startDate,
-        nextRenewal: nextRenewal,
-        paymentMethod: 'Manual',
-        paymentId: null,
-        willRenew: null
-      });
+  // Tentar de novo, a partir da conta que a tela já tem em mãos.
+  const recarregarPlano = async () => {
+    setRecarregandoPlano(true);
+    try {
+      await loadSubscriptionInfo(user);
+    } finally {
+      setRecarregandoPlano(false);
     }
   };
 
@@ -378,13 +435,20 @@ export default function Profile() {
                         Acesso Vitalício
                       </p>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">Valor Pago</p>
-                      <p className="text-lg font-medium text-gray-900">
-                        R$ {subscriptionInfo.amount.toFixed(2).replace('.', ',')}
-                        <span className="text-sm text-gray-600"> — pagamento único</span>
-                      </p>
-                    </div>
+                    {/* Só entra na tela quando o valor é CONHECIDO. Ele vem
+                        do Payment, via getUserSubscriptionInfo; quando o card é
+                        desenhado a partir da Account (function fora do ar, ou
+                        ainda respondendo), não existe valor para mostrar — e um
+                        R$400 chutado seria errado para quem pagou outro preço. */}
+                    {subscriptionInfo.amount != null && (
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Valor Pago</p>
+                        <p className="text-lg font-medium text-gray-900">
+                          R$ {subscriptionInfo.amount.toFixed(2).replace('.', ',')}
+                          <span className="text-sm text-gray-600"> — pagamento único</span>
+                        </p>
+                      </div>
+                    )}
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Data da Compra</p>
                       <p className="text-lg font-medium text-gray-900">
@@ -458,7 +522,12 @@ export default function Profile() {
                       <p className="text-sm text-gray-600 mb-1">Plano Atual</p>
                       <p className="text-lg font-bold text-gray-900 flex items-center gap-2">
                         <Crown className="w-5 h-5 text-amber-600" />
-                        Premium - R$ {subscriptionInfo.amount.toFixed(2).replace('.', ',')}/mês
+                        {/* Sem valor conhecido, "Premium" seco. `amount` passou
+                            a poder ser null desde que a tela deixou de inventar
+                            preço quando não sabe qual foi. */}
+                        {subscriptionInfo.amount != null
+                          ? `Premium - R$ ${subscriptionInfo.amount.toFixed(2).replace('.', ',')}/mês`
+                          : 'Premium'}
                       </p>
                     </div>
                     <div>
@@ -534,7 +603,32 @@ export default function Profile() {
                     </Alert>
                   )}
                 </>
-              )) : (
+              )) : subscriptionErro ? (
+                /* FALHA HONESTA. O que havia aqui antes era pior que uma tela de
+                   erro: diante de qualquer falha a tela montava uma assinatura
+                   "Manual de R$10,00/mês" com datas inválidas e mandava o
+                   usuário ao suporte. Seu acesso não depende desta caixa — só a
+                   informação sobre ele depende, e é só isso que o texto promete. */
+                <div className="text-center py-6">
+                  <AlertCircle className="w-8 h-8 text-amber-600 mx-auto mb-3" />
+                  <p className="text-gray-900 font-medium mb-1">
+                    Não foi possível carregar as informações do seu plano.
+                  </p>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Seu acesso Premium continua ativo normalmente.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={recarregarPlano}
+                    disabled={recarregandoPlano}
+                    className="border-amber-300 text-amber-800 hover:bg-amber-100"
+                  >
+                    {recarregandoPlano ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Tentando...</>
+                    ) : 'Tentar de novo'}
+                  </Button>
+                </div>
+              ) : (
                 <div className="text-center py-8">
                   <Loader2 className="w-8 h-8 animate-spin text-amber-600 mx-auto mb-4" />
                   <p className="text-gray-600">Carregando informações da assinatura...</p>
