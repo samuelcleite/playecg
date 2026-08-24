@@ -260,6 +260,14 @@ circula por WhatsApp.
 **Só web/Stripe.** Fora das lojas de propósito: a ponte Despia do iOS só aceita
 assinatura, e o Android exigiria one-time product no Play Console.
 
+**No Perfil, o vitalício não depende de function.** O card "Acesso Vitalício" é
+desenhado a partir de `lifetime_access`, que já chega na `Account` pelo
+`getCurrentUser`; o `getUserSubscriptionInfo` só **enriquece** com valor pago e
+data da compra, que moram no `Payment`. Se ele falhar, o card fica de pé sem a
+linha "Valor Pago"; se ele discordar da flag, a `Account` vence. Feito assim em
+24/08/2026 porque o contrário já falhou em produção: com a tela dependendo da
+chamada, uma falha qualquer rebaixava o comprador a assinante mensal manual (§9).
+
 > ⚠️ **Ler o invariante 8 do [`ARQUITETURA_AUTH.md`](ARQUITETURA_AUTH.md) antes
 > de tocar em qualquer caminho que escreva `subscription_type: 'free'`.**
 > `lifetime_access` não concede acesso — ele impede o rebaixamento. Três guards
@@ -434,6 +442,16 @@ rebaseada antes de qualquer merge** — senão o merge deleta `/termos`,
   `current_streak`); mostra sempre 0.
 - Entidade `Coupon` sem RLS deny-all; `used_count` sujeito a race condition;
   falta ledger `CouponRedemption` para garantir `one_per_user`.
+- **`getUserSubscriptionInfo` carrega a tabela `Payment` inteira**
+  (`Payment.list('-created_date')`, sem filtro) a cada abertura do Perfil — e faz
+  isso **antes** de checar `lifetime_access`, então uma falha ao listar pagamentos
+  derruba a resposta de quem nem depende de pagamento. É também a única function
+  cujo `resolveIdentity` busca a `Account` com o e-mail **sem** normalizar
+  (`trim().toLowerCase()`, como fazem `getMyAccount`, `ensureMyAccount` e
+  `updateMyProfile`): conta cujo e-mail esteja gravado em caixa diferente toma 401
+  só nela. São os dois suspeitos do incidente de 22/08/2026 (§9) — nenhum
+  confirmado, porque o log da function não foi consultado. Desde 24/08 nada disso
+  quebra a tela, só esconde o valor pago do vitalício. (Lido no código, 24/08/2026.)
 - **O app é claro por design e não pode ganhar modo noturno por acidente.** As
   telas usam ~770 cores hardcoded (`text-gray-600`, `text-gray-900`, `bg-white`)
   espalhadas por 44 arquivos. O bloco `.dark` do `src/index.css` existe e está
@@ -480,6 +498,21 @@ rebaseada antes de qualquer merge** — senão o merge deleta `/termos`,
   `attribute="class"`. Buscar pelo mecanismo (`classList`, `documentElement`) deu
   zero resultado e me fez descartar a hipótese certa. Procure também pela
   intenção — o nome da lib, a prop de configuração.
+- **Fallback de tela que inventa dado é pior que tela de erro.** Em 22/08/2026 um
+  comprador do vitalício viu, um minuto depois de pagar R$400, o Perfil anunciar
+  "Premium — R$ 10,00/mês", "Forma de Pagamento: Manual", duas "Invalid Date" e um
+  convite a falar com o suporte para cancelar. **Nada disso veio do backend:** era
+  o `catch` da própria tela, que diante de qualquer falha do
+  `getUserSubscriptionInfo` montava uma assinatura inteira, com um preço legado
+  (R$10, de anos atrás) e datas tiradas de um state ainda vazio — `new
+  Date(undefined)` devolve um Date *truthy* cujo conteúdo é NaN, e a guarda da
+  tela só testava `null`. O dado inventado é indistinguível do real para quem
+  olha. **O que discrimina em 30 segundos:** um número que o backend não tem como
+  produzir (aqui, R$10 — ele só devolve 59, 400 ou o valor do `Payment`) é
+  assinatura de fallback do frontend, não resposta de function. Corrigido em
+  24/08/2026: falha virou caixa de erro com "tentar de novo". Se encontrar outro
+  `catch` que preenche a tela com valores plausíveis, é bug — o próprio
+  `getUserSubscriptionInfo` ainda afirma "R$59 Manual" para premium sem `Payment`.
 
 ---
 
