@@ -8,6 +8,7 @@ import { startIOSPurchase, restoreIOSPurchases } from "@/utils/purchase";
 import {
   purchaseAndroidPlan,
   restoreAndroidPurchases,
+  PURCHASE_OFFER_UNAVAILABLE,
   PURCHASE_SUCCESS,
   PURCHASE_CANCELLED,
   PURCHASE_PENDING,
@@ -40,6 +41,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 
 // Qualifica o preço com desconto quando o cupom NÃO dura para sempre.
@@ -87,6 +89,10 @@ export default function Upgrade() {
   const [couponError, setCouponError] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [errorDialog, setErrorDialog] = useState({ open: false, title: '', message: '', details: '' });
+  // Confirmação de preço cheio: a oferta do parceiro não veio no aparelho e a
+  // pessoa precisa decidir antes de a folha do Google abrir. Sem isto ela
+  // pagaria o preço normal achando que tinha desconto.
+  const [confirmaPrecoCheio, setConfirmaPrecoCheio] = useState(false);
 
   useEffect(() => {
     loadUser();
@@ -228,9 +234,35 @@ export default function Upgrade() {
 
     // Android nativo (Capacitor): compra via RevenueCat usando Offerings.
     if (isAndroidNativeApp()) {
+      await comprarNoAndroid({ aceitarPrecoCheio: false });
+      return;
+    }
+
+    // --- Fluxo Stripe (web) — inalterado ---
+    return seguirParaStripe();
+  };
+
+  // Compra do Android, isolada porque acontece em dois momentos: no clique
+  // normal e de novo quando a pessoa aceita pagar o preço cheio no diálogo.
+  const comprarNoAndroid = async ({ aceitarPrecoCheio }) => {
       setProcessing(true);
       try {
-        const result = await purchaseAndroidPlan(selectedPlan, user?.id);
+        const result = await purchaseAndroidPlan(selectedPlan, user?.id, {
+          // A tag da oferta do Play vem do cupom validado. Sem cupom de
+          // parceria, vai nulo e o caminho é o de sempre.
+          offerTag: appliedCoupon?.coupon?.tier || null,
+          aceitarPrecoCheio
+        });
+
+        // A oferta do parceiro não está no aparelho. NÃO compramos calado: a
+        // pessoa digitou um código de desconto e a tela aceitou, então cobrar
+        // o preço normal sem avisar seria descoberto na fatura.
+        if (result === PURCHASE_OFFER_UNAVAILABLE) {
+          setProcessing(false);
+          setConfirmaPrecoCheio(true);
+          return;
+        }
+
         if (result === PURCHASE_SUCCESS) {
           // Reaproveita o polling já usado no iOS: aguarda o revenuecatWebhook
           // marcar subscription_type === "premium" e recarrega a rota.
@@ -261,10 +293,9 @@ export default function Upgrade() {
         // deixa os dois botões desabilitados para sempre.
         setProcessing(false);
       }
-      return;
-    }
+  };
 
-    // --- Fluxo Stripe (web) — inalterado ---
+  const seguirParaStripe = async () => {
     // Stripe Checkout não funciona dentro de iframe (preview)
     if (window.self !== window.top) {
       setErrorDialog({
@@ -383,9 +414,19 @@ export default function Upgrade() {
   // `donoDaLoja` (Apple / Google) saiu junto com o FAQ, que era seu único uso.
 
   const originalPrice = selectedPlan === "annual" ? 499 : 59;
-  const finalPrice = appliedCoupon?.pricing?.final_price || originalPrice;
-  const discountAmount = appliedCoupon?.pricing?.discount_amount || 0;
-  const avisoDeDuracao = textoDaDuracao(appliedCoupon, selectedPlan, originalPrice);
+
+  // NO ANDROID O CUPOM NÃO MEXE NO PREÇO EXIBIDO.
+  //
+  // Quem cobra lá é o Google, pelo preço da oferta cadastrada no Play — não
+  // pelo percentual do nosso cupom. Mostrar um valor calculado aqui e o Google
+  // cobrar outro é pior do que não mostrar desconto nenhum. O valor real
+  // aparece na folha de pagamento do Google, que é a fonte da verdade.
+  const descontoValeAqui = !isAndroidNativeApp();
+  const finalPrice = (descontoValeAqui && appliedCoupon?.pricing?.final_price) || originalPrice;
+  const discountAmount = (descontoValeAqui && appliedCoupon?.pricing?.discount_amount) || 0;
+  const avisoDeDuracao = descontoValeAqui
+    ? textoDaDuracao(appliedCoupon, selectedPlan, originalPrice)
+    : null;
 
   const freeFeatures = [
     "Acesso a quizzes aleatórios",
@@ -514,13 +555,15 @@ export default function Upgrade() {
                 </button>
               </div>
 
-              {/* Coupon Section — oculto nos DOIS apps nativos: o desconto é
-                  concedido fora da compra da loja, o que a Apple proíbe
-                  (Guideline 3.1.1) e o Google também, pela política de
-                  pagamentos para bens digitais. No Android o cupom nem chegava a
-                  funcionar: ele desconta no checkout do Stripe, e o app Android
-                  não passa por lá. Na web permanece inalterado. */}
-              {!isIOSNativeApp() && !isAndroid && (
+              {/* Coupon Section — visível na web e no ANDROID; ainda oculto no
+                  iOS.
+                  O motivo de esconder era que o desconto vinha de fora da compra
+                  da loja, o que a Apple proíbe (3.1.1) e o Google também. Isso
+                  deixou de valer no Android: o desconto agora é uma OFERTA do
+                  próprio Play, escolhida pela tag do cupom, e quem cobra é o
+                  Google. O código identifica o parceiro; o desconto é da loja.
+                  No iOS continua escondido até o resgate por offer code existir. */}
+              {!isIOSNativeApp() && (
                 <div className="mb-6 p-4 bg-white rounded-lg border-2 border-blue-200">
                   <div className="flex items-center gap-2 mb-3">
                     <Tag className="w-5 h-5 text-amber-600" />
@@ -538,6 +581,19 @@ export default function Upgrade() {
                           <p className="text-sm text-green-700 mt-1">
                             {appliedCoupon.coupon.description}
                           </p>
+                          {/* No Android o preço com desconto é do Google, não
+                              nosso — a tela não promete valor nenhum, só diz
+                              onde ele vai aparecer. E cupom sem tier não tem
+                              oferta correspondente no Play: avisar aqui evita
+                              a pessoa seguir até a folha de pagamento para
+                              descobrir que não havia desconto. */}
+                          {isAndroid && (
+                            <p className="text-sm mt-2 font-medium text-green-800">
+                              {appliedCoupon.coupon.tier
+                                ? 'O valor com desconto aparece na tela de pagamento do Google Play.'
+                                : 'Atenção: este código só vale no site. Aqui no app a assinatura sai pelo preço normal.'}
+                            </p>
+                          )}
                         </div>
                         <Button
                           variant="ghost"
@@ -697,6 +753,46 @@ export default function Upgrade() {
       </div>
 
       {/* Error Dialog */}
+      {/* Oferta do parceiro ausente no aparelho. Perguntar antes é o que
+          impede a pessoa de pagar o preço cheio achando que tinha desconto.
+          Se ela seguir, a atribuição do parceiro continua valendo: a pendência
+          já foi gravada no validateCoupon e o webhook a promove do mesmo
+          jeito — ele trouxe o cliente, ainda que o desconto tenha falhado. */}
+      <AlertDialog open={confirmaPrecoCheio} onOpenChange={setConfirmaPrecoCheio}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-amber-700">
+              <Tag className="w-5 h-5" />
+              Desconto indisponível no app
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p className="text-base text-gray-900">
+                O desconto do cupom {appliedCoupon?.coupon?.code} não está disponível
+                neste aparelho agora. Se você continuar, a assinatura sai pelo
+                <strong> preço normal</strong>.
+              </p>
+              <p className="text-sm text-gray-600">
+                O valor exato aparece na tela de pagamento do Google Play antes de
+                você confirmar.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmaPrecoCheio(false)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmaPrecoCheio(false);
+                comprarNoAndroid({ aceitarPrecoCheio: true });
+              }}
+            >
+              Continuar pelo preço normal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={errorDialog.open} onOpenChange={(open) => setErrorDialog({ ...errorDialog, open })}>
         <AlertDialogContent className="max-w-2xl">
           <AlertDialogHeader>
