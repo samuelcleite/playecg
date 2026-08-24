@@ -190,6 +190,37 @@ export async function purchaseAndroidPlan(
     : concluirCompra(() => Purchases.purchasePackage({ aPackage }));
 }
 
+// Diagnóstico: o que o aparelho REALMENTE devolveu. Só é chamado quando a
+// oferta do parceiro não foi encontrada.
+//
+// Existe porque não há console acessível no aparelho de outra pessoa. Sem
+// isto, "o desconto não apareceu" é indiagnosticável à distância — e as três
+// causas prováveis exigem correções diferentes: tag escrita errada no Play
+// Console, oferta inativa, ou produto sem subscriptionOptions (que seria o
+// SDK ou o Play devolvendo outra coisa).
+//
+// Nunca lança: é caminho de diagnóstico e não pode virar um segundo erro em
+// cima do primeiro.
+export async function diagnosticarOfertasAndroid(plan) {
+  if (!isAndroidNativeApp()) return null;
+  try {
+    const offerings = await comTeto(Purchases.getOfferings(), "getOfferings");
+    const aPackage = pickPackage(offerings?.current, plan);
+    const opcoes = aPackage?.product?.subscriptionOptions ?? null;
+    return {
+      offering: offerings?.current?.identifier ?? null,
+      pacote: aPackage?.identifier ?? null,
+      produto: aPackage?.product?.identifier ?? null,
+      padrao: aPackage?.product?.defaultOption?.id ?? null,
+      opcoes: opcoes === null
+        ? null
+        : opcoes.map((o) => ({ id: o.id, tags: o.tags ?? [] }))
+    };
+  } catch (error) {
+    return { erro: error?.message || String(error) };
+  }
+}
+
 // Restaura compras anteriores no Android. Retorna true se o entitlement estiver
 // ativo após a restauração. Diferente do restore iOS, não engole erros: quem
 // chama distingue "nada a restaurar" (false) de falha real (exceção).

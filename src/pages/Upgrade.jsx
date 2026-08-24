@@ -9,6 +9,7 @@ import {
   purchaseAndroidPlan,
   restoreAndroidPurchases,
   PURCHASE_OFFER_UNAVAILABLE,
+  diagnosticarOfertasAndroid,
   PURCHASE_SUCCESS,
   PURCHASE_CANCELLED,
   PURCHASE_PENDING,
@@ -93,6 +94,9 @@ export default function Upgrade() {
   // pessoa precisa decidir antes de a folha do Google abrir. Sem isto ela
   // pagaria o preço normal achando que tinha desconto.
   const [confirmaPrecoCheio, setConfirmaPrecoCheio] = useState(false);
+  // O que o aparelho devolveu quando a oferta não foi achada. Vai para a tela
+  // em letra miúda: sem console no aparelho, é a única pista de por quê.
+  const [diagnosticoOferta, setDiagnosticoOferta] = useState(null);
 
   useEffect(() => {
     loadUser();
@@ -259,6 +263,7 @@ export default function Upgrade() {
         // o preço normal sem avisar seria descoberto na fatura.
         if (result === PURCHASE_OFFER_UNAVAILABLE) {
           setProcessing(false);
+          setDiagnosticoOferta(await diagnosticarOfertasAndroid(selectedPlan));
           setConfirmaPrecoCheio(true);
           return;
         }
@@ -775,6 +780,14 @@ export default function Upgrade() {
                 O valor exato aparece na tela de pagamento do Google Play antes de
                 você confirmar.
               </p>
+              {/* Discreto de propósito: serve para ser fotografado e mandado
+                  para o suporte, não para assustar. Mesmo papel do campo details
+                  do diálogo de erro. */}
+              {diagnosticoOferta && (
+                <p className="text-xs text-gray-500 font-mono break-words border-t border-gray-200 pt-3">
+                  {JSON.stringify(diagnosticoOferta)}
+                </p>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
