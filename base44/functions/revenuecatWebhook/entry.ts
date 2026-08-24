@@ -42,6 +42,30 @@ Deno.serve(async (req) => {
       const porId = await base44.asServiceRole.entities.Account.filter({ id: appUserId });
       if (porId.length > 0) return porId[0];
 
+      // Id anônimo do aparelho, gravado pelo linkRevenueCatUser.
+      //
+      // É o caminho do offer code do iOS: o resgate acontece FORA do app, o
+      // external_id nunca é enviado, e a assinatura nasce colada num
+      // $RCAnonymousID. Sem esta consulta o evento cai no vazio e a pessoa paga
+      // sem receber acesso.
+      const porAparelho = await base44.asServiceRole.entities.Account.filter({
+        revenuecat_user_id: appUserId
+      });
+      if (porAparelho.length === 1) return porAparelho[0];
+      if (porAparelho.length > 1) {
+        // Duas contas apontando para o mesmo aparelho (a pessoa saiu e outra
+        // entrou no mesmo iPhone). Escolher uma seria chutar, e o erro é
+        // assimétrico: conceder para a conta errada dá premium a quem não pagou
+        // E deixa quem pagou sem nada. Não resolver deixa só o segundo caso, e
+        // este log é o que permite arrumar à mão.
+        console.error(
+          `🚨 revenuecat_user_id ${appUserId} aponta para ${porAparelho.length} contas. ` +
+          `Evento NÃO atribuído — resolver à mão: ` +
+          porAparelho.map((c) => c.email).join(', ')
+        );
+        return null;
+      }
+
       const users = await base44.asServiceRole.entities.User.filter({ id: appUserId });
       if (users.length === 0) return null;
 
