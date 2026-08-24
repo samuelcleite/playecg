@@ -189,7 +189,11 @@ Deno.serve(async (req) => {
 
     const users = await base44.asServiceRole.entities.User.filter({ email });
     const idLegado = users && users.length > 0 ? users[0].id : null;
-    const ids = [...new Set([account.id, idLegado].filter(Boolean))];
+    // revenuecat_user_id entra aqui porque este é o caminho que RECUPERA o
+    // resgate de offer code do iOS: o webhook chegou antes de o app descobrir o
+    // id do aparelho e foi descartado, e é esta consulta — disparada quando a
+    // pessoa volta para a tela — que encontra a assinatura e libera o acesso.
+    const ids = [...new Set([account.id, account.revenuecat_user_id, idLegado].filter(Boolean))];
 
     let ativo = false;
     for (const id of ids) {

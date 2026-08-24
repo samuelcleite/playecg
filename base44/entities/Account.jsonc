@@ -93,6 +93,10 @@
       "format": "date-time",
       "description": "Quando a atribuição foi gravada. Base para qualquer regra de janela — de conversão ou de comissão — que venha a ser adotada; a regra em si NÃO vive aqui."
     },
+    "revenuecat_user_id": {
+      "type": "string",
+      "description": "App User ID com que o RevenueCat conhece o aparelho desta pessoa, quando ele NÃO é o Account.id. Existe por causa do iOS: o offer code é resgatado fora do app, a assinatura nasce colada num id anônimo ($RCAnonymousID:...), e sem este mapa o revenuecatWebhook não encontra a conta e descarta o evento. O app descobre o valor no getpurchasehistory:// (campo externalUserId) e grava pelo linkRevenueCatUser. Vazio = o aparelho já se identifica com o Account.id, que é o caso do Android e de quem comprou pelo app."
+    },
     "specialty": {
       "type": "string",
       "description": "Especialidade médica do usuário"
