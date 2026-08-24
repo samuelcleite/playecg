@@ -184,6 +184,40 @@ Deno.serve(async (req) => {
             }
         }
 
+        // ── PENDÊNCIA DE PARCERIA ────────────────────────────────────────
+        // Grava a INTENÇÃO, não a atribuição. Quem digita e nunca compra não
+        // aparece no relatório de parceiro nenhum: quem promove pendência a
+        // atribuição é o webhook de pagamento.
+        //
+        // Existe por causa do iPhone. Na web e no Android o webhook vê qual
+        // cupom estava aplicado na compra e atribui a partir dele; no iOS o
+        // código é resgatado FORA do app, e este é o único momento em que
+        // sabemos o que a pessoa digitou.
+        //
+        // Cupom SEM parceiro LIMPA a pendência: digitar um cupom comum depois
+        // de um de parceria significa que a pessoa escolheu o outro desconto,
+        // e manter a pendência creditaria o parceiro por uma venda que não foi
+        // dele.
+        //
+        // Sobrescreve livre: vale o último digitado, que é a regra escolhida.
+        //
+        // try/catch que só loga: esta função existe para VALIDAR cupom, e uma
+        // falha ao gravar pendência não pode impedir a pessoa de comprar.
+        try {
+            const contas = await base44.asServiceRole.entities.Account.filter({
+                email: (identity.email || '').trim().toLowerCase()
+            });
+            if (contas.length > 0) {
+                await base44.asServiceRole.entities.Account.update(contas[0].id, {
+                    pending_referral_coupon_id: coupon.partner_name ? coupon.id : null,
+                    pending_referral_code: coupon.partner_name ? coupon.code : null,
+                    pending_referral_at: coupon.partner_name ? new Date().toISOString() : null
+                });
+            }
+        } catch (erroPendencia) {
+            console.error('Falha ao gravar pendência de parceria:', erroPendencia.message);
+        }
+
         const originalPrice = plan === 'annual' ? 499.00 : 59.00;
         let discountAmount = 0;
         
@@ -215,7 +249,12 @@ Deno.serve(async (req) => {
                 // Preencher aqui esconderia do cliente a diferença entre um
                 // cupom antigo e um cupom explicitamente 'forever'.
                 duration: coupon.duration,
-                duration_in_months: coupon.duration_in_months
+                duration_in_months: coupon.duration_in_months,
+                // Para o app Android escolher a oferta do Play pela tag. Nulo
+                // quando o cupom não vale nas lojas — a tela usa isso para
+                // saber que ali o código só funciona na web.
+                tier: coupon.tier || null,
+                partner_name: coupon.partner_name || null
             },
             pricing: {
                 original_price: originalPrice,
