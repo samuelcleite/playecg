@@ -167,6 +167,55 @@ Deno.serve(async (req) => {
         }
       }
 
+      // ── RESGATE DO CUPOM ────────────────────────────────────────────
+      // Sem isto, limite de uso é decorativo em metade das plataformas: o
+      // used_count nunca subiria numa compra de loja, um cupom com limite de
+      // 100 nunca esgotaria pelo app, e o one_per_user não teria CouponUsage
+      // para consultar — a mesma pessoa reusaria o código à vontade.
+      //
+      // Só em compra NOVA: renovação não é resgate novo.
+      //
+      // Preços de LOJA, que são maiores que os do Stripe (o Google e a Apple
+      // cobram comissão). Usar os 59/499 do plans.ts aqui gravaria desconto
+      // errado no relatório.
+      if (cupomDaAtribuicao && (type === 'INITIAL_PURCHASE' || type === 'NON_RENEWING_PURCHASE')) {
+        try {
+          const jaUsou = await base44.asServiceRole.entities.CouponUsage.filter({
+            coupon_id: cupomDaAtribuicao,
+            user_email: conta.email
+          });
+
+          if (jaUsou.length === 0) {
+            const anual = modalidadeDoProduto(event.product_id) === 'Anual';
+            const precoCheio = anual ? 499.90 : 59.90;
+            const pago = event.price_in_purchased_currency ?? precoCheio;
+
+            await base44.asServiceRole.entities.CouponUsage.create({
+              coupon_id: cupomDaAtribuicao,
+              user_email: conta.email,
+              original_price: precoCheio,
+              discount_applied: Math.max(0, precoCheio - pago),
+              final_price: pago,
+              used_at: new Date().toISOString()
+            });
+
+            // Read-modify-write sem atomicidade, igual ao do stripeWebhook. O
+            // SDK do Base44 não expõe update condicional nem transação (ver o
+            // mesmo reconhecimento nas vagas do vitalício).
+            const cupons = await base44.asServiceRole.entities.Coupon.filter({ id: cupomDaAtribuicao });
+            if (cupons.length > 0) {
+              const c = cupons[0];
+              const novoTotal = (c.used_count || 0) + 1;
+              const update = { used_count: novoTotal };
+              if (c.usage_limit && novoTotal >= c.usage_limit) update.active = false;
+              await base44.asServiceRole.entities.Coupon.update(cupomDaAtribuicao, update);
+            }
+          }
+        } catch (erroResgate) {
+          console.error('Falha ao registrar resgate de cupom (acesso JÁ concedido):', erroResgate.message);
+        }
+      }
+
         if (BILLABLE.includes(type)) {
           // O RevenueCat manda a loja em `event.store`. Só APP_STORE e
           // PLAY_STORE viram rótulo próprio: qualquer outra coisa (campo
