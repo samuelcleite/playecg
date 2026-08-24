@@ -130,6 +130,43 @@ Deno.serve(async (req) => {
           trial_started_at: null
         });
 
+      // ── ATRIBUIÇÃO DE PARCERIA ──────────────────────────────────────
+      // A loja não sabe o que é o nosso cupom: a compra chega sem código
+      // nenhum. O único registro de quem indicou é a PENDÊNCIA que o
+      // validateCoupon gravou quando a pessoa digitou o código, e é ela que
+      // vira atribuição aqui.
+      //
+      // Só em compra NOVA. Renovação não reabre a questão de quem indicou —
+      // e uma pendência digitada depois da assinatura não pode roubar o
+      // crédito de quem trouxe o cliente.
+      //
+      // Escrita separada da que concede o premium, pelo mesmo motivo do
+      // stripeWebhook: aquela mexe em subscription_type e trial_ends_at, e
+      // não pode ganhar companhia que possa falhar.
+      let cupomDaAtribuicao = conta.referred_by_coupon_id || null;
+
+      if (type === 'INITIAL_PURCHASE' || type === 'NON_RENEWING_PURCHASE') {
+        try {
+          const atribuicao = {
+            pending_referral_coupon_id: null,
+            pending_referral_code: null,
+            pending_referral_at: null
+          };
+          if (conta.pending_referral_coupon_id) {
+            atribuicao.referred_by_coupon_id = conta.pending_referral_coupon_id;
+            atribuicao.referred_by_code = conta.pending_referral_code || null;
+            atribuicao.referred_at = new Date().toISOString();
+            cupomDaAtribuicao = conta.pending_referral_coupon_id;
+          }
+          await base44.asServiceRole.entities.Account.update(conta.id, atribuicao);
+        } catch (erroAtribuicao) {
+          console.error(
+            'Falha ao gravar atribuição de parceria (acesso JÁ concedido):',
+            erroAtribuicao.message
+          );
+        }
+      }
+
         if (BILLABLE.includes(type)) {
           // O RevenueCat manda a loja em `event.store`. Só APP_STORE e
           // PLAY_STORE viram rótulo próprio: qualquer outra coisa (campo
@@ -150,6 +187,15 @@ Deno.serve(async (req) => {
               reference_id: event.transaction_id || event.original_transaction_id || `appstore_${Date.now()}`,
               amount: event.price_in_purchased_currency ?? 0,
               discount_amount: 0,
+              // Atribuição congelada no momento do pagamento. Sem isto, as
+              // compras de loja ficavam invisíveis para o relatório por
+              // parceiro, que agrupa por Payment.coupon_id.
+              //
+              // Aqui coupon_id significa "o cupom que trouxe este assinante",
+              // não "desconto aplicado nesta cobrança" — o desconto da loja
+              // vem da oferta do Play, não do nosso cupom, e por isso
+              // discount_amount continua zero.
+              coupon_id: cupomDaAtribuicao,
               status: 'PAID',
               payment_method: paymentMethod,
               paid_at: new Date().toISOString()
