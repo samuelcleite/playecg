@@ -176,9 +176,32 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Conta não encontrada', success: false }, { status: 404 });
     }
 
+    // `forcar` pula o atalho abaixo. Quem pede é o restore do Customer Center.
+    //
+    // O atalho existe para não consultar a loja no caminho mais comum, e nele
+    // está certo. Mas ele também IMPEDE o vínculo: quem já é premium por outro
+    // motivo — Stripe, cortesia, vitalício — nunca tem a assinatura de loja
+    // consultada, e portanto nunca tem o revenuecat_user_id resolvido.
+    //
+    // O caso que dói é a cortesia: a pessoa está premium por trial, resgata um
+    // offer code, paga, restaura — e o atalho responde "premium" sem olhar a
+    // loja. A assinatura nunca é vinculada, o trial vence, o getMyAccount
+    // rebaixa, e um cliente PAGANTE perde o acesso.
+    let corpo = {};
+    try {
+      corpo = (await req.json()) || {};
+    } catch (_) {
+      // Corpo ausente ou inválido é o caso normal: os chamadores antigos
+      // invocam com {} e o SDK pode não mandar corpo nenhum.
+      corpo = {};
+    }
+    const forcar = corpo.forcar === true;
+
+    const jaEraPremium = account.subscription_type === 'premium';
+
     // Já é premium: nada a fazer. Evita escrita à toa no caminho mais comum.
-    if (account.subscription_type === 'premium') {
-      return Response.json({ success: true, premium: true, mudou: false });
+    if (!forcar && jaEraPremium) {
+      return Response.json({ success: true, premium: true, mudou: false, lojaAtiva: null });
     }
 
     const apiKey = Deno.env.get('REVENUECAT_SECRET_KEY');
@@ -224,9 +247,16 @@ Deno.serve(async (req) => {
       // function (o Upgrade.jsx confia, no fluxo de restaurar compras) trataria
       // um vitalício como não-assinante.
       if (account.lifetime_access === true) {
-        return Response.json({ success: true, premium: true, mudou: false });
+        return Response.json({ success: true, premium: true, mudou: false, lojaAtiva: false });
       }
-      return Response.json({ success: true, premium: false, mudou: false });
+      // `premium` responde "esta pessoa tem acesso?", NÃO "a loja conhece esta
+      // pessoa?". Sob `forcar`, quem já era premium por Stripe ou cortesia
+      // chega até aqui, e devolver false diria a ela que não tem assinatura —
+      // mandando a tela mostrar "Nenhuma Compra Encontrada" para quem paga.
+      // Quem separa as duas perguntas é o `lojaAtiva`.
+      //
+      // Sem `forcar` nada muda: só se chega aqui quando jaEraPremium é false.
+      return Response.json({ success: true, premium: jaEraPremium, mudou: false, lojaAtiva: false });
     }
 
     await base44.asServiceRole.entities.Account.update(account.id, {
@@ -246,7 +276,7 @@ Deno.serve(async (req) => {
 
     console.log('syncStoreSubscription: premium liberado para', email);
 
-    return Response.json({ success: true, premium: true, mudou: true });
+    return Response.json({ success: true, premium: true, mudou: true, lojaAtiva: true });
   } catch (error) {
     console.error('Erro em syncStoreSubscription:', error);
     return Response.json({ error: error.message, success: false }, { status: 500 });

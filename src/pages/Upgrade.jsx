@@ -185,7 +185,11 @@ export default function Upgrade() {
       try {
         // O restore já anexou a assinatura ao nosso Account.id do lado do
         // RevenueCat. Esta consulta é o que traz isso para a nossa Account.
-        const res = await base44.functions.invoke('syncStoreSubscription', {});
+        //
+        // `forcar` porque o atalho de "já é premium" impediria o vínculo
+        // justamente de quem mais precisa dele: quem está em cortesia e acabou
+        // de pagar por um offer code. Ver o comentário no syncStoreSubscription.
+        const res = await base44.functions.invoke('syncStoreSubscription', { forcar: true });
         if (res?.data?.premium) {
           const conta = await refreshCurrentUser();
           if (conta) setUser(conta);
