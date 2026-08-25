@@ -33,7 +33,32 @@ function resumirEntrada(p, i) {
   ].join("\n");
 }
 
-// Restaura compras anteriores via RevenueCat (iOS). Exigido pela Apple na tela
+// RESTORE DE VERDADE, e a diferença importa.
+//
+// O getpurchasehistory:// abaixo apenas LÊ o recibo do StoreKit — confirmado
+// pelo suporte do Despia e observado em aparelho: depois de chamá-lo, a
+// assinatura continuou presa no App User ID anônimo anterior, e o customer
+// atual seguiu com "No current entitlements" e USD 0.
+//
+// O Customer Center é o único caminho que SINCRONIZA: ele posta o recibo sob o
+// external_id passado e o RevenueCat RE-APONTA o entitlement para o usuário
+// identificado. É o que faz uma compra feita fora do app (offer code resgatado
+// na App Store) chegar até a nossa Account.
+//
+// Não devolve nada — a folha é nativa e o desfecho chega por
+// window.onRevenueCatCenter ('restoreCompleted' | 'dismissed'). Ver o handler
+// no Upgrade.jsx.
+//
+// external_id vazio, nulo ou numérico faz o runtime cair numa sessão anônima, e
+// a compra volta a ficar presa num id de aparelho — exatamente o defeito que
+// isto existe para resolver. Por isso lança em vez de seguir em silêncio.
+export function abrirCustomerCenterIOS(userId) {
+  const id = typeof userId === "string" ? userId.trim() : "";
+  if (!id) throw new Error("userId ausente para abrir o Customer Center");
+  despia(`revenuecat://center?external_id=${encodeURIComponent(id)}`);
+}
+
+// Lê o histórico local. NÃO restaura de verdade — ver abrirCustomerCenterIOS. Exigido pela Apple na tela
 // de assinatura. O comando 'getpurchasehistory://' RETORNA os dados (não dispara
 // evento): consultamos o histórico e verificamos se há um item ativo com o
 // entitlement deste app.
@@ -74,7 +99,7 @@ function resumirEntrada(p, i) {
 // "existe entrada ativa" é equivalente a "PlayECG Pro está ativo", sem depender
 // de string nenhuma. ISSO DEIXA DE VALER no dia em que houver um segundo
 // entitlement — aí a comparação volta, com o campo certo conferido no aparelho.
-export async function restoreIOSPurchases(userId) {
+export async function lerHistoricoComprasIOS() {
   const inicio = Date.now();
   try {
     const data = await despia("getpurchasehistory://", ["restoredData"]);
@@ -85,7 +110,7 @@ export async function restoreIOSPurchases(userId) {
     const tipo = bruto === undefined ? "undefined" : Array.isArray(bruto) ? "array" : typeof bruto;
 
     return {
-      restaurado: ativas.length > 0,
+      temAtiva: ativas.length > 0,
       diagnostico: [
         `ms ${Date.now() - inicio} · ${tipo} · total ${entradas.length} · ativas ${ativas.length}`,
         ...entradas.map(resumirEntrada)
