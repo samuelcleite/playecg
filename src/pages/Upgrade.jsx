@@ -379,8 +379,8 @@ export default function Upgrade() {
     // dados; restoreIOSPurchases resolve true se houver premium ativo.
     setProcessing(true);
     try {
-      const restored = await restoreIOSPurchases(user?.id);
-      if (restored) {
+      const { restaurado, diagnostico } = await restoreIOSPurchases(user?.id);
+      if (restaurado) {
         // Mesmo caminho da compra: consulta o RevenueCat e, se houver assinatura
         // ativa, libera na hora. Restaurar não gera webhook nenhum — a compra é
         // antiga —, então aqui a consulta direta não é otimização, é o único
@@ -393,8 +393,15 @@ export default function Upgrade() {
       setErrorDialog({
         open: true,
         title: 'Nenhuma Compra Encontrada',
-        message: 'Não encontramos nenhuma assinatura ativa para restaurar nesta conta da App Store. Se você acredita que isso é um erro, verifique se está logado com o mesmo ID Apple usado na compra.',
-        details: ''
+        // A mensagem admite as DUAS causas porque elas chegam aqui idênticas:
+        // pode não haver compra, ou a ponte pode não ter respondido (ver o
+        // comentário no restoreIOSPurchases). Afirmar só a primeira mandaria a
+        // pessoa conferir o Apple ID quando o problema não é esse.
+        message: 'Não encontramos nenhuma assinatura ativa para restaurar, ou o app não conseguiu consultar a App Store. Tente novamente; se persistir, verifique se está logado com o mesmo ID Apple usado na compra.',
+        // Payload cru (sem o receipt) no details, mesmo padrão do caminho
+        // Android: sem console no iPhone, é a única forma de diagnosticar em
+        // campo. O `ms` separa timeout de resposta real.
+        details: diagnostico
       });
     } catch (error) {
       console.error("Erro ao restaurar compras iOS:", error);
