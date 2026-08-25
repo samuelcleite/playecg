@@ -4,7 +4,7 @@ import { getCurrentUser, refreshCurrentUser } from '@/lib/currentUser';
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { isIOSNativeApp, isAndroidNativeApp } from "@/utils/platform";
-import { startIOSPurchase, restoreIOSPurchases } from "@/utils/purchase";
+import { startIOSPurchase, lerHistoricoComprasIOS, abrirCustomerCenterIOS } from "@/utils/purchase";
 import {
   purchaseAndroidPlan,
   restoreAndroidPurchases,
@@ -163,6 +163,64 @@ export default function Upgrade() {
 
     return () => {
       delete window.iapSuccess;
+    };
+  }, []);
+
+  // Desfecho do Customer Center (iOS). A folha é nativa: quando ela abre, o
+  // controle sai do nosso JavaScript e só volta por este callback.
+  //
+  // NÃO reaproveita o window.iapSuccess de propósito. Aquele termina, depois de
+  // ~20s sem confirmar, num diálogo dizendo que o pagamento está sendo
+  // processado — texto certo para quem acabou de comprar, e errado para quem
+  // apenas abriu e fechou a folha sem restaurar nada.
+  //
+  // 'dismissed' sai calado: fechar a folha não é erro. Só o 'restoreCompleted'
+  // sem premium merece explicação na tela.
+  useEffect(() => {
+    window.onRevenueCatCenter = async (e) => {
+      const evento = e?.event;
+      if (evento !== 'restoreCompleted' && evento !== 'dismissed') return;
+
+      setProcessing(true);
+      try {
+        // O restore já anexou a assinatura ao nosso Account.id do lado do
+        // RevenueCat. Esta consulta é o que traz isso para a nossa Account.
+        const res = await base44.functions.invoke('syncStoreSubscription', {});
+        if (res?.data?.premium) {
+          const conta = await refreshCurrentUser();
+          if (conta) setUser(conta);
+          window.location.href = createPageUrl("Dashboard");
+          return;
+        }
+        if (evento === 'restoreCompleted') {
+          // O restore rodou e mesmo assim não há premium. Ler o histórico local
+          // aqui é o que separa os dois motivos: "este Apple ID não tem compra"
+          // (nada ativo no aparelho) de "tem compra e ela não transferiu" — que
+          // é o sintoma do Restore Behavior preso no App User ID original, o
+          // ponto que o próprio suporte do Despia manda conferir.
+          const { diagnostico } = await lerHistoricoComprasIOS();
+          setErrorDialog({
+            open: true,
+            title: 'Nenhuma Compra Encontrada',
+            message: 'Não encontramos nenhuma assinatura ativa para restaurar nesta conta da App Store. Verifique se está logado com o mesmo ID Apple usado na compra.',
+            details: diagnostico
+          });
+        }
+      } catch (error) {
+        console.error("Falha ao confirmar restore do Customer Center:", error);
+        setErrorDialog({
+          open: true,
+          title: 'Erro ao Restaurar Compras',
+          message: 'Não foi possível confirmar sua assinatura. Tente novamente.',
+          details: error?.message || String(error)
+        });
+      } finally {
+        setProcessing(false);
+      }
+    };
+
+    return () => {
+      delete window.onRevenueCatCenter;
     };
   }, []);
 
@@ -375,34 +433,21 @@ export default function Upgrade() {
       return;
     }
 
-    // Restaura compras via RevenueCat (iOS). getpurchasehistory:// retorna os
-    // dados; restoreIOSPurchases resolve true se houver premium ativo.
-    setProcessing(true);
+    // Restaura via Customer Center (iOS). Antes daqui usávamos o
+    // getpurchasehistory://, que só LÊ o recibo: ele detectava a compra e
+    // deixava o syncStoreSubscription resolver o resto. Isso só funcionava
+    // quando a assinatura já estava ligada ao nosso Account.id por alias — e
+    // quando não estava, o acesso simplesmente não voltava, sem erro nenhum.
+    //
+    // O Customer Center sincroniza o recibo sob o external_id e re-aponta o
+    // entitlement, então o vínculo passa a ser consequência do restore em vez
+    // de sorte de configuração.
+    //
+    // NÃO há setProcessing(true) aqui: a folha nativa cobre a tela, e um
+    // spinner nosso por baixo ficaria preso para sempre se o callback não
+    // chegasse. Quem liga o processing é o onRevenueCatCenter.
     try {
-      const { restaurado, diagnostico } = await restoreIOSPurchases(user?.id);
-      if (restaurado) {
-        // Mesmo caminho da compra: consulta o RevenueCat e, se houver assinatura
-        // ativa, libera na hora. Restaurar não gera webhook nenhum — a compra é
-        // antiga —, então aqui a consulta direta não é otimização, é o único
-        // jeito de o acesso voltar sem intervenção.
-        await window.iapSuccess?.();
-        return;
-      }
-      // Nenhuma compra ativa encontrada para este usuário.
-      setProcessing(false);
-      setErrorDialog({
-        open: true,
-        title: 'Nenhuma Compra Encontrada',
-        // A mensagem admite as DUAS causas porque elas chegam aqui idênticas:
-        // pode não haver compra, ou a ponte pode não ter respondido (ver o
-        // comentário no restoreIOSPurchases). Afirmar só a primeira mandaria a
-        // pessoa conferir o Apple ID quando o problema não é esse.
-        message: 'Não encontramos nenhuma assinatura ativa para restaurar, ou o app não conseguiu consultar a App Store. Tente novamente; se persistir, verifique se está logado com o mesmo ID Apple usado na compra.',
-        // Payload cru (sem o receipt) no details, mesmo padrão do caminho
-        // Android: sem console no iPhone, é a única forma de diagnosticar em
-        // campo. O `ms` separa timeout de resposta real.
-        details: diagnostico
-      });
+      abrirCustomerCenterIOS(user?.id);
     } catch (error) {
       console.error("Erro ao restaurar compras iOS:", error);
       setProcessing(false);
