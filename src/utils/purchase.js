@@ -17,16 +17,21 @@ export function startIOSPurchase(plan, userId) {
   );
 }
 
-// Reduz uma entrada do histórico ao que cabe num diálogo. O `receipt` fica de
-// FORA de propósito: é blob base64 enorme e é credencial de compra — não vai
+// Reduz uma entrada do histórico ao que cabe num diálogo, em LINHAS CURTAS.
+//
+// Não é JSON de propósito: a primeira versão deste diagnóstico usava
+// JSON.stringify e saiu ilegível no iPhone — uma linha só, sem espaço onde
+// quebrar, transbordando a lateral da tela. Isto aqui é para ser fotografado.
+//
+// O `receipt` fica FORA: é blob base64 enorme e é credencial de compra, não vai
 // para a tela de ninguém.
-function resumirEntrada(p) {
-  return {
-    productId: p?.productId,
-    entitlementId: p?.entitlementId,
-    isActive: p?.isActive,
-    externalUserId: p?.externalUserId
-  };
+function resumirEntrada(p, i) {
+  return [
+    `${i + 1}) ${p?.productId ?? "sem productId"}`,
+    `   ent   ${p?.entitlementId ?? "-"}`,
+    `   ativo ${p?.isActive === undefined ? "-" : String(p.isActive)}`,
+    `   ext   ${p?.externalUserId ?? "-"}`
+  ].join("\n");
 }
 
 // Restaura compras anteriores via RevenueCat (iOS). Exigido pela Apple na tela
@@ -58,16 +63,15 @@ export async function restoreIOSPurchases(userId) {
     const entradas = Array.isArray(bruto) ? bruto : [];
     const ativas = entradas.filter((p) => p?.isActive);
 
+    const tipo = bruto === undefined ? "undefined" : Array.isArray(bruto) ? "array" : typeof bruto;
+
     return {
       restaurado: ativas.some((p) => p.entitlementId === RC_ENTITLEMENT),
-      diagnostico: JSON.stringify({
-        ms: Date.now() - inicio,
-        tipo: bruto === undefined ? "undefined" : Array.isArray(bruto) ? "array" : typeof bruto,
-        total: entradas.length,
-        ativas: ativas.length,
-        esperado: RC_ENTITLEMENT,
-        entradas: entradas.map(resumirEntrada)
-      })
+      diagnostico: [
+        `ms ${Date.now() - inicio} · ${tipo} · total ${entradas.length} · ativas ${ativas.length}`,
+        `esperado: ${RC_ENTITLEMENT}`,
+        ...entradas.map(resumirEntrada)
+      ].join("\n")
     };
   } catch (error) {
     console.error("Erro ao restaurar compras iOS:", error);
