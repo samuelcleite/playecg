@@ -1,5 +1,4 @@
 import despia from "despia-native";
-import { RC_ENTITLEMENT } from "./platform";
 
 const PRODUCTS = {
   monthly: "com.despia.playecg.monthly",
@@ -51,10 +50,30 @@ function resumirEntrada(p, i) {
 // Não dá para separar os dois do nosso lado — o que dá é MEDIR: resposta real
 // volta rápido, timeout volta em ~30000ms. Daí o `ms` no diagnóstico.
 //
-// NOTA que continua de pé: o valor exato de entitlementId no retorno da ponte
-// nunca foi conferido em aparelho. Mantido como está — há relato de restore
-// funcionando, então a comparação acerta pelo menos em alguns casos, e trocá-la
-// sem evidência seria enfraquecer a checagem no escuro.
+// POR QUE NÃO COMPARAMOS O entitlementId — agora com prova de aparelho
+//
+// A versão anterior exigia `entitlementId === RC_ENTITLEMENT` ("PlayECG Pro").
+// Ela recusava restaurar uma assinatura ATIVA, confirmada ao mesmo tempo nos
+// Ajustes do iPhone e no painel do RevenueCat. O diagnóstico em aparelho
+// mostrou por quê:
+//
+//   ms 101 · array · total 1 · ativas 1
+//   1) com.despia.playecg.monthly
+//      ent   com.despia.playecg.monthly     <-- o PRODUTO, não o entitlement
+//      ativo true
+//
+// A ponte do Despia preenche `entitlementId` com o product ID. A comparação
+// nunca poderia acertar, e o restore do iOS estava quebrado para todo mundo
+// desde que o botão existe.
+//
+// Isto é da PONTE, não do RevenueCat: no Android usamos o SDK de verdade, onde
+// `entitlements.active` é mesmo indexado pelo identifier — lá a comparação
+// continua certa e não foi tocada.
+//
+// O projeto tem UM único entitlement, e este histórico é do nosso app. Então
+// "existe entrada ativa" é equivalente a "PlayECG Pro está ativo", sem depender
+// de string nenhuma. ISSO DEIXA DE VALER no dia em que houver um segundo
+// entitlement — aí a comparação volta, com o campo certo conferido no aparelho.
 export async function restoreIOSPurchases(userId) {
   const inicio = Date.now();
   try {
@@ -66,10 +85,9 @@ export async function restoreIOSPurchases(userId) {
     const tipo = bruto === undefined ? "undefined" : Array.isArray(bruto) ? "array" : typeof bruto;
 
     return {
-      restaurado: ativas.some((p) => p.entitlementId === RC_ENTITLEMENT),
+      restaurado: ativas.length > 0,
       diagnostico: [
         `ms ${Date.now() - inicio} · ${tipo} · total ${entradas.length} · ativas ${ativas.length}`,
-        `esperado: ${RC_ENTITLEMENT}`,
         ...entradas.map(resumirEntrada)
       ].join("\n")
     };
