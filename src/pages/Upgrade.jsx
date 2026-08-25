@@ -827,7 +827,7 @@ export default function Upgrade() {
                   pessoa é indiagnosticável. Discreto de propósito — serve para
                   ser lido em voz alta ou fotografado, não para assustar. */}
               {errorDialog.details && (
-                <p className="text-xs text-gray-500 font-mono break-words border-t border-gray-200 pt-3">
+                <p className="text-xs text-gray-500 font-mono whitespace-pre-wrap break-all border-t border-gray-200 pt-3">
                   {errorDialog.details}
                 </p>
               )}
