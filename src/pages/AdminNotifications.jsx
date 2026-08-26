@@ -4,7 +4,7 @@ import { sendTestPush } from "@/functions/sendTestPush";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Send, Users, CheckCircle2, XCircle, Loader2, Smartphone, AlertTriangle } from "lucide-react";
+import { Bell, Send, CheckCircle2, XCircle, Loader2, Smartphone, AlertTriangle, RefreshCw, Search, Globe } from "lucide-react";
 
 // Rotas que fazem sentido como destino de notificação. O Despia lê este valor
 // de `data.path`, atualiza a URL pela History API e dispara popstate — o router
@@ -66,6 +66,17 @@ export default function AdminNotifications() {
   const [path, setPath] = useState("");
   const [result, setResult] = useState(null);
 
+  // Alcance do app iOS, lido do OneSignal. Uma chamada só (ver adminPushStats):
+  // `inscritos` = messageable_players, `ja_inscreveram` = players.
+  const [resumo, setResumo] = useState(null);
+  const [lendoResumo, setLendoResumo] = useState(true);
+  const [lidoEm, setLidoEm] = useState(null);
+
+  // Varredura conta a conta — cara, e por isso só sob gesto. `null` enquanto
+  // ninguém pediu; a tela mostra o botão e não finge saber quem são.
+  const [varredura, setVarredura] = useState(null);
+  const [varrendo, setVarrendo] = useState(false);
+
   useEffect(() => {
     init();
   }, []);
@@ -80,8 +91,77 @@ export default function AdminNotifications() {
       });
       const subs = resSubs?.data?.records || [];
       setSubscriptions(subs);
+      // Sem await: o resumo é uma chamada a um terceiro (OneSignal) e não pode
+      // segurar a tela inteira. Ele tem estado de carregamento próprio.
+      carregarResumo();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const carregarResumo = async () => {
+    setLendoResumo(true);
+    try {
+      const res = await base44.functions.invoke("adminPushStats", { acao: "resumo" });
+      setResumo(res?.data?.resumo ?? null);
+      setLidoEm(new Date());
+    } catch (err) {
+      const dados = err?.response?.data;
+      setResumo({ ok: false, erro: dados?.error || err.message });
+      setLidoEm(new Date());
+    } finally {
+      setLendoResumo(false);
+    }
+  };
+
+  // A varredura vem em lotes porque são N chamadas ao OneSignal — uma por conta.
+  // Quem costura os lotes é aqui, e é o que dá o progresso: a function devolve
+  // `proximo_offset` e este laço continua de onde parou.
+  //
+  // TETO DE LOTES como cinto de segurança. Não é o caminho esperado (a function
+  // devolve `proximo_offset: null` quando acabam as contas); é o que impede um
+  // laço infinito na tela caso algum dia o contrato mude e o offset pare de
+  // avançar.
+  const rodarVarredura = async () => {
+    setVarrendo(true);
+    setVarredura({ ativos: [], sem: 0, indisponiveis: 0, processadas: 0, completa: false });
+
+    let offset = 0;
+    let lotes = 0;
+    const TETO_LOTES = 50;
+
+    try {
+      while (lotes < TETO_LOTES) {
+        const res = await base44.functions.invoke("adminPushStats", {
+          acao: "varredura",
+          offset
+        });
+        const d = res?.data;
+        if (!d?.success) throw new Error(d?.error || "Falha na varredura");
+
+        setVarredura(anterior => ({
+          ativos: [...anterior.ativos, ...(d.ativos || [])],
+          sem: anterior.sem + (d.sem || 0),
+          indisponiveis: anterior.indisponiveis + (d.indisponiveis || 0),
+          processadas: anterior.processadas + (d.processadas || 0),
+          completa: d.proximo_offset == null
+        }));
+
+        if (d.proximo_offset == null) break;
+        offset = d.proximo_offset;
+        lotes++;
+      }
+    } catch (err) {
+      const dados = err?.response?.data;
+      // Mantém o que já foi varrido e marca o erro: meia varredura ainda diz
+      // mais que nenhuma, desde que a tela não a apresente como completa.
+      setVarredura(anterior => ({
+        ...(anterior || { ativos: [], sem: 0, indisponiveis: 0, processadas: 0 }),
+        completa: false,
+        erro: dados?.error || err.message
+      }));
+    } finally {
+      setVarrendo(false);
     }
   };
 
@@ -173,18 +253,194 @@ export default function AdminNotifications() {
           </div>
         </div>
 
-        {/* Stat */}
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <Users className="w-5 h-5 text-ecg-blue" />
-            {/* Este contador é SÓ de Web Push (navegador e PWA). Ele não inclui
-                os iPhones: o app iOS não tem linha em PushSubscription, e o
-                número autoritativo daquele lado vive no painel do OneSignal. */}
-            <span className="text-sm text-gray-600">
-              <strong className="text-ecg-midnight">{subscriptions.length}</strong> dispositivo{subscriptions.length !== 1 ? "s" : ""} cadastrado{subscriptions.length !== 1 ? "s" : ""} no Web Push
-            </span>
+        {/* ALCANCE DO APP iOS — o número que a tela devia ter desde sempre.
+            Ele vem do OneSignal, não de contador nosso: a verdade sobre a
+            permissão mora no aparelho, e o app não sabe (ver pushNativo.js e o
+            cabeçalho de adminPushStats). */}
+        <Card className="border-2 border-ecg-midnight/15">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-4 h-4 text-ecg-blue" />
+                <h2 className="font-bold text-ecg-midnight text-sm">App iOS</h2>
+              </div>
+              <button
+                onClick={carregarResumo}
+                disabled={lendoResumo}
+                className="text-gray-400 hover:text-ecg-midnight disabled:opacity-40 p-1"
+                aria-label="Recarregar"
+              >
+                <RefreshCw className={`w-4 h-4 ${lendoResumo ? "animate-spin" : ""}`} />
+              </button>
+            </div>
+
+            {lendoResumo && !resumo ? (
+              <div className="flex items-center gap-2 text-sm text-gray-400 py-3">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Consultando o OneSignal...
+              </div>
+            ) : !resumo?.ok ? (
+              /* NÃO mostra zero. Número que não foi lido é ausência, não
+                 ausência de inscritos — é a mesma lição do `recipients`, que
+                 fazia esta tela acusar "ninguém inscrito" em envio entregue. */
+              <div className="flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-200 p-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-bold text-amber-800">Não foi possível ler a contagem</p>
+                  <p className="text-amber-700 mt-0.5">{resumo?.erro || "Falha ao consultar o OneSignal."}</p>
+                  {resumo?.status_http != null && (
+                    <p className="text-amber-700/80 text-xs mt-1">HTTP {resumo.status_http}</p>
+                  )}
+                  {resumo?.dica && (
+                    <p className="text-amber-800 text-xs mt-2 bg-amber-100 rounded-lg px-2 py-1.5">
+                      {resumo.dica}
+                    </p>
+                  )}
+                  {resumo?.corpo_cru && (
+                    <pre className="text-[10px] text-amber-700/70 mt-2 whitespace-pre-wrap break-all">
+                      {resumo.corpo_cru}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="text-center py-2">
+                  <p className="text-5xl font-black text-ecg-midnight leading-none">
+                    {resumo.inscritos ?? "—"}
+                  </p>
+                  <p className="text-sm font-semibold text-gray-600 mt-1.5">
+                    podem receber notificação agora
+                  </p>
+                </div>
+
+                {/* A DIFERENÇA entre os dois números é o dado mais útil dos
+                    três: quem se inscreveu e hoje não recebe desinstalou o app
+                    ou desligou nos Ajustes. */}
+                {resumo.ja_inscreveram != null && resumo.inscritos != null && (
+                  <div className="flex items-center justify-center gap-2 text-xs text-gray-500 mt-2 flex-wrap">
+                    <span><strong className="text-gray-700">{resumo.ja_inscreveram}</strong> já se inscreveram</span>
+                    {resumo.ja_inscreveram - resumo.inscritos > 0 && (
+                      <>
+                        <span className="text-gray-300">·</span>
+                        <span>
+                          <strong className="text-gray-700">{resumo.ja_inscreveram - resumo.inscritos}</strong> não recebem mais
+                          <span className="text-gray-400"> (desinstalaram ou desligaram)</span>
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Ressalva dita em voz alta: sozinho, este número seria lido
+                    como "usuários", e ele não é. */}
+                <p className="text-[11px] text-gray-400 text-center mt-3 leading-snug">
+                  São aparelhos, não pessoas — quem tem iPhone e iPad conta duas vezes.
+                  {lidoEm && ` Lido às ${lidoEm.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`}
+                </p>
+              </>
+            )}
+
+            {/* QUEM — varredura conta a conta. Fora do bloco de erro acima de
+                propósito: ela usa outro endpoint (o mesmo do promocoes), então
+                funciona mesmo quando a contagem agregada falha por chave. */}
+            <div className="border-t border-gray-100 mt-4 pt-3">
+              {!varredura ? (
+                <Button
+                  onClick={rodarVarredura}
+                  variant="outline"
+                  className="w-full gap-2 rounded-xl h-10 text-sm"
+                >
+                  <Search className="w-4 h-4" />
+                  Ver quem tem push ativo
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-semibold text-ecg-midnight">
+                      {varrendo
+                        ? "Verificando..."
+                        : varredura.completa
+                          ? "Contas com push iOS ativo"
+                          : "Contas com push iOS ativo (parcial)"}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {varrendo && <Loader2 className="w-3 h-3 animate-spin inline mr-1" />}
+                      {varredura.processadas} conta{varredura.processadas !== 1 ? "s" : ""} verificada{varredura.processadas !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2 text-xs">
+                    <Badge className="bg-green-100 text-green-800 border border-green-200">
+                      {varredura.ativos.length} ativo{varredura.ativos.length !== 1 ? "s" : ""}
+                    </Badge>
+                    <Badge className="bg-gray-100 text-gray-600 border border-gray-200">
+                      {varredura.sem} sem push
+                    </Badge>
+                    {/* Nunca somado aos "sem push": falha de rede não é ausência
+                        de inscrição, e contá-la como tal faria a base parecer
+                        ter desativado em massa. */}
+                    {varredura.indisponiveis > 0 && (
+                      <Badge className="bg-amber-100 text-amber-800 border border-amber-200">
+                        {varredura.indisponiveis} não verificad{varredura.indisponiveis !== 1 ? "as" : "a"}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {varredura.erro && (
+                    <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5">
+                      A varredura parou antes do fim: {varredura.erro}
+                    </p>
+                  )}
+
+                  {varredura.ativos.length > 0 && (
+                    <div className="max-h-48 overflow-y-auto space-y-1 pt-1">
+                      {varredura.ativos.map((c, i) => (
+                        <button
+                          key={`${c.email}-${i}`}
+                          onClick={() => {
+                            // Mirar o envio é o uso natural desta lista — sem
+                            // ela, o e-mail do destinatário iOS tinha de ser
+                            // digitado de cabeça (a lista de baixo é de Web
+                            // Push, público disjunto).
+                            setTargetMode("user");
+                            setTargetUserEmail(c.email || "");
+                          }}
+                          disabled={!c.email}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-xs border transition-all disabled:opacity-50 ${c.email && targetUserEmail === c.email ? "border-ecg-green bg-ecg-green/10 text-ecg-midnight font-bold" : "border-gray-100 bg-white hover:bg-gray-50 text-gray-600"}`}
+                        >
+                          <span className="font-mono">{c.email || "(sem e-mail)"}</span>
+                          {c.nome && <span className="ml-2 text-gray-400">{c.nome}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {!varrendo && (
+                    <button
+                      onClick={rodarVarredura}
+                      className="text-xs text-gray-400 hover:text-ecg-midnight underline"
+                    >
+                      Verificar de novo
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
+
+        {/* Web Push — rebaixado a uma linha. O canal continua de pé (é o que o
+            Chrome recebe), mas não disputa mais a atenção com o número do iOS,
+            que é o que se usa. O contador é limitado aos 200 registros que o
+            adminListRecords traz, então acima disso ele é um piso, não o total —
+            e por isso o "+". */}
+        <div className="flex items-center gap-2 text-xs text-gray-400 px-1">
+          <Globe className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>
+            Web Push (navegador e PWA): {subscriptions.length}{subscriptions.length >= 200 ? "+" : ""} dispositivo{subscriptions.length !== 1 ? "s" : ""} cadastrado{subscriptions.length !== 1 ? "s" : ""}
+          </span>
+        </div>
 
         {/* Form */}
         <Card>
@@ -221,9 +477,14 @@ export default function AdminNotifications() {
                   placeholder="email@exemplo.com"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ecg-green"
                 />
-                {/* Mostrar subscriptions para facilitar */}
+                {/* Atalhos de Web Push. NÃO servem para o envio iOS: os
+                    públicos são disjuntos, então ninguém desta lista tem
+                    subscription no OneSignal. Para mirar um iPhone, use a lista
+                    da varredura, no card do App iOS lá em cima. */}
                 {subscriptions.length > 0 && (
-                  <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
+                  <>
+                    <p className="text-[11px] text-gray-400 mt-2 mb-1">Inscritos no Web Push:</p>
+                    <div className="max-h-40 overflow-y-auto space-y-1">
                     {subscriptions.map(s => (
                       <button
                         key={s.id}
@@ -235,7 +496,8 @@ export default function AdminNotifications() {
                         <span className="ml-2 text-gray-400 truncate">{s.endpoint?.slice(0, 40)}...</span>
                       </button>
                     ))}
-                  </div>
+                    </div>
+                  </>
                 )}
               </div>
             )}
