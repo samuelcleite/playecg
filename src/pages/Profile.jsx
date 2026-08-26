@@ -251,7 +251,12 @@ export default function Profile() {
           paymentId: info.paymentId,
           // null quando o backend não sabe (Stripe/manual/RevenueCat fora do ar):
           // nesse caso a tela mantém o texto de renovação automática.
-          willRenew: info.willRenew ?? null
+          willRenew: info.willRenew ?? null,
+          // 'month' | 'year' | null. Este objeto é montado CAMPO A CAMPO, não
+          // por spread: campo novo no backend que não for copiado aqui chega na
+          // tela como undefined e cai no fallback sem erro nenhum — foi o que
+          // aconteceu com este, que ficou exibindo "/mês" num plano anual.
+          interval: info.interval ?? null
         });
         return;
       }
