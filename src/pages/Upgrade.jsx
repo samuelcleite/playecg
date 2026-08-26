@@ -5,7 +5,13 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { lerCodigoPromocional } from "@/lib/linkPromocional";
 import { isIOSNativeApp, isAndroidNativeApp } from "@/utils/platform";
-import { startIOSPurchase, lerHistoricoComprasIOS, abrirCustomerCenterIOS } from "@/utils/purchase";
+import {
+  startIOSPurchase,
+  lerHistoricoComprasIOS,
+  abrirCustomerCenterIOS,
+  codigoDeOfertaIOS,
+  abrirResgateIOS,
+} from "@/utils/purchase";
 import {
   purchaseAndroidPlan,
   restoreAndroidPurchases,
@@ -670,15 +676,15 @@ export default function Upgrade() {
                 </button>
               </div>
 
-              {/* Coupon Section — visível na web e no ANDROID; ainda oculto no
-                  iOS.
+              {/* Coupon Section — visível nas TRÊS plataformas.
                   O motivo de esconder era que o desconto vinha de fora da compra
                   da loja, o que a Apple proíbe (3.1.1) e o Google também. Isso
-                  deixou de valer no Android: o desconto agora é uma OFERTA do
-                  próprio Play, escolhida pela tag do cupom, e quem cobra é o
-                  Google. O código identifica o parceiro; o desconto é da loja.
-                  No iOS continua escondido até o resgate por offer code existir. */}
-              {!isIOSNativeApp() && (
+                  deixou de valer: no Android o desconto é uma OFERTA do próprio
+                  Play, escolhida pela tag do cupom; no iOS é um OFFER CODE da
+                  própria App Store, resgatado dentro da loja. Em nenhum dos dois
+                  o desconto é concedido por nós — o código identifica o
+                  parceiro, e quem cobra e quem desconta é a loja. */}
+              {(
                 <div className="mb-6 p-4 bg-white rounded-lg border-2 border-blue-200">
                   <div className="flex items-center gap-2 mb-3">
                     <Tag className="w-5 h-5 text-amber-600" />
@@ -708,6 +714,44 @@ export default function Upgrade() {
                                 ? 'O valor com desconto aparece na tela de pagamento do Google Play.'
                                 : 'Atenção: este código só vale no site. Aqui no app a assinatura sai pelo preço normal.'}
                             </p>
+                          )}
+                          {/* iOS: o desconto NÃO sai por "Adquirir Premium" —
+                              ele sai do resgate na App Store, que acontece fora
+                              do app. Por isso o rótulo é "Resgatar código na App
+                              Store" e nunca "Aplicar cupom": o que este botão
+                              faz é abrir a loja, não conceder desconto. */}
+                          {isIOS && (
+                            <div className="mt-2 space-y-2">
+                              {codigoDeOfertaIOS(appliedCoupon.coupon.tier, selectedPlan) ? (
+                                <>
+                                  <p className="text-sm font-medium text-green-800">
+                                    No iPhone o desconto é aplicado pela própria App Store.
+                                    Toque abaixo para resgatar; depois volte e use
+                                    <strong> Restaurar Compras</strong>.
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    className="w-full border-[#1976D2] text-[#1976D2]"
+                                    onClick={() => abrirResgateIOS(appliedCoupon.coupon.tier, selectedPlan)}
+                                  >
+                                    Resgatar código na App Store
+                                  </Button>
+                                  {/* O botão principal continua comprando pelo
+                                      preço cheio — no iOS não há como aplicar a
+                                      oferta na compra direta. Dizer isso evita
+                                      que a pessoa pague o normal achando que o
+                                      cupom valeu. */}
+                                  <p className="text-xs text-green-700">
+                                    O botão "Adquirir Premium" cobra o preço normal.
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="text-sm font-medium text-green-800">
+                                  Atenção: este código só vale no site. Aqui no app a
+                                  assinatura sai pelo preço normal.
+                                </p>
+                              )}
+                            </div>
                           )}
                         </div>
                         <Button
