@@ -572,7 +572,13 @@ export default function Profile() {
                     </Alert>
                   )}
 
-                  {subscriptionInfo.paymentMethod === 'Stripe' && subscriptionInfo.paymentId && (
+                  {/* !assinaturaCancelada: até agora o willRenew do Stripe era
+                      sempre null, então o alerta vermelho nunca aparecia neste
+                      ramo e o botão podia ficar incondicional. Agora que o
+                      getUserSubscriptionInfo consulta o Stripe de verdade, os
+                      dois apareceriam juntos — "sua assinatura está cancelada" e
+                      "cancelar assinatura" na mesma tela. */}
+                  {subscriptionInfo.paymentMethod === 'Stripe' && subscriptionInfo.paymentId && !assinaturaCancelada && (
                     <Button
                       variant="outline"
                       className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
