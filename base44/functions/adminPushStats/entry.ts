@@ -32,8 +32,18 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 //   players             → total de subscriptions já registradas no app
 //   messageable_players → as que estão inscritas e alcançáveis AGORA
 //
-// A diferença entre os dois é quem desinstalou ou desligou. Vale mais que
-// qualquer um dos dois isolado, e é por isso que a tela mostra os três.
+// `players` NÃO É "quantos já autorizaram", e confundir os dois foi o primeiro
+// rótulo desta tela. Em app mobile a Subscription nasce quando a pessoa ABRE o
+// app, antes de qualquer permissão (doc "Subscriptions": *created automatically
+// when a user installs and opens your app with the OneSignal SDK*). Então a
+// diferença entre os dois números mistura quem nunca autorizou, quem desligou
+// depois, quem desinstalou — e REINSTALAÇÕES, que geram subscription nova e
+// deixam a antiga lá para sempre.
+//
+// Isso faz de `players` um DENOMINADOR RUIM: ele só cresce, e o mesmo iPhone
+// pode estar contado três vezes. "8 de 38" não é taxa de conversão nenhuma. A
+// taxa que presta sai da varredura, que conta CONTAS e sabe separar quem nunca
+// apareceu no OneSignal de quem apareceu e não autorizou.
 //
 // São SUBSCRIPTIONS, ou seja APARELHOS — não pessoas. Quem tem iPhone e iPad
 // conta duas vezes. A tela diz isso em voz alta em vez de deixar o número
@@ -279,11 +289,26 @@ function temPushIOSAtivo(subscriptions) {
   );
 }
 
-// Três desfechos, não dois: 'ativo', 'sem' e 'indisponivel'.
+// QUATRO desfechos, e cada um responde a uma pergunta diferente:
 //
-// O terceiro é o que impede a tela de mentir. Com dois estados, a rede caindo no
-// meio da varredura viraria um monte de "não tem push" — e a conclusão seria que
-// a base inteira desativou as notificações. Falha não é ausência.
+//   'ativo'         → tem push iOS inscrito agora
+//   'nao_autorizou' → existe no OneSignal (logo ABRIU o app iOS) e não autorizou,
+//                     ou autorizou e desligou depois
+//   'nunca_abriu'   → 404: nenhum registro lá. Nunca abriu o app iOS logado —
+//                     é usuário de web/Android, ou entrou antes de o binário do
+//                     Despia ter o SDK
+//   'indisponivel'  → não deu para verificar
+//
+// A separação entre os dois do meio é o que torna a varredura útil como métrica.
+// Juntos num balde só de "sem push", o denominador vira a base inteira — e aí a
+// taxa mistura quem recusou com quem nunca teve a chance de recusar, que é
+// exatamente a diferença entre "o banner não convence" e "o app iOS tem pouco
+// alcance". São dois problemas distintos com soluções distintas.
+//
+// 'indisponivel' existe para impedir a tela de mentir: com um estado a menos, a
+// rede caindo no meio da varredura viraria um monte de "não tem push" — e a
+// conclusão seria que a base inteira desativou as notificações. Falha não é
+// ausência.
 async function verificarConta(conta, appId, apiKey) {
   const url = `${ONESIGNAL_BASE}/apps/${encodeURIComponent(appId)}/users/by/external_id/${encodeURIComponent(String(conta.id))}`;
 
@@ -294,9 +319,9 @@ async function verificarConta(conta, appId, apiKey) {
     return { estado: 'indisponivel' };
   }
 
-  // 404 = o external_id não existe lá. Não é erro: é quem nunca ativou, ou
-  // nunca abriu o app iOS. Mesmo tratamento do promocoes.
-  if (resp.status === 404) return { estado: 'sem' };
+  // 404 = o external_id não existe lá. Não é erro: é quem nunca abriu o app iOS
+  // logado. Mesmo tratamento do promocoes, que chama isso de `sem_inscricao`.
+  if (resp.status === 404) return { estado: 'nunca_abriu' };
   if (!resp.ok) return { estado: 'indisponivel' };
 
   let corpo;
@@ -307,7 +332,7 @@ async function verificarConta(conta, appId, apiKey) {
   }
 
   const subs = Array.isArray(corpo?.subscriptions) ? corpo.subscriptions : [];
-  return { estado: temPushIOSAtivo(subs) ? 'ativo' : 'sem' };
+  return { estado: temPushIOSAtivo(subs) ? 'ativo' : 'nao_autorizou' };
 }
 
 // Pool de tamanho fixo. Cada trabalhador puxa o próximo índice da fila até
@@ -370,7 +395,8 @@ Deno.serve(async (req) => {
       const estados = await verificarEmParalelo(lote, appId, apiKey);
 
       const ativos = [];
-      let sem = 0;
+      let naoAutorizaram = 0;
+      let nuncaAbriram = 0;
       let indisponiveis = 0;
 
       lote.forEach((conta, i) => {
@@ -379,10 +405,12 @@ Deno.serve(async (req) => {
           // Só o que a tela usa: e-mail para mirar o envio, nome para
           // reconhecer a pessoa. Nada de id de subscription nem token de push.
           ativos.push({ email: conta.email || null, nome: conta.full_name || null });
-        } else if (estado === 'indisponivel') {
-          indisponiveis++;
+        } else if (estado === 'nao_autorizou') {
+          naoAutorizaram++;
+        } else if (estado === 'nunca_abriu') {
+          nuncaAbriram++;
         } else {
-          sem++;
+          indisponiveis++;
         }
       });
 
@@ -395,7 +423,8 @@ Deno.serve(async (req) => {
         processadas: lote.length,
         proximo_offset: acabou ? null : offset + lote.length,
         ativos,
-        sem,
+        nao_autorizaram: naoAutorizaram,
+        nunca_abriram: nuncaAbriram,
         indisponiveis
       });
     }

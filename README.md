@@ -398,10 +398,16 @@ contaria intenções e ficaria mudo quando alguém revogasse a permissão nos
 Ajustes sem reabrir o app.
 
 - **`messageable_players`** = podem receber agora. É o número grande.
-- **`players`** = total já registrado. A **diferença** entre os dois é quem
-  desinstalou ou desligou, e vale mais que qualquer um isolado.
-- São **subscriptions, ou seja aparelhos** — não pessoas. iPhone + iPad da mesma
-  pessoa contam dois.
+- **`players`** = registros de aparelho. **NÃO é "quantos já autorizaram"** — em
+  app mobile a Subscription nasce quando a pessoa **abre** o app, antes de
+  qualquer permissão. A diferença entre os dois mistura quem nunca autorizou,
+  quem desligou depois, quem desinstalou e **reinstalações** (que criam registro
+  novo e não apagam o velho).
+- Por isso `players` é **denominador ruim**: só cresce, e o mesmo iPhone pode
+  estar contado três vezes. "8 de 38" não é taxa de conversão. A taxa honesta sai
+  da varredura, que conta contas.
+- São **registros de aparelho** — não pessoas. iPhone + iPad da mesma pessoa
+  contam dois.
 - Como o app do OneSignal só tem iOS configurado, esse número já é a contagem de
   iPhones: não há filtro de plataforma, e é bom que não haja — filtro por user
   agent é palpite.
@@ -416,6 +422,13 @@ critério é o MESMO do `promocoes` (iOSPush inscrita) — se divergir, a tela c
 gente que a promoção recusa e a diferença não terá explicação. A lista serve para
 mirar o envio: sem ela, o e-mail do destinatário iOS tinha de ser digitado de
 cabeça, porque a lista antiga é de Web Push, público disjunto.
+
+Ela separa **"abriu e não autorizou"** (existe no OneSignal) de **"nunca abriu o
+app iOS"** (404), e é dessa separação que sai a única taxa confiável da tela:
+autorizados ÷ quem abriu o app. Juntar os dois num "sem push" só faria o
+denominador virar a base inteira — misturando quem recusou com quem nunca teve a
+chance, que são problemas opostos: banner que não convence versus app com pouco
+alcance.
 
 Páginas públicas exigidas pela Apple/Google: `/termos`, `/privacidade`,
 `/suporte`, `/excluir-conta`. Links externos não abrem na WebView do Despia —
