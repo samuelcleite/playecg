@@ -172,6 +172,65 @@ async function consultarAssinaturaLoja(appUserId, apiKey) {
   };
 }
 
+// Pergunta ao Stripe o estado REAL da assinatura.
+//
+// POR QUE EXISTE: o Stripe era o único caminho em que NADA era consultado. A
+// "Próxima Renovação" saía de aritmética — paid_at + 30 dias (ou +365 acima de
+// R$400) — e o willRenew ficava null, então a tela prometia "renovação
+// automática" para quem já tinha cancelado. O caminho de loja não tinha esse
+// problema porque o RevenueCat é consultado; este helper fecha a assimetria.
+//
+// current_period_end é o fim real do ciclo e cancel_at_period_end diz se ele
+// renova — os dois vêm do Stripe, nenhum é estimado.
+//
+// SOBRE O current_period_end: nas versões novas da API ele saiu do objeto
+// Subscription e passou a viver em cada item. Lemos os dois lugares porque esta
+// chamada usa a versão padrão da conta, que não está fixada aqui — e ler só um
+// deles daria `undefined` silencioso quando a conta mudar de versão.
+//
+// Qualquer falha (rede, status inesperado, JSON, campo ausente) => null, e o
+// chamador mantém o comportamento antigo. Mesmo contrato do
+// consultarAssinaturaLoja: esta função NUNCA derruba a tela de assinatura.
+async function consultarAssinaturaStripe(subscriptionId, apiKey) {
+  let resp;
+  try {
+    resp = await fetch(
+      `https://api.stripe.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
+      { headers: { Authorization: `Bearer ${apiKey}` } }
+    );
+  } catch (e) {
+    console.error('getUserSubscriptionInfo: rede Stripe:', e.message);
+    return null;
+  }
+
+  if (resp.status !== 200) {
+    console.error('getUserSubscriptionInfo: Stripe status inesperado:', resp.status);
+    return null;
+  }
+
+  let sub;
+  try {
+    sub = await resp.json();
+  } catch (_e) {
+    return null;
+  }
+
+  const fimUnix = sub?.current_period_end ?? sub?.items?.data?.[0]?.current_period_end ?? null;
+  if (typeof fimUnix !== 'number') {
+    console.error('getUserSubscriptionInfo: Stripe sem current_period_end para', subscriptionId);
+    return null;
+  }
+
+  return {
+    expiresAt: new Date(fimUnix * 1000).toISOString(),
+    // Status terminal não renova, por mais que a flag diga o contrário.
+    willRenew: sub.status !== 'canceled'
+      && sub.status !== 'incomplete_expired'
+      && sub.cancel_at_period_end !== true,
+    store: null
+  };
+}
+
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
@@ -385,6 +444,26 @@ Deno.serve(async (req) => {
             }
         }
 
+        // Espelho do bloco acima para o Stripe. Só faz sentido com o id da
+        // assinatura em mãos: sem ele não há o que consultar, e o vitalício —
+        // que é pagamento único — nem chega aqui, porque isStripe é false para
+        // o payment_method dele.
+        let estadoStripe = null;
+        if (isStripe && paymentId) {
+            const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+            if (stripeKey) {
+                estadoStripe = await consultarAssinaturaStripe(paymentId, stripeKey);
+            } else {
+                console.error('getUserSubscriptionInfo: STRIPE_SECRET_KEY ausente');
+            }
+        }
+
+        // Uma fonte externa só, seja qual for o caminho. Loja e Stripe são
+        // mutuamente exclusivos aqui (isLoja e isStripe saem do mesmo Payment),
+        // então não há disputa — e quando as duas vêm nulas, valem os +30 dias
+        // de antes.
+        const estadoExterno = estadoLoja || estadoStripe;
+
         // QUAL loja. O RevenueCat é a fonte melhor: ele acerta até quem comprou
         // no Android ANTES do webhook distinguir, cujo Payment está gravado como
         // App Store — sem reescrever histórico. Sem resposta dele, vale o que
@@ -397,9 +476,10 @@ Deno.serve(async (req) => {
         const subscriptionInfo = {
             amount: latestPayment.amount,
             lastRenewal: lastRenewal.toISOString(),
-            // A data da loja é a verdade sobre até quando o acesso vale; os +30
-            // dias só continuam valendo quando não temos resposta do RevenueCat.
-            nextRenewal: estadoLoja?.expiresAt || nextRenewal.toISOString(),
+            // A data da fonte externa (RevenueCat ou Stripe) é a verdade sobre
+            // até quando o acesso vale; os +30 dias só continuam valendo quando
+            // nenhuma das duas respondeu.
+            nextRenewal: estadoExterno?.expiresAt || nextRenewal.toISOString(),
             // 'APP_STORE_SUBSCRIPTION' aqui significa "compra de loja", não
             // "Apple": é o discriminador que os clientes já instalados comparam.
             // Trocá-lo por loja jogaria o assinante Android com cache antigo no
@@ -407,9 +487,11 @@ Deno.serve(async (req) => {
             paymentMethod: isLoja ? 'APP_STORE_SUBSCRIPTION' : (isStripe ? 'Stripe' : 'Manual'),
             store,
             paymentId: paymentId,
-            // null = não sabemos (Stripe, manual, ou RevenueCat indisponível).
-            // A tela só avisa do cancelamento quando isso é explicitamente false.
-            willRenew: estadoLoja ? estadoLoja.willRenew : null
+            // null = não sabemos (manual, ou a consulta externa falhou). A tela
+            // só avisa do cancelamento quando isso é explicitamente false — e
+            // agora o Stripe também consegue dizer false, o que antes era
+            // exclusividade do caminho de loja.
+            willRenew: estadoExterno ? estadoExterno.willRenew : null
         };
 
         console.log('✅ Returning subscription info:', subscriptionInfo);
