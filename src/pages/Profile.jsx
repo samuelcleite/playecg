@@ -92,6 +92,16 @@ function dataLonga(d) {
 }
 
 // Rótulo da linha "Forma de Pagamento". Sem `store`, não dá para nomear a loja.
+// Sufixo do valor no rótulo do plano. Antes era "/mês" fixo, o que rotulava
+// TODO assinante anual como mensal — inclusive quem paga R$ 499/ano.
+//
+// null cai em "/mês", que é o comportamento de sempre: sem resposta da consulta
+// externa não há motivo para trocar o rótulo por outro palpite.
+function sufixoDoPeriodo(interval) {
+  if (interval === 'year') return '/ano';
+  return '/mês';
+}
+
 function rotuloDaFormaDePagamento(paymentMethod, store) {
   if (paymentMethod !== 'APP_STORE_SUBSCRIPTION') return paymentMethod;
   if (store === 'APP_STORE') return 'App Store';
@@ -526,7 +536,7 @@ export default function Profile() {
                             a poder ser null desde que a tela deixou de inventar
                             preço quando não sabe qual foi. */}
                         {subscriptionInfo.amount != null
-                          ? `Premium - R$ ${subscriptionInfo.amount.toFixed(2).replace('.', ',')}/mês`
+                          ? `Premium - R$ ${subscriptionInfo.amount.toFixed(2).replace('.', ',')}${sufixoDoPeriodo(subscriptionInfo.interval)}`
                           : 'Premium'}
                       </p>
                     </div>
@@ -566,7 +576,8 @@ export default function Profile() {
                     <Alert className="bg-blue-50 border-blue-200 mb-4">
                       <AlertCircle className="w-5 h-5 text-blue-600" />
                       <AlertDescription className="text-blue-900 ml-2">
-                        <strong>Renovação Automática:</strong> Sua assinatura será renovada automaticamente todo mês.
+                        <strong>Renovação Automática:</strong> Sua assinatura será renovada
+                        automaticamente {subscriptionInfo.interval === 'year' ? 'todo ano' : 'todo mês'}.
                         Você pode cancelar a qualquer momento sem multas.
                       </AlertDescription>
                     </Alert>

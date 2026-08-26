@@ -113,6 +113,21 @@ function lojaDoRevenueCat(s) {
   return null;
 }
 
+// Periodicidade a partir do identificador do produto da loja.
+//
+// O RevenueCat não manda a duração em campo próprio (period_type é
+// NORMAL/TRIAL/INTRO, não mensal/anual), então sobra o id — mesma leitura que o
+// revenuecatWebhook já faz. Ids reais: com.despia.playecg.monthly/.yearly no
+// iOS e premium:monthly/premium:annual no Android, daí os dois vocabulários.
+//
+// Desconhecido devolve null, e quem chama mantém o rótulo de antes.
+function periodoDoProduto(productId) {
+  const v = (productId || '').toLowerCase();
+  if (v.includes('year') || v.includes('annual') || v.includes('anual')) return 'year';
+  if (v.includes('month') || v.includes('mensal')) return 'month';
+  return null;
+}
+
 // Pergunta ao RevenueCat o estado REAL da assinatura de loja deste usuário.
 //
 // POR QUE EXISTE: o revenuecatWebhook, de propósito, NÃO trata CANCELLATION —
@@ -156,11 +171,13 @@ async function consultarAssinaturaLoja(appUserId, apiKey) {
   // Pega a assinatura de loja que vai mais longe: se houve troca de produto, é
   // ela quem define até quando o acesso vale.
   let melhor = null;
-  for (const sub of Object.values(subscriptions)) {
+  // Object.entries e não values: a CHAVE é o identificador do produto, e é dela
+  // que sai a periodicidade — o corpo da assinatura não a carrega.
+  for (const [productId, sub] of Object.entries(subscriptions)) {
     if (typeof sub?.store === 'string' && LOJAS_NAO_APP.includes(sub.store)) continue;
     const fim = sub?.expires_date ? new Date(sub.expires_date).getTime() : null;
     if (fim == null || fim <= agora) continue;
-    if (!melhor || fim > melhor.fim) melhor = { fim, sub };
+    if (!melhor || fim > melhor.fim) melhor = { fim, sub, productId };
   }
 
   if (!melhor) return null;
@@ -168,7 +185,8 @@ async function consultarAssinaturaLoja(appUserId, apiKey) {
   return {
     expiresAt: new Date(melhor.fim).toISOString(),
     willRenew: !melhor.sub.unsubscribe_detected_at,
-    store: melhor.sub.store || null
+    store: melhor.sub.store || null,
+    interval: periodoDoProduto(melhor.productId)
   };
 }
 
@@ -221,13 +239,20 @@ async function consultarAssinaturaStripe(subscriptionId, apiKey) {
     return null;
   }
 
+  const recorrencia = sub?.items?.data?.[0]?.price?.recurring?.interval ?? null;
+
   return {
     expiresAt: new Date(fimUnix * 1000).toISOString(),
     // Status terminal não renova, por mais que a flag diga o contrário.
     willRenew: sub.status !== 'canceled'
       && sub.status !== 'incomplete_expired'
       && sub.cancel_at_period_end !== true,
-    store: null
+    store: null,
+    // 'month' | 'year', direto do preço. NUNCA deduzido do valor pago: um anual
+    // com cupom de 99% custa R$ 4,99 e qualquer limiar o classificaria como
+    // mensal — foi exatamente esse tipo de heurística que já tinha estragado o
+    // relatório de cupons no stripeWebhook.
+    interval: recorrencia === 'month' || recorrencia === 'year' ? recorrencia : null
   };
 }
 
@@ -491,7 +516,9 @@ Deno.serve(async (req) => {
             // só avisa do cancelamento quando isso é explicitamente false — e
             // agora o Stripe também consegue dizer false, o que antes era
             // exclusividade do caminho de loja.
-            willRenew: estadoExterno ? estadoExterno.willRenew : null
+            willRenew: estadoExterno ? estadoExterno.willRenew : null,
+            // 'month' | 'year' | null. Null mantém o rótulo antigo na tela.
+            interval: estadoExterno?.interval ?? null
         };
 
         console.log('✅ Returning subscription info:', subscriptionInfo);
