@@ -124,7 +124,10 @@ export default function AdminNotifications() {
   // avançar.
   const rodarVarredura = async () => {
     setVarrendo(true);
-    setVarredura({ ativos: [], sem: 0, indisponiveis: 0, processadas: 0, completa: false });
+    setVarredura({
+      ativos: [], nao_autorizaram: 0, nunca_abriram: 0,
+      indisponiveis: 0, processadas: 0, completa: false
+    });
 
     let offset = 0;
     let lotes = 0;
@@ -141,7 +144,8 @@ export default function AdminNotifications() {
 
         setVarredura(anterior => ({
           ativos: [...anterior.ativos, ...(d.ativos || [])],
-          sem: anterior.sem + (d.sem || 0),
+          nao_autorizaram: anterior.nao_autorizaram + (d.nao_autorizaram || 0),
+          nunca_abriram: anterior.nunca_abriram + (d.nunca_abriram || 0),
           indisponiveis: anterior.indisponiveis + (d.indisponiveis || 0),
           processadas: anterior.processadas + (d.processadas || 0),
           completa: d.proximo_offset == null
@@ -156,7 +160,10 @@ export default function AdminNotifications() {
       // Mantém o que já foi varrido e marca o erro: meia varredura ainda diz
       // mais que nenhuma, desde que a tela não a apresente como completa.
       setVarredura(anterior => ({
-        ...(anterior || { ativos: [], sem: 0, indisponiveis: 0, processadas: 0 }),
+        ...(anterior || {
+          ativos: [], nao_autorizaram: 0, nunca_abriram: 0,
+          indisponiveis: 0, processadas: 0
+        }),
         completa: false,
         erro: dados?.error || err.message
       }));
@@ -314,28 +321,37 @@ export default function AdminNotifications() {
                   </p>
                 </div>
 
-                {/* A DIFERENÇA entre os dois números é o dado mais útil dos
-                    três: quem se inscreveu e hoje não recebe desinstalou o app
-                    ou desligou nos Ajustes. */}
+                {/* `players` NÃO é "quantos já autorizaram" — a Subscription
+                    nasce quando a pessoa ABRE o app, antes de qualquer
+                    permissão. O primeiro rótulo desta tela dizia "já se
+                    inscreveram" e estava errado: os que não recebem são uma
+                    mistura de quem nunca autorizou, quem desligou depois, quem
+                    desinstalou e REINSTALAÇÕES (que criam registro novo e
+                    deixam o velho lá para sempre).
+
+                    Por isso o texto fala em REGISTROS, e por isso ele não
+                    apresenta a razão como taxa: o denominador só cresce, e o
+                    mesmo iPhone pode estar contado três vezes. A taxa honesta
+                    está na varredura, logo abaixo, que conta contas. */}
                 {resumo.ja_inscreveram != null && resumo.inscritos != null && (
                   <div className="flex items-center justify-center gap-2 text-xs text-gray-500 mt-2 flex-wrap">
-                    <span><strong className="text-gray-700">{resumo.ja_inscreveram}</strong> já se inscreveram</span>
+                    <span><strong className="text-gray-700">{resumo.ja_inscreveram}</strong> registros de aparelho</span>
                     {resumo.ja_inscreveram - resumo.inscritos > 0 && (
                       <>
                         <span className="text-gray-300">·</span>
                         <span>
-                          <strong className="text-gray-700">{resumo.ja_inscreveram - resumo.inscritos}</strong> não recebem mais
-                          <span className="text-gray-400"> (desinstalaram ou desligaram)</span>
+                          <strong className="text-gray-700">{resumo.ja_inscreveram - resumo.inscritos}</strong> sem inscrição ativa
                         </span>
                       </>
                     )}
                   </div>
                 )}
 
-                {/* Ressalva dita em voz alta: sozinho, este número seria lido
-                    como "usuários", e ele não é. */}
+                {/* Ressalvas ditas em voz alta: sozinho, este número seria lido
+                    como "usuários", e ele não é nem isso nem uma conversão. */}
                 <p className="text-[11px] text-gray-400 text-center mt-3 leading-snug">
-                  São aparelhos, não pessoas — quem tem iPhone e iPad conta duas vezes.
+                  Registros de aparelho, não pessoas: um registro nasce ao abrir o app,
+                  antes de autorizar, e reinstalar cria outro sem apagar o antigo.
                   {lidoEm && ` Lido às ${lidoEm.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`}
                 </p>
               </>
@@ -370,22 +386,51 @@ export default function AdminNotifications() {
                     </span>
                   </div>
 
-                  <div className="flex gap-2 text-xs">
+                  {/* TRÊS baldes, não dois. "Não autorizou" e "nunca abriu o
+                      app iOS" respondem a perguntas diferentes: o primeiro é o
+                      banner não convencendo, o segundo é o app tendo pouco
+                      alcance. Somados, viram um "sem push" que não sugere ação
+                      nenhuma. */}
+                  <div className="flex gap-2 text-xs flex-wrap">
                     <Badge className="bg-green-100 text-green-800 border border-green-200">
-                      {varredura.ativos.length} ativo{varredura.ativos.length !== 1 ? "s" : ""}
+                      {varredura.ativos.length} com push ativo
                     </Badge>
                     <Badge className="bg-gray-100 text-gray-600 border border-gray-200">
-                      {varredura.sem} sem push
+                      {varredura.nao_autorizaram} abriram e não autorizaram
                     </Badge>
-                    {/* Nunca somado aos "sem push": falha de rede não é ausência
-                        de inscrição, e contá-la como tal faria a base parecer
-                        ter desativado em massa. */}
+                    <Badge className="bg-gray-50 text-gray-400 border border-gray-200">
+                      {varredura.nunca_abriram} nunca abriram o app iOS
+                    </Badge>
+                    {/* Nunca somado aos outros: falha de rede não é ausência de
+                        inscrição, e contá-la como tal faria a base parecer ter
+                        desativado em massa. */}
                     {varredura.indisponiveis > 0 && (
                       <Badge className="bg-amber-100 text-amber-800 border border-amber-200">
                         {varredura.indisponiveis} não verificad{varredura.indisponiveis !== 1 ? "as" : "a"}
                       </Badge>
                     )}
                   </div>
+
+                  {/* A ÚNICA taxa honesta da tela. O denominador exclui quem
+                      nunca abriu o app iOS: incluí-los mistura quem recusou com
+                      quem nunca teve a chance de recusar, e o número resultante
+                      não mede nem uma coisa nem outra. Também não usa `players`,
+                      que conta reinstalação duas vezes e só cresce. */}
+                  {varredura.ativos.length + varredura.nao_autorizaram > 0 && (
+                    <p className="text-xs text-gray-500">
+                      Entre quem abriu o app iOS,{" "}
+                      <strong className="text-ecg-midnight">
+                        {Math.round(
+                          (varredura.ativos.length /
+                            (varredura.ativos.length + varredura.nao_autorizaram)) * 100
+                        )}%
+                      </strong>{" "}
+                      autorizou as notificações
+                      <span className="text-gray-400">
+                        {" "}({varredura.ativos.length} de {varredura.ativos.length + varredura.nao_autorizaram})
+                      </span>
+                    </p>
+                  )}
 
                   {varredura.erro && (
                     <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5">
