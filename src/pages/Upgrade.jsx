@@ -4,13 +4,7 @@ import { getCurrentUser, refreshCurrentUser } from '@/lib/currentUser';
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { isIOSNativeApp, isAndroidNativeApp } from "@/utils/platform";
-import {
-  startIOSPurchase,
-  lerHistoricoComprasIOS,
-  abrirCustomerCenterIOS,
-  donosDeCompraNoAparelho,
-  outroDonoDasCompras,
-} from "@/utils/purchase";
+import { startIOSPurchase, lerHistoricoComprasIOS, abrirCustomerCenterIOS } from "@/utils/purchase";
 import {
   purchaseAndroidPlan,
   restoreAndroidPurchases,
@@ -27,7 +21,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  AlertCircle,
   Crown,
   Check,
   Zap,
@@ -104,10 +97,6 @@ export default function Upgrade() {
   // O que o aparelho devolveu quando a oferta não foi achada. Vai para a tela
   // em letra miúda: sem console no aparelho, é a única pista de por quê.
   const [diagnosticoOferta, setDiagnosticoOferta] = useState(null);
-  // Id da OUTRA conta nossa que já reivindicou as compras deste aparelho.
-  // Preenchido = o restore vai transferir a assinatura, e a pessoa precisa
-  // saber disso antes da folha nativa abrir.
-  const [confirmaTransferencia, setConfirmaTransferencia] = useState(null);
 
   useEffect(() => {
     loadUser();
@@ -461,25 +450,6 @@ export default function Upgrade() {
     // NÃO há setProcessing(true) aqui: a folha nativa cobre a tela, e um
     // spinner nosso por baixo ficaria preso para sempre se o callback não
     // chegasse. Quem liga o processing é o onRevenueCatCenter.
-    // AVISO DE TRANSFERÊNCIA, antes de a folha abrir.
-    //
-    // O restore do Customer Center transfere a assinatura para o usuário
-    // identificado. Num iPhone onde duas contas nossas já entraram, restaurar
-    // pela segunda TIRA o acesso da primeira. Só a pessoa pode decidir isso.
-    //
-    // A consulta tem teto de 3s e "não sei" segue em frente: este aviso é rede
-    // de segurança, não porteiro do botão.
-    try {
-      const donos = await donosDeCompraNoAparelho();
-      const outroDono = outroDonoDasCompras(donos, user?.id);
-      if (outroDono) {
-        setConfirmaTransferencia(outroDono);
-        return;
-      }
-    } catch (error) {
-      console.error("Falha ao conferir donos das compras do aparelho:", error);
-    }
-
     try {
       abrirCustomerCenterIOS(user?.id);
     } catch (error) {
@@ -849,57 +819,6 @@ export default function Upgrade() {
           Se ela seguir, a atribuição do parceiro continua valendo: a pendência
           já foi gravada no validateCoupon e o webhook a promove do mesmo
           jeito — ele trouxe o cliente, ainda que o desconto tenha falhado. */}
-      <AlertDialog
-        open={!!confirmaTransferencia}
-        onOpenChange={(aberto) => { if (!aberto) setConfirmaTransferencia(null); }}
-      >
-        <AlertDialogContent className="max-w-lg">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-amber-700">
-              <AlertCircle className="w-5 h-5" />
-              Esta assinatura é de outra conta
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <p className="text-base text-gray-900">
-                A assinatura comprada neste iPhone já está vinculada a{' '}
-                <strong>outra conta do PlayECG</strong>.
-              </p>
-              <p className="text-sm text-gray-700">
-                Se você restaurar agora, ela passa para <strong>esta</strong> conta
-                e a outra perde o acesso Premium. Uma assinatura da App Store vale
-                para uma conta de cada vez.
-              </p>
-              <p className="text-sm text-gray-600">
-                Se não era isso que você queria, cancele e entre na conta certa.
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmaTransferencia(null)}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setConfirmaTransferencia(null);
-                try {
-                  abrirCustomerCenterIOS(user?.id);
-                } catch (error) {
-                  console.error("Erro ao abrir o Customer Center:", error);
-                  setErrorDialog({
-                    open: true,
-                    title: 'Erro ao Restaurar Compras',
-                    message: 'Não foi possível abrir a tela de assinatura. Tente novamente.',
-                    details: error?.message || String(error)
-                  });
-                }
-              }}
-            >
-              Transferir para esta conta
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <AlertDialog open={confirmaPrecoCheio} onOpenChange={setConfirmaPrecoCheio}>
         <AlertDialogContent className="max-w-lg">
           <AlertDialogHeader>

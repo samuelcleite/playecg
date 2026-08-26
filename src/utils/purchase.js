@@ -111,9 +111,6 @@ export async function lerHistoricoComprasIOS() {
 
     return {
       temAtiva: ativas.length > 0,
-      // Donos DISTINTOS das compras ativas. É o insumo do aviso de
-      // transferência — ver donosDeCompraNoAparelho.
-      donosDeAtivas: [...new Set(ativas.map((p) => p?.externalUserId).filter(Boolean))],
       diagnostico: [
         `ms ${Date.now() - inicio} · ${tipo} · total ${entradas.length} · ativas ${ativas.length}`,
         ...entradas.map(resumirEntrada)
@@ -121,49 +118,9 @@ export async function lerHistoricoComprasIOS() {
     };
   } catch (error) {
     console.error("Erro ao restaurar compras iOS:", error);
-    // Mesma forma do caminho feliz. Antes daqui a chave era `restaurado`, sobra
-    // da renomeação: quem desestruturasse `temAtiva` receberia undefined no
-    // ramo de erro e o trataria como "não tem", em silêncio.
-    return { temAtiva: false, donosDeAtivas: [], diagnostico: `erro: ${error?.message || String(error)}` };
+    // Mesma forma do caminho feliz. A chave `restaurado` era sobra da
+    // renomeação: quem desestruturasse `temAtiva` receberia undefined no ramo
+    // de erro e o trataria como "não tem", em silêncio.
+    return { temAtiva: false, diagnostico: `erro: ${error?.message || String(error)}` };
   }
-}
-
-const PREFIXO_ANONIMO = "$RCAnonymousID";
-
-// Donos das compras ativas deste aparelho, com TETO CURTO.
-//
-// Para que serve: o restore do Customer Center TRANSFERE a assinatura para o
-// usuário identificado (o projeto está em "Transfer to new App User ID"). Num
-// iPhone onde duas contas nossas já entraram, restaurar pela segunda tira o
-// acesso da primeira — sem aviso nenhum. Este é o insumo do aviso.
-//
-// O teto não é decorativo. O getpurchasehistory:// leva os 30s inteiros quando
-// não há compra alguma: a ponte põe [] em window.restoredData e o observer trata
-// array vazio como "ainda não pronto", desistindo só no timeout. Sem teto, o
-// botão de restaurar passaria a demorar meio minuto para quem não tem nada —
-// justamente quem não tem nada a ser avisado.
-//
-// Quando existe compra, a resposta volta em ~100ms (medido em aparelho). Ou
-// seja: o caso lento é sempre o caso sem aviso a dar.
-//
-// null significa "não sei", e quem chama segue como antes. Este aviso é rede de
-// segurança; ele nunca pode virar porteiro do botão.
-export async function donosDeCompraNoAparelho(tetoMs = 3000) {
-  const leitura = lerHistoricoComprasIOS().then((r) => r.donosDeAtivas ?? []);
-  const teto = new Promise((resolve) => setTimeout(() => resolve(null), tetoMs));
-  return Promise.race([leitura, teto]);
-}
-
-// O primeiro dono que é uma conta NOSSA diferente da atual, ou null.
-//
-// Id anônimo não conta: ele significa "este aparelho nunca foi identificado",
-// não "pertence a outra pessoa". Avisar nesse caso assustaria quem só está
-// restaurando a própria compra.
-export function outroDonoDasCompras(donos, accountId) {
-  const meu = typeof accountId === "string" ? accountId.trim() : "";
-  return (
-    (donos ?? []).find(
-      (id) => typeof id === "string" && id && !id.startsWith(PREFIXO_ANONIMO) && id !== meu
-    ) ?? null
-  );
 }
