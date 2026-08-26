@@ -1,8 +1,9 @@
 ﻿import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { getCurrentUser, refreshCurrentUser } from '@/lib/currentUser';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { lerCodigoPromocional } from "@/lib/linkPromocional";
 import { isIOSNativeApp, isAndroidNativeApp } from "@/utils/platform";
 import { startIOSPurchase, lerHistoricoComprasIOS, abrirCustomerCenterIOS } from "@/utils/purchase";
 import {
@@ -82,6 +83,7 @@ function textoDaDuracao(appliedCoupon, plano, precoCheio) {
 
 export default function Upgrade() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [user, setUser] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState("monthly");
   const [couponCode, setCouponCode] = useState("");
@@ -100,6 +102,33 @@ export default function Upgrade() {
 
   useEffect(() => {
     loadUser();
+  }, []);
+
+  // -- LINK PROMOCIONAL (/upgrade?promo=CODIGO) ---------------------------
+  // O parceiro divulga uma url só; ela cai aqui com o cupom já aplicado e a
+  // pessoa escolhe o plano. Nada de login especial: a /upgrade já é rota
+  // protegida, então quem chega deslogado passa pelo ProtectedRoute, que anota
+  // o caminho COM a query e faz a Home devolver para cá depois do login.
+  //
+  // SÓ NO NAVEGADOR, por decisão. Dentro dos apps o desconto não é nosso para
+  // dar: quem cobra é a App Store ou o Google Play, e lá o código do parceiro
+  // entra pelo campo de cupom da própria tela, que sabe virar oferta da loja.
+  //
+  // Hoje o link nem alcança o app — playecg.app abre o navegador, e o deeplink
+  // do Android é do esquema playecg://, exclusivo do retorno do OAuth. O guard
+  // existe para o dia em que alguém configurar App Links: aí a url passaria a
+  // abrir dentro do app, e um caminho pensado para o Stripe apareceria numa
+  // tela onde quem cobra é a loja.
+  useEffect(() => {
+    if (isIOSNativeApp() || isAndroidNativeApp()) return;
+
+    const codigo = lerCodigoPromocional(searchParams);
+    if (!codigo) return;
+    setCouponCode(codigo);
+    // selectedPlan aqui é o inicial ('monthly'); trocar de plano revalida.
+    aplicarCupom(codigo, selectedPlan, { deLink: true });
+    // Só na montagem. Reagir a searchParams reaplicaria o cupom a cada
+    // navegação interna que mexesse na query.
   }, []);
 
   // Handler global de sucesso do Despia (compra iOS via RevenueCat).
@@ -233,36 +262,53 @@ export default function Upgrade() {
     setUser(userData);
   };
 
-  const handleValidateCoupon = async () => {
-    if (!couponCode.trim()) {
+  // Cupom e plano vêm por PARÂMETRO, não do estado: os três chamadores estão em
+  // momentos diferentes do ciclo de vida — o botão Aplicar (estado atual), o
+  // link promocional (roda antes de o código existir no estado) e a troca de
+  // plano (roda com o selectedPlan ainda no valor antigo).
+  const aplicarCupom = async (codigo, plano, { deLink = false } = {}) => {
+    const normalizado = (codigo || "").trim().toUpperCase();
+    if (!normalizado) {
       setCouponError("Digite um código de cupom");
       return;
     }
 
     setValidatingCoupon(true);
     setCouponError(null);
+    // Derruba o desconto do plano ANTERIOR antes de pedir o novo. Sem isto, a
+    // troca para o anual exibe por um instante o preço com desconto do mensal
+    // debaixo do rótulo "Anual" — prometer barato e corrigir depois é
+    // exatamente o que o resto desta tela evita.
+    setAppliedCoupon(null);
 
     try {
       const response = await base44.functions.invoke('validateCoupon', {
-        coupon_code: couponCode,
-        plan: selectedPlan
+        coupon_code: normalizado,
+        plan: plano
       });
 
       if (response.data.valid) {
         setAppliedCoupon(response.data);
         setCouponError(null);
       } else {
-        setCouponError(response.data.error || "Cupom inválido");
-        setAppliedCoupon(null);
+        // Quem chegou por link não digitou nada, e "Cupom expirado" solto não
+        // diz o que aconteceu — o aviso precisa apontar para o link. A tela
+        // continua funcionando pelo preço cheio: o cupom morreu, a venda não.
+        setCouponError(
+          deLink
+            ? `Este link promocional não vale mais: ${response.data.error || "cupom inválido"}.`
+            : (response.data.error || "Cupom inválido")
+        );
       }
     } catch (error) {
       console.error("Error validating coupon:", error);
       setCouponError("Erro ao validar cupom. Tente novamente.");
-      setAppliedCoupon(null);
     } finally {
       setValidatingCoupon(false);
     }
   };
+
+  const handleValidateCoupon = () => aplicarCupom(couponCode, selectedPlan);
 
   const handleRemoveCoupon = () => {
     setAppliedCoupon(null);
@@ -272,9 +318,17 @@ export default function Upgrade() {
 
   const handlePlanChange = (newPlan) => {
     setSelectedPlan(newPlan);
+    // O cupom SOBREVIVE à troca de plano — antes ele era descartado em
+    // silêncio. Descartar era defensável enquanto todo cupom era digitado à mão
+    // (a pessoa vê o campo esvaziar e digita de novo). Com o link promocional
+    // deixa de ser: o cupom nunca foi digitado, e trocar de plano o mataria sem
+    // a pessoa entender que perdeu o desconto que a trouxe até aqui.
+    //
+    // Revalidar, e não apenas manter, porque o preço com desconto é calculado
+    // por plano no servidor: reaproveitar o pricing do plano anterior mostraria
+    // um valor errado na tela.
     if (appliedCoupon) {
-      setAppliedCoupon(null);
-      setCouponError(null);
+      aplicarCupom(appliedCoupon.coupon.code, newPlan);
     }
   };
 

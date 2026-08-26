@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { montarLinkPromocional } from "@/lib/linkPromocional";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +33,8 @@ import {
   TrendingUp,
   AlertCircle,
   Copy,
-  Check
+  Check,
+  Link2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
@@ -105,6 +107,7 @@ export default function AdminCoupons() {
   const [showDialog, setShowDialog] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState(null);
   const [copiedCode, setCopiedCode] = useState(null);
+  const [copiedLink, setCopiedLink] = useState(null);
   const [formData, setFormData] = useState({
     code: "",
     description: "",
@@ -283,6 +286,18 @@ export default function AdminCoupons() {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
     setTimeout(() => setCopiedCode(null), 2000);
+  };
+
+  // O link que o parceiro cola no story. O formato mora em
+  // src/lib/linkPromocional.js, junto de quem o lê na tela de Upgrade — os
+  // dois lados escrevendo '?promo=' na mão é como um refactor mata todo link
+  // já divulgado sem ninguém notar.
+  const handleCopyLink = (code) => {
+    const link = montarLinkPromocional(code);
+    if (!link) return;
+    navigator.clipboard.writeText(link);
+    setCopiedLink(code);
+    setTimeout(() => setCopiedLink(null), 2000);
   };
 
   const getStatusBadge = (coupon) => {
@@ -467,6 +482,30 @@ export default function AdminCoupons() {
                           Válido até: {format(new Date(coupon.valid_until), 'dd/MM/yyyy')}
                         </div>
                       )}
+
+                      {/* Link promocional. Linha própria, acima das ações, e
+                          não um botão espremido entre Desativar e Editar: é o
+                          que mais se copia num cupom de parceria, e o único
+                          botão daqui cujo resultado sai do app. A url aparece
+                          inteira de propósito — copiar às cegas o que vai
+                          para o Instagram de outra pessoa é como se divulga um
+                          link errado. */}
+                      <button
+                        type="button"
+                        onClick={() => handleCopyLink(coupon.code)}
+                        className="w-full flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200 text-left hover:bg-blue-100 transition-colors"
+                        title="Copiar link promocional"
+                      >
+                        <Link2 className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                        <span className="text-xs font-mono text-blue-900 truncate flex-1">
+                          {montarLinkPromocional(coupon.code)}
+                        </span>
+                        {copiedLink === coupon.code ? (
+                          <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                        ) : (
+                          <Copy className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                        )}
+                      </button>
 
                       {/* Actions */}
                       <div className="flex gap-2 pt-2">
