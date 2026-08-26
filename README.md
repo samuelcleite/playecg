@@ -345,6 +345,10 @@ Secrets em uso no Base44: `STRIPE_SECRET_KEY`, `REVENUECAT_SECRET_KEY` (sk_, v1)
 Variáveis de configuração (não são segredos): `LIFETIME_VAGAS` (padrão 100),
 `PROMO_PUSH_DIAS` (ausente/`0` = promoção de notificações desligada).
 
+Secret **opcional**: `ONESIGNAL_ORG_API_KEY` (Organization API Key, em Keys &
+IDs). Só serve à contagem de inscritos do `adminPushStats` — ver §6. Configure-a
+apenas se o card do App iOS acusar 401/403; sem ela nada mais deixa de funcionar.
+
 ---
 
 ## 6. iOS — Despia
@@ -383,6 +387,35 @@ com o banner visível, quando ainda se supunha que o rebuild não tinha saído.
 Cuidado com o limite dessa inferência: ela prova que a ponte processa o comando,
 não que a vinculação do `external_id` está gravando — isso só o painel do
 OneSignal (Audience → Subscriptions) confirma.
+
+### Quantos iPhones a gente alcança
+
+O card **App iOS** na tela de Notificações Push responde isso, pela function
+`adminPushStats`, e o número vem do OneSignal — nunca de contador nosso: a
+verdade sobre a permissão mora no aparelho, e o app não sabe (ver
+[pushNativo.js](src/utils/pushNativo.js)). Contador alimentado pelo cliente
+contaria intenções e ficaria mudo quando alguém revogasse a permissão nos
+Ajustes sem reabrir o app.
+
+- **`messageable_players`** = podem receber agora. É o número grande.
+- **`players`** = total já registrado. A **diferença** entre os dois é quem
+  desinstalou ou desligou, e vale mais que qualquer um isolado.
+- São **subscriptions, ou seja aparelhos** — não pessoas. iPhone + iPad da mesma
+  pessoa contam dois.
+- Como o app do OneSignal só tem iOS configurado, esse número já é a contagem de
+  iPhones: não há filtro de plataforma, e é bom que não haja — filtro por user
+  agent é palpite.
+
+**Falha nunca vira zero.** Chave errada ou rede fora pintam o card de âmbar com o
+status HTTP, porque número não lido é ausência, não ausência de inscritos — é a
+mesma armadilha que o `recipients` armou uma vez (ver `sendOneSignalPush`).
+
+**"Ver quem tem push ativo"** é outra coisa: uma varredura conta a conta, N
+chamadas ao OneSignal, em lotes de 100 costurados pela tela. Só sob clique, e o
+critério é o MESMO do `promocoes` (iOSPush inscrita) — se divergir, a tela conta
+gente que a promoção recusa e a diferença não terá explicação. A lista serve para
+mirar o envio: sem ela, o e-mail do destinatário iOS tinha de ser digitado de
+cabeça, porque a lista antiga é de Web Push, público disjunto.
 
 Páginas públicas exigidas pela Apple/Google: `/termos`, `/privacidade`,
 `/suporte`, `/excluir-conta`. Links externos não abrem na WebView do Despia —
