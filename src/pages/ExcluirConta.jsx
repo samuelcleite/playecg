@@ -134,7 +134,7 @@ export default function ExcluirConta() {
     <div className="min-h-screen bg-ecg-gray">
       <header
         className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-gray-200"
-        style={{ paddingTop: "var(--app-safe-top, 0px)" }}
+        style={{ paddingTop: "var(--app-safe-top-fluxo, 0px)" }}
       >
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
           <Button

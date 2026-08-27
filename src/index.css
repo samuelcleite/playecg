@@ -125,7 +125,20 @@
      se o Despia injetar as variaveis no html quanto se injetar no proprio
      body. Tudo que o app estiliza esta dentro do body. */
   body {
+    /* O valor real do entalhe. Serve para quem e fixed/sticky -- esses se
+       ancoram na viewport e nenhum wrapper alcanca. */
     --app-safe-top: var(--safe-area-top, env(safe-area-inset-top, 0px));
+
+    /* Quanto o CONTEUDO EM FLUXO ainda precisa reservar. Fora do app nativo e o
+       mesmo valor; dentro do Despia e zero, porque o "Auto Inject Safe Area" ja
+       empurrou as margens do body. Somar os dois da uma faixa branca do tamanho
+       de dois entalhes -- ver utils/safeArea.js. */
+    --app-safe-top-fluxo: var(--app-safe-top);
+  }
+
+  /* A marca vem do safeArea.js, por user agent, antes do primeiro render. */
+  html[data-safe-area-do-wrapper="1"] body {
+    --app-safe-top-fluxo: 0px;
   }
 
   html, body {

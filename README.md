@@ -366,31 +366,47 @@ Se um build não aparece no TestFlight, o motivo é quase sempre esse — suba o
 
 ### Safe-area: por que o topo volta para debaixo da câmera (27/08/2026)
 
+**⚠️ A opção "Auto Inject Safe Area" no painel do Despia é peça obrigatória.**
+Não é conveniência: o app **conta** com ela para pôr o conteúdo em fluxo abaixo
+do entalhe. Se alguém desligar, o topo volta para debaixo da câmera e nada no
+código avisa. Decisão consciente de 27/08/2026 — a alternativa (o app tomar a
+reserva e zerar a margem injetada) foi tentada, foi ao ar e falhou no aparelho.
+
+**A reserva do topo tem dois donos, e não é simetria — é divisão de trabalho:**
+
+| Quem | Reserva o quê | Como |
+|---|---|---|
+| Wrapper (Despia) | conteúdo em fluxo | margem do `body`, via o "Auto Inject Safe Area" |
+| App | `position: fixed` / `sticky` | `var(--app-safe-top)` |
+
+O wrapper empurra as *margens do body*, e margem de body só alcança fluxo: quem
+é `fixed`/`sticky` se ancora na viewport e a ignora. Por isso a faixa que cobre
+o entalhe ([Layout.jsx](src/Layout.jsx)) e o header grudento do Dashboard usam a
+variável direto — nada mais no app usa. **Somar as duas reservas dá uma faixa
+branca do tamanho de dois entalhes**, e foi exatamente o que apareceu na primeira
+tentativa. *Como se sabe:* print do aparelho, 27/08/2026.
+
+Daí o par de variáveis no [index.css](src/index.css), que tela nova precisa
+respeitar:
+
+- `--app-safe-top` — o valor real. **Só para `fixed`/`sticky`.**
+- `--app-safe-top-fluxo` — `0px` dentro do Despia (o body já desceu), o valor
+  real fora. **É esta que conteúdo normal usa.** A marca que faz a troca vem do
+  [safeArea.js](src/utils/safeArea.js), por user agent, antes do primeiro render.
+
 **`env(safe-area-inset-*)` não vale dentro do Despia.** O runtime deles não
 popula as variáveis de ambiente do padrão CSS: injeta custom properties próprias,
-`--safe-area-top` e `--safe-area-bottom`, e a documentação é explícita em mandar
-usar `var()`, não `env()`. O app inteiro estava escrito com `env()` — no iPhone
-toda reserva caía no fallback `0px`. Hoje existe **uma** fonte, `--app-safe-top` /
-`--app-safe-bottom` ([index.css](src/index.css)), que pega a variável do Despia
-onde ela existe e cai no `env()` no navegador e no Android. Tela nova usa a
-variável do app, nunca `env()` direto. *Como se sabe:* documentação do Despia
+`--safe-area-top` / `--safe-area-bottom`, e a documentação manda usar `var()`,
+não `env()`. O app inteiro estava escrito com `env()` — no iPhone toda reserva
+caía no fallback `0px`. *Como se sabe:* documentação do Despia
 (`setup.despia.com`), lida em 27/08/2026.
 
-**O "Auto Inject Safe Area" do painel não fecha a conta sozinho.** Ele reserva o
-entalhe empurrando as *margens do body*, e margem de body só alcança conteúdo em
-fluxo — quem está em `position: fixed` ou `sticky` se ancora na viewport e ignora
-a margem, como o header grudento do Dashboard. No topo, então, o app virou o dono
-da reserva e zera a margem injetada ([safeArea.js](src/utils/safeArea.js)). **A
-opção pode ficar ligada no painel**; o app neutraliza — só no topo.
-
-**O rodapé é do wrapper, e continua sendo.** A barra de baixo já estava no lugar
-certo antes de tudo isto. Reservar o indicador de home também pelo app descolou a
-barra do fim da tela, e foi revertido em 27/08/2026 — a `<nav>` e o botão
-flutuante voltaram ao `env()`, que dentro do Despia resolve `0px` de propósito.
-*Como se sabe:* print do aparelho, antes e depois. **Não repita a simetria: topo e
-rodapé não têm o mesmo dono aqui.** *Como se sabe:* deduzido de como `fixed`/`sticky` se ancoram, com
-a documentação do Despia apontando na mesma direção ao mandar usar as variáveis
-também em elementos fixos.
+**O rodapé é do wrapper inteiro, e continua sendo.** A barra de baixo já estava
+no lugar certo antes de tudo isto. Reservar o indicador de home também pelo app
+descolou a barra do fim da tela — revertido no mesmo dia: `<nav>`, botão
+flutuante e Home voltaram ao `env(safe-area-inset-bottom)`, que dentro do Despia
+resolve `0px` de propósito. **Não "conserte" o rodapé por simetria com o topo:
+esse foi o erro.** *Como se sabe:* print do aparelho, antes e depois.
 
 **Padding no topo de algo que rola não protege nada.** É por isto que este defeito
 *volta* depois de corrigido: no primeiro gesto o padding sobe junto com o conteúdo
@@ -404,9 +420,10 @@ mensagem de f09f27f já explicava o mecanismo.
 reserva o topo de todas as telas que passam por ele. Tela que reserva de novo
 soma, e o conteúdo desce para o meio — era o caso de AprendaECG e ConteudoECG.
 
-Correção na branch `fix/safe-area-despia` (27/08/2026). **Ainda não confirmada em
-aparelho:** o teste que decide é rolar o Dashboard até o fim e ver se o header
-branco fica parado abaixo do relógio em vez de sumir por baixo dele.
+Efeito colateral aceito: com a margem do body no lugar e o `html, body, #root {
+height: 100% }` do Layout, o body termina alguns pixels abaixo da tela e o app
+tem uma rolagem fantasma do tamanho do entalhe. Existia antes de tudo isto e
+nunca incomodou — não vale trocar por uma corrida de timing.
 
 ### Push nativo: o que só se aprende testando (19/08/2026)
 
