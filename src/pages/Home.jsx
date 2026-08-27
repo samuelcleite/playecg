@@ -146,7 +146,7 @@ export default function Home() {
         abre o app cai direto na escolha de provedor. Os dois botões quebrados
         ("Assinar Premium" ia para uma rota protegida e voltava para cá;
         "Começar Gratuitamente" só dava scrollTo) deixaram de existir. */}
-    <div className="md:hidden min-h-screen bg-[#0D3B66] flex flex-col justify-center px-6 py-10" style={{ paddingTop: 'calc(2.5rem + var(--app-safe-top, 0px))', paddingBottom: 'calc(2.5rem + var(--app-safe-bottom, 0px))' }}>
+    <div className="md:hidden min-h-screen bg-[#0D3B66] flex flex-col justify-center px-6 py-10" style={{ paddingTop: 'calc(2.5rem + var(--app-safe-top, 0px))', paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom, 0px))' }}>
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm mx-auto text-center">
         <img
           src="https://media.base44.com/images/public/68e28688c6f4ec5cd17e317d/88192cd50_903B5817-5009-4B34-8478-509B00A9C6B8.png"

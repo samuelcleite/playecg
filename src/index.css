@@ -126,7 +126,6 @@
      body. Tudo que o app estiliza esta dentro do body. */
   body {
     --app-safe-top: var(--safe-area-top, env(safe-area-inset-top, 0px));
-    --app-safe-bottom: var(--safe-area-bottom, env(safe-area-inset-bottom, 0px));
   }
 
   html, body {
