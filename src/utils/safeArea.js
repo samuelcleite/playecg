@@ -4,14 +4,18 @@
 // empurrando as MARGENS do body. Isso conserta metade do problema e não tem como
 // consertar a outra: margem de body só afeta conteúdo em fluxo. Quem está em
 // `position: fixed` ou `position: sticky` se ancora na viewport e ignora a
-// margem — ou seja, a barra de navegação de baixo, o botão flutuante e o header
-// grudento do Dashboard continuam passando por cima do entalhe e do indicador
-// de home, esteja a opção ligada ou desligada.
+// margem — o header grudento do Dashboard, por exemplo, continua passando por
+// cima do entalhe com a opção ligada.
 //
 // Como o app precisa do número de qualquer jeito para esses elementos, ele passa
-// a reservar o espaço sozinho (--app-safe-top / --app-safe-bottom, ver
-// index.css) e zera a margem que o Despia injeta. Sem isso as duas reservas se
-// somam e sobra uma faixa branca do tamanho de dois entalhes no topo.
+// a reservar o topo sozinho (--app-safe-top, ver index.css) e zera a margem que
+// o Despia injeta. Sem isso as duas reservas se somam e sobra uma faixa branca
+// do tamanho de dois entalhes.
+//
+// SÓ O TOPO. O rodapé é do wrapper e continua sendo: medido no iPhone em
+// 27/08/2026, a barra de baixo já estava no lugar certo antes de qualquer
+// mudança, e reservar o indicador de home pela segunda vez descolou a barra do
+// fim da tela. Onde o aparelho diz que está bom, não se mexe.
 //
 // Zerar não é só evitar a soma: com a margem no lugar, o `html, body, #root {
 // height: 100% }` do Layout faz o body terminar N pixels ABAIXO da tela, e o
@@ -43,9 +47,8 @@ function aplicar() {
     // Lê a variável JÁ RESOLVIDA pela cadeia do index.css. Serve para os dois
     // ambientes: no Despia vem de --safe-area-top, no navegador vem do env().
     const topo = comprimentoEmPx(estiloDoBody.getPropertyValue("--app-safe-top"));
-    const base = comprimentoEmPx(estiloDoBody.getPropertyValue("--app-safe-bottom"));
 
-    if (topo <= 0 && base <= 0) return;
+    if (topo <= 0) return;
 
     // Só escreve o que está fora do lugar. É isto que impede o observer de
     // virar um laço, e o que deixa o no-op ser de fato um no-op no navegador,
@@ -53,11 +56,8 @@ function aplicar() {
     //
     // A margem do Despia é injetada em linha no body; `!important` no
     // setProperty é o que garante a precedência sobre ela.
-    if (topo > 0 && comprimentoEmPx(estiloDoBody.marginTop) !== 0) {
+    if (comprimentoEmPx(estiloDoBody.marginTop) !== 0) {
       document.body.style.setProperty("margin-top", "0px", "important");
-    }
-    if (base > 0 && comprimentoEmPx(estiloDoBody.marginBottom) !== 0) {
-      document.body.style.setProperty("margin-bottom", "0px", "important");
     }
   } finally {
     aplicando = false;

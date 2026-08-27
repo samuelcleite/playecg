@@ -388,7 +388,7 @@ export default function Layout({ children, currentPageName }) {
           {children}
         </main>
 
-        <nav className="select-none" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, backgroundColor: '#FFFFFF', borderTop: '1px solid #E0E0E0', boxShadow: '0 -2px 12px rgba(0,0,0,0.08)', paddingBottom: 'var(--app-safe-bottom, 0px)' }}>
+        <nav className="select-none" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, backgroundColor: '#FFFFFF', borderTop: '1px solid #E0E0E0', boxShadow: '0 -2px 12px rgba(0,0,0,0.08)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           <div className="flex items-center justify-around px-2 py-3">
             {navigationItems.map((item) => {
               const isActive = location.pathname === item.url;

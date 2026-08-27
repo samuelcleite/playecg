@@ -379,12 +379,16 @@ variável do app, nunca `env()` direto. *Como se sabe:* documentação do Despia
 **O "Auto Inject Safe Area" do painel não fecha a conta sozinho.** Ele reserva o
 entalhe empurrando as *margens do body*, e margem de body só alcança conteúdo em
 fluxo — quem está em `position: fixed` ou `sticky` se ancora na viewport e ignora
-a margem. Barra de baixo, botão flutuante e header grudento do Dashboard passam
-por cima do entalhe mesmo com a opção ligada. Como o app precisa do número para
-esses elementos de qualquer jeito, ele virou o único dono da reserva e zera a
-margem injetada ([safeArea.js](src/utils/safeArea.js)) — com observer, porque o
-Despia reinjeta quando a tela gira. **A opção pode ficar ligada no painel**; o
-app neutraliza. *Como se sabe:* deduzido de como `fixed`/`sticky` se ancoram, com
+a margem, como o header grudento do Dashboard. No topo, então, o app virou o dono
+da reserva e zera a margem injetada ([safeArea.js](src/utils/safeArea.js)). **A
+opção pode ficar ligada no painel**; o app neutraliza — só no topo.
+
+**O rodapé é do wrapper, e continua sendo.** A barra de baixo já estava no lugar
+certo antes de tudo isto. Reservar o indicador de home também pelo app descolou a
+barra do fim da tela, e foi revertido em 27/08/2026 — a `<nav>` e o botão
+flutuante voltaram ao `env()`, que dentro do Despia resolve `0px` de propósito.
+*Como se sabe:* print do aparelho, antes e depois. **Não repita a simetria: topo e
+rodapé não têm o mesmo dono aqui.** *Como se sabe:* deduzido de como `fixed`/`sticky` se ancoram, com
 a documentação do Despia apontando na mesma direção ao mandar usar as variáveis
 também em elementos fixos.
 
