@@ -364,6 +364,46 @@ apenas se o card do App iOS acusar 401/403; sem ela nada mais deixa de funcionar
 Se um build não aparece no TestFlight, o motivo é quase sempre esse — suba o
 `versionName` (botão "Small" do Despia).
 
+### Safe-area: por que o topo volta para debaixo da câmera (27/08/2026)
+
+**`env(safe-area-inset-*)` não vale dentro do Despia.** O runtime deles não
+popula as variáveis de ambiente do padrão CSS: injeta custom properties próprias,
+`--safe-area-top` e `--safe-area-bottom`, e a documentação é explícita em mandar
+usar `var()`, não `env()`. O app inteiro estava escrito com `env()` — no iPhone
+toda reserva caía no fallback `0px`. Hoje existe **uma** fonte, `--app-safe-top` /
+`--app-safe-bottom` ([index.css](src/index.css)), que pega a variável do Despia
+onde ela existe e cai no `env()` no navegador e no Android. Tela nova usa a
+variável do app, nunca `env()` direto. *Como se sabe:* documentação do Despia
+(`setup.despia.com`), lida em 27/08/2026.
+
+**O "Auto Inject Safe Area" do painel não fecha a conta sozinho.** Ele reserva o
+entalhe empurrando as *margens do body*, e margem de body só alcança conteúdo em
+fluxo — quem está em `position: fixed` ou `sticky` se ancora na viewport e ignora
+a margem. Barra de baixo, botão flutuante e header grudento do Dashboard passam
+por cima do entalhe mesmo com a opção ligada. Como o app precisa do número para
+esses elementos de qualquer jeito, ele virou o único dono da reserva e zera a
+margem injetada ([safeArea.js](src/utils/safeArea.js)) — com observer, porque o
+Despia reinjeta quando a tela gira. **A opção pode ficar ligada no painel**; o
+app neutraliza. *Como se sabe:* deduzido de como `fixed`/`sticky` se ancoram, com
+a documentação do Despia apontando na mesma direção ao mandar usar as variáveis
+também em elementos fixos.
+
+**Padding no topo de algo que rola não protege nada.** É por isto que este defeito
+*volta* depois de corrigido: no primeiro gesto o padding sobe junto com o conteúdo
+e o texto reaparece debaixo do relógio. Quem cobre o entalhe tem que ser um
+elemento **fixo**; padding serve só para reservar espaço em fluxo. Pelo mesmo
+motivo, cabeçalho grudento gruda em `top: var(--app-safe-top)`, nunca em `top: 0`.
+*Como se sabe:* observado no iPhone em 06/08/2026 — foi o que 4dbeba7 quebrou, e a
+mensagem de f09f27f já explicava o mecanismo.
+
+**Uma reserva por tela, nunca duas.** O `<main>` do [Layout.jsx](src/Layout.jsx)
+reserva o topo de todas as telas que passam por ele. Tela que reserva de novo
+soma, e o conteúdo desce para o meio — era o caso de AprendaECG e ConteudoECG.
+
+Correção na branch `fix/safe-area-despia` (27/08/2026). **Ainda não confirmada em
+aparelho:** o teste que decide é rolar o Dashboard até o fim e ver se o header
+branco fica parado abaixo do relógio em vez de sumir por baixo dele.
+
 ### Push nativo: o que só se aprende testando (19/08/2026)
 
 **Permissão de notificação decidida NÃO reabre o prompt — e isso quebra o teste
@@ -521,6 +561,9 @@ rebaseada antes de qualquer merge** — senão o merge deleta `/termos`,
 - **O Base44 empurra sozinho para o GitHub** o que você cria no editor visual.
   Criar o mesmo arquivo localmente sem checar gera duplicata.
 - **VS Code trava a pasta `android/`.** Git de troca de branch só em PowerShell puro.
+- **Safe-area do iPhone: `env(safe-area-inset-*)` não vale dentro do Despia**, e
+  padding no topo de algo que rola não protege o conteúdo. As duas coisas juntas
+  já fizeram o topo do app voltar para debaixo da câmera mais de uma vez. Ver §6.
 - Se o `gradlew` baixar o Gradle "agora", é sinal de que o build nunca rodou
   naquela máquina — a tarefa anterior não foi executada de verdade.
 - **Sintoma que só aparece com o modo escuro do sistema não é culpa do wrapper.**
