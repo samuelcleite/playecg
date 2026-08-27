@@ -1,84 +1,40 @@
-// Quem manda na safe-area é o app — e só ele.
+// Quem reserva o entalhe: o wrapper para o conteúdo em fluxo, o app para o resto.
 // -----------------------------------------------------------------------------
-// O painel do Despia tem a opção "Auto Inject Safe Area", que reserva o entalhe
-// empurrando as MARGENS do body. Isso conserta metade do problema e não tem como
-// consertar a outra: margem de body só afeta conteúdo em fluxo. Quem está em
-// `position: fixed` ou `position: sticky` se ancora na viewport e ignora a
-// margem — o header grudento do Dashboard, por exemplo, continua passando por
-// cima do entalhe com a opção ligada.
+// DEPENDÊNCIA DE PAINEL: isto só fecha a conta com a opção **"Auto Inject Safe
+// Area" LIGADA** no dashboard do Despia. Ela é peça obrigatória, não
+// conveniência. Se alguém desligar, o topo do app volta para debaixo da câmera e
+// nada no código avisa.
 //
-// Como o app precisa do número de qualquer jeito para esses elementos, ele passa
-// a reservar o topo sozinho (--app-safe-top, ver index.css) e zera a margem que
-// o Despia injeta. Sem isso as duas reservas se somam e sobra uma faixa branca
-// do tamanho de dois entalhes.
+// A divisão de trabalho, e por que ela não é simétrica:
 //
-// SÓ O TOPO. O rodapé é do wrapper e continua sendo: medido no iPhone em
-// 27/08/2026, a barra de baixo já estava no lugar certo antes de qualquer
-// mudança, e reservar o indicador de home pela segunda vez descolou a barra do
-// fim da tela. Onde o aparelho diz que está bom, não se mexe.
+//   Conteúdo em fluxo -> do wrapper. O "Auto Inject Safe Area" empurra as
+//   MARGENS do body, e isso já põe toda tela normal abaixo do entalhe. O app
+//   NÃO pode reservar de novo: as duas somam e sobra uma faixa branca do
+//   tamanho de dois entalhes. Foi o que apareceu no aparelho em 27/08/2026.
 //
-// Zerar não é só evitar a soma: com a margem no lugar, o `html, body, #root {
-// height: 100% }` do Layout faz o body terminar N pixels ABAIXO da tela, e o
-// app ganha uma rolagem fantasma do tamanho do entalhe.
+//   `position: fixed` / `sticky` -> do app. Esses se ancoram na viewport e
+//   ignoram margem de body, então o wrapper não tem como alcançá-los. É o caso
+//   da faixa que cobre o entalhe e do header grudento do Dashboard, que usam
+//   `--app-safe-top` direto.
 //
-// A troca só acontece quando há um valor real para colocar no lugar: se
-// `--safe-area-top` não estiver definida (runtime antigo do Despia, ou fora do
-// app), a margem do Despia fica onde está. É o que impede esta função de tirar
-// a única proteção existente e não pôr nada no lugar.
+// Houve uma versão anterior (revertida no mesmo dia) em que o app tomava a
+// reserva para si e zerava a margem injetada. Não funcionou no aparelho: a
+// margem chega quando o runtime do Despia quer, e o observador de mutação nunca
+// via a injeção. Trocar a corrida por uma checagem de user agent é o ponto desta
+// versão -- a marca abaixo é decidida por `isDespiaApp()`, antes do primeiro
+// render, e não depende de o wrapper já ter feito a parte dele.
+//
+// O par de variáveis está no index.css:
+//   --app-safe-top        -> o valor real do entalhe. Para quem é fixed/sticky.
+//   --app-safe-top-fluxo  -> 0px aqui dentro, porque o body já desceu.
 
-function comprimentoEmPx(valor) {
-  const n = parseFloat(valor);
-  return Number.isFinite(n) ? n : 0;
-}
-
-// Guarda de reentrância: escrever no style do body dispara o MutationObserver
-// lá embaixo, que chamaria esta função de novo. O `if` de "já está zerado"
-// sozinho já interromperia a cadeia, mas o custo de um recálculo de layout por
-// mutação não vale a economia de uma linha.
-let aplicando = false;
-
-function aplicar() {
-  if (aplicando) return;
-  aplicando = true;
-
-  try {
-    const estiloDoBody = getComputedStyle(document.body);
-
-    // Lê a variável JÁ RESOLVIDA pela cadeia do index.css. Serve para os dois
-    // ambientes: no Despia vem de --safe-area-top, no navegador vem do env().
-    const topo = comprimentoEmPx(estiloDoBody.getPropertyValue("--app-safe-top"));
-
-    if (topo <= 0) return;
-
-    // Só escreve o que está fora do lugar. É isto que impede o observer de
-    // virar um laço, e o que deixa o no-op ser de fato um no-op no navegador,
-    // onde a margem do body já é zero pelo preflight do Tailwind.
-    //
-    // A margem do Despia é injetada em linha no body; `!important` no
-    // setProperty é o que garante a precedência sobre ela.
-    if (comprimentoEmPx(estiloDoBody.marginTop) !== 0) {
-      document.body.style.setProperty("margin-top", "0px", "important");
-    }
-  } finally {
-    aplicando = false;
-  }
-}
+import { isDespiaApp } from "@/utils/platform";
 
 export function assumirSafeArea() {
-  if (typeof document === "undefined" || !document.body) return;
+  if (typeof document === "undefined") return;
+  if (!isDespiaApp()) return;
 
-  // O runtime do Despia injeta a margem quando quer, não necessariamente antes
-  // do primeiro paint, e reinjeta quando a tela gira. O observer cobre os dois
-  // casos e qualquer terceiro que a gente não conheça — é a diferença entre
-  // "funciona no boot" e "continua funcionando".
-  aplicar();
-
-  new MutationObserver(aplicar).observe(document.body, {
-    attributes: true,
-    attributeFilter: ["style"]
-  });
-
-  window.addEventListener("load", aplicar);
-  window.addEventListener("orientationchange", aplicar);
-  window.addEventListener("resize", aplicar);
+  // No <html> e não no <body>: o React não toca no elemento raiz, então a marca
+  // sobrevive a qualquer re-render.
+  document.documentElement.setAttribute("data-safe-area-do-wrapper", "1");
 }
