@@ -178,8 +178,11 @@ export default function AprendaECG() {
     );
   }
 
+  // Sem reserva de safe-area propria: esta tela passa pelo Layout, e o <main>
+  // de la ja reservou o topo. O fallback de 20px que ficava aqui ainda somava
+  // um respiro extra no desktop, onde entalhe nenhum existe.
   return (
-    <div className="min-h-screen p-6 md:p-8 pb-28 md:pb-8" style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 20px))' }}>
+    <div className="min-h-screen p-6 md:p-8 pb-28 md:pb-8">
       <div className="max-w-5xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center mb-8">

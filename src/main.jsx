@@ -5,11 +5,16 @@ import '@/index.css'
 import { maybeReturnToNativeApp } from '@/utils/nativeOAuth'
 import { registrarDeepLinkAndroid } from '@/utils/androidDeepLink'
 import { bootstrapAuth } from '@/lib/customAuth'
+import { assumirSafeArea } from '@/utils/safeArea'
 
 // Se estamos na aba nativa de OAuth do app iOS (Despia), dispara o deeplink de
 // retorno à WebView. Renderizamos mesmo assim: se o deeplink funcionar, a aba
 // fecha imediatamente; se falhar, o usuário ao menos vê o app.
 maybeReturnToNativeApp();
+
+// Tira do Despia a reserva do entalhe e traz para o app, que e o unico que
+// alcanca tambem os elementos fixos/grudentos. Ver utils/safeArea.js.
+assumirSafeArea();
 
 // Equivalente Android: escuta o deeplink playecg:// que traz o code do OAuth de
 // volta da Custom Tab. No-op no Despia e na web. Fire-and-forget de propósito —

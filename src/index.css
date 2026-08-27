@@ -108,6 +108,27 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  /* ── Safe-area: uma variavel so, com a fonte certa em cada ambiente ──────
+     Dentro do wrapper do Despia o `env(safe-area-inset-*)` do padrao CSS NAO
+     vale: o runtime deles nao popula essas variaveis de ambiente e injeta as
+     proprias custom properties, `--safe-area-top` e `--safe-area-bottom`. A
+     documentacao e explicita em mandar usar var(), nao env(). Como o app usava
+     env() em todo lugar, no iPhone tudo caia no fallback 0px -- e o conteudo
+     subia para debaixo do entalhe.
+
+     A cadeia abaixo resolve os dois mundos sem ramificacao em JS: se o Despia
+     definiu a variavel, ela ganha; no navegador e no Android, onde ela nao
+     existe, o fallback cai no env() padrao; e se nem esse existir, 0px.
+
+     Declarado no `body` (e nao no `:root`) de proposito: assim funciona tanto
+     se o Despia injetar as variaveis no html quanto se injetar no proprio
+     body. Tudo que o app estiliza esta dentro do body. */
+  body {
+    --app-safe-top: var(--safe-area-top, env(safe-area-inset-top, 0px));
+    --app-safe-bottom: var(--safe-area-bottom, env(safe-area-inset-bottom, 0px));
+  }
+
   html, body {
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;

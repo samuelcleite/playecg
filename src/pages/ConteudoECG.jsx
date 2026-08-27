@@ -299,8 +299,10 @@ export default function ConteudoECG() {
   const caseId = searchParams.get('case_id');
   const isPhaseTransition = from === 'phase_transition';
 
+  // Sem reserva de safe-area propria: esta tela passa pelo Layout, e o <main>
+  // de la ja reservou o topo. Somar as duas dobrava o espaco.
   return (
-    <div className="min-h-screen p-6 md:p-8 pb-28 md:pb-8" style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))' }}>
+    <div className="min-h-screen p-6 md:p-8 pb-28 md:pb-8">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
