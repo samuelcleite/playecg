@@ -98,7 +98,13 @@ export default function Dashboard() {
         </div>
       )}
       {/* Top Bar */}
-      <header className="bg-white border-b border-blue-100 sticky top-0 z-40" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+      {/* `top` na safe-area, nao em 0: um elemento grudento se ancora na
+          VIEWPORT, entao com top:0 ele encosta na borda fisica da tela e some
+          debaixo do relogio e da camera assim que a pagina rola -- por mais que
+          o conteudo parado ao redor esteja no lugar certo. O padding que ficava
+          aqui saiu porque o <main> do Layout ja reserva o mesmo espaco: as duas
+          reservas somadas empurravam o cabecalho para o meio da tela. */}
+      <header className="bg-white border-b border-blue-100 sticky z-40" style={{ top: 'var(--app-safe-top, 0px)' }}>
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-[#0D3B66] to-[#1976D2] rounded-lg flex items-center justify-center">

@@ -13,7 +13,7 @@ export default function FaleConoscoButton() {
         onClick={() => setShowFaleConosco(true)}
         aria-label="Fale Conosco"
         className="fixed right-4 z-50 w-14 h-14 rounded-full shadow-2xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 md:bottom-6"
-        style={{ bottom: 'max(72px, calc(env(safe-area-inset-bottom, 0px) + 72px))' }}
+        style={{ bottom: 'max(72px, calc(var(--app-safe-bottom, 0px) + 72px))' }}
         size="icon"
       >
         <MessageCircle className="w-6 h-6" />

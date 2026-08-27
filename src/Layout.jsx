@@ -337,10 +337,33 @@ export default function Layout({ children, currentPageName }) {
         // WebView antiga de graca. Nao foi isto que consertou a rolagem.
         style={rolagemDoDocumento ? { minHeight: '100vh' } : { minHeight: '100dvh' }}
       >
+        {/* Faixa opaca sobre o entalhe/status bar.
+            Ela e FIXA porque padding no topo de algo que rola nao protege nada:
+            no primeiro gesto o padding sobe junto com o conteudo e o texto
+            reaparece debaixo da camera -- que e exatamente o defeito que volta
+            sempre. O padding do <main> logo abaixo continua existindo, mas o
+            papel dele e outro: reservar o espaco em fluxo. Quem PINTA a area e
+            esta faixa.
+            Com --app-safe-top em 0px (navegador, Android sem entalhe) ela tem
+            altura zero e nao existe na pratica. */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 'var(--app-safe-top, 0px)',
+            backgroundColor: '#FFFFFF',
+            zIndex: 10000,
+            pointerEvents: 'none'
+          }}
+        />
+
         {isAdminSubPage && (
           <div
             className="flex items-center gap-2 px-4 py-3 bg-white border-b border-gray-200"
-            style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
+            style={{ paddingTop: 'calc(var(--app-safe-top, 0px) + 0.75rem)' }}
           >
             <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-gray-600">
               <ArrowLeft className="w-4 h-4" />
@@ -351,17 +374,21 @@ export default function Layout({ children, currentPageName }) {
         {/* No Android o <main> vira um bloco comum: sem `overflow-y-auto` e sem
             `overscroll-behavior`, para o gesto do dedo chegar ao documento em
             vez de morrer num container de rolagem que nao tem o que rolar. */}
+        {/* A reserva do topo mora AQUI e em mais nenhum lugar das telas que
+            passam pelo Layout. Quando a barra de admin acima esta na tela, e
+            ela que ja reservou -- somar as duas dava uma faixa branca do
+            tamanho de dois entalhes. */}
         <main
           className={`flex-1 pb-32 ${rolagemDoDocumento ? '' : 'overflow-y-auto'}`}
           style={rolagemDoDocumento
-            ? { paddingTop: 'env(safe-area-inset-top, 0px)' }
-            : { height: '100%', paddingTop: 'env(safe-area-inset-top, 0px)', overscrollBehavior: 'none' }}
+            ? { paddingTop: isAdminSubPage ? 0 : 'var(--app-safe-top, 0px)' }
+            : { height: '100%', paddingTop: isAdminSubPage ? 0 : 'var(--app-safe-top, 0px)', overscrollBehavior: 'none' }}
         >
           <TrialBanner />
           {children}
         </main>
 
-        <nav className="select-none" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, backgroundColor: '#FFFFFF', borderTop: '1px solid #E0E0E0', boxShadow: '0 -2px 12px rgba(0,0,0,0.08)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+        <nav className="select-none" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, backgroundColor: '#FFFFFF', borderTop: '1px solid #E0E0E0', boxShadow: '0 -2px 12px rgba(0,0,0,0.08)', paddingBottom: 'var(--app-safe-bottom, 0px)' }}>
           <div className="flex items-center justify-around px-2 py-3">
             {navigationItems.map((item) => {
               const isActive = location.pathname === item.url;

@@ -10,7 +10,12 @@ import { ChevronRight, Crown } from "lucide-react";
 // quando o texto muda, precisa mudar nos dois.
 export default function PremiumUpsellCard() {
   return (
-    <Link to={createPageUrl("Upgrade")}>
+    // `block` nao e decorativo: no mobile este card e o ultimo item de uma
+    // lista com `space-y-3`, e o espacamento do Tailwind e margin-top no
+    // irmao. Um <a> inline (o padrao do Link) ignora margin vertical, entao
+    // sem isto o bloco de upgrade encosta no card anterior. Os outros itens
+    // da mesma lista ja levam `block` pelo mesmo motivo.
+    <Link to={createPageUrl("Upgrade")} className="block">
       <Card className="border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 cursor-pointer hover:shadow-lg transition-all">
         <CardContent className="p-4 text-center">
           <Crown className="w-8 h-8 text-amber-500 mx-auto mb-2" />
