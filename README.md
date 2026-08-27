@@ -420,10 +420,22 @@ mensagem de f09f27f já explicava o mecanismo.
 reserva o topo de todas as telas que passam por ele. Tela que reserva de novo
 soma, e o conteúdo desce para o meio — era o caso de AprendaECG e ConteudoECG.
 
-Efeito colateral aceito: com a margem do body no lugar e o `html, body, #root {
-height: 100% }` do Layout, o body termina alguns pixels abaixo da tela e o app
-tem uma rolagem fantasma do tamanho do entalhe. Existia antes de tudo isto e
-nunca incomodou — não vale trocar por uma corrida de timing.
+**A margem do wrapper encurta a tela útil, e `100vh` não sabe disso.** Cada
+`min-h-screen` (são 63 no app) pede a tela inteira dentro de um espaço que já
+perdeu o entalhe — sobra exatamente um entalhe de rolagem fantasma em toda tela.
+Não é cosmético: basta um toque para a página parar nesse fim de curso, e aí o
+topo do conteúdo some debaixo da faixa. Corrigido subtraindo `--app-margem-wrapper`
+em três lugares: a altura do `body` (o `<style>` que o Layout injeta), o
+`minHeight` do wrapper mobile, e um override de `.min-h-screen` no
+[index.css](src/index.css). *Como se sabe:* prints do aparelho, 27/08/2026 —
+Módulos, Troféus, Aprenda ECG e Perfil apareceram com o topo cortado; o Dashboard
+não, porque o header dele é `sticky` e não acompanha a rolagem.
+
+**A cor da faixa acompanha o que está abaixo dela.** Faixa branca sobre tela de
+fundo cinza vira uma tarja no alto e faz o conteúdo que passa por baixo parecer
+cortado. O padrão é o cinza do wrapper (`#F2F2F2`), que é o fundo de quase toda
+tela; o Dashboard é a exceção, porque o header branco dele encosta na faixa.
+*Como se sabe:* mesmas prints.
 
 ### Push nativo: o que só se aprende testando (19/08/2026)
 

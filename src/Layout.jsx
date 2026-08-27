@@ -167,8 +167,15 @@ export default function Layout({ children, currentPageName }) {
           normalmente. Fora do Android continua igual. */}
       {!rolagemDoDocumento && (
         <style>{`
-          html, body, #root {
+          html, #root {
             height: 100%;
+          }
+          /* Nao \`100%\`: dentro do Despia o body comeca abaixo da margem que o
+             wrapper injeta, entao 100% da altura da tela o faz TERMINAR abaixo
+             dela -- e o app ganha uma rolagem fantasma do tamanho do entalhe.
+             Fora do Despia a variavel e 0px e isto e \`height: 100%\`. */
+          body {
+            height: calc(100% - var(--app-margem-wrapper, 0px));
           }
         `}</style>
       )}
@@ -335,7 +342,7 @@ export default function Layout({ children, currentPageName }) {
         // `dvh` e suportado. Num app Capacitor nao existe barra de endereco que
         // aparece e some, entao nao ha diferenca a ganhar -- e `100vh` cobre
         // WebView antiga de graca. Nao foi isto que consertou a rolagem.
-        style={rolagemDoDocumento ? { minHeight: '100vh' } : { minHeight: '100dvh' }}
+        style={rolagemDoDocumento ? { minHeight: '100vh' } : { minHeight: 'calc(100dvh - var(--app-margem-wrapper, 0px))' }}
       >
         {/* Faixa opaca sobre o entalhe/status bar.
             Ela e FIXA porque padding no topo de algo que rola nao protege nada:
@@ -345,7 +352,16 @@ export default function Layout({ children, currentPageName }) {
             papel dele e outro: reservar o espaco em fluxo. Quem PINTA a area e
             esta faixa.
             Com --app-safe-top em 0px (navegador, Android sem entalhe) ela tem
-            altura zero e nao existe na pratica. */}
+            altura zero e nao existe na pratica.
+
+            A COR acompanha o que esta logo abaixo dela, senao a faixa vira uma
+            tarja de outra cor no alto da tela e o conteudo que passa por baixo
+            parece cortado. O padrao e o cinza do proprio wrapper, que e o fundo
+            de quase toda tela; o Dashboard e a excecao porque o header branco
+            dele gruda encostado na faixa, e ali qualquer costura aparece.
+            Medido no aparelho em 27/08/2026: com a faixa branca em toda tela,
+            Modulos, Trofeus, Aprenda ECG e Perfil ficaram com uma tarja branca
+            sobre fundo cinza. */}
         <div
           aria-hidden="true"
           style={{
@@ -354,7 +370,7 @@ export default function Layout({ children, currentPageName }) {
             left: 0,
             right: 0,
             height: 'var(--app-safe-top, 0px)',
-            backgroundColor: '#FFFFFF',
+            backgroundColor: currentPageName === 'Dashboard' ? '#FFFFFF' : '#F2F2F2',
             zIndex: 10000,
             pointerEvents: 'none'
           }}

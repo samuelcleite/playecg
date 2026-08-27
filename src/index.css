@@ -139,6 +139,20 @@
   /* A marca vem do safeArea.js, por user agent, antes do primeiro render. */
   html[data-safe-area-do-wrapper="1"] body {
     --app-safe-top-fluxo: 0px;
+
+    /* Quanto o wrapper empurrou o body para baixo. Fora do Despia e zero. */
+    --app-margem-wrapper: var(--app-safe-top);
+  }
+
+  /* A margem do wrapper encurta a tela util, e `100vh` nao sabe disso: cada
+     `min-h-screen` pede a tela INTEIRA dentro de um espaco que ja perdeu o
+     entalhe, e sobra exatamente um entalhe de rolagem fantasma em toda tela do
+     app. Nao e cosmetico -- basta um toque para a pagina parar nesse fim de
+     curso, e ai o topo do conteudo some debaixo da faixa. Foi o que apareceu no
+     aparelho em 27/08/2026, em Modulos, Trofeus, Aprenda ECG e Perfil.
+     A conta certa e a tela menos o que o wrapper tomou. */
+  html[data-safe-area-do-wrapper="1"] .min-h-screen {
+    min-height: calc(100vh - var(--app-safe-top, 0px));
   }
 
   html, body {
