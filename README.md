@@ -366,33 +366,27 @@ Se um build não aparece no TestFlight, o motivo é quase sempre esse — suba o
 
 ### Safe-area: por que o topo volta para debaixo da câmera (27/08/2026)
 
-**⚠️ A opção "Auto Inject Safe Area" no painel do Despia é peça obrigatória.**
-Não é conveniência: o app **conta** com ela para pôr o conteúdo em fluxo abaixo
-do entalhe. Se alguém desligar, o topo volta para debaixo da câmera e nada no
-código avisa. Decisão consciente de 27/08/2026 — a alternativa (o app tomar a
-reserva e zerar a margem injetada) foi tentada, foi ao ar e falhou no aparelho.
+**A regra: meça a reserva, não a suponha.** Duas tentativas foram ao ar e
+falharam no aparelho no mesmo dia, as duas por apostar no que o wrapper do
+Despia faz em vez de olhar. Primeiro o app tomou a reserva para si e tentou
+zerar a margem que o "Auto Inject Safe Area" injeta no body — perdeu a corrida
+(a margem chega quando o runtime quer) e sobraram **dois entalhes** de espaço.
+Depois o app parou de reservar dentro do Despia, confiando na margem do wrapper
+— e o conteúdo apareceu **cortado no topo** em Módulos, Troféus, Aprenda ECG e
+Perfil, ou seja, a margem não estava fazendo o trabalho inteiro.
 
-**A reserva do topo tem dois donos, e não é simetria — é divisão de trabalho:**
+Hoje o [safeArea.js](src/utils/safeArea.js) lê os dois números no boot e reserva
+só a diferença:
 
-| Quem | Reserva o quê | Como |
-|---|---|---|
-| Wrapper (Despia) | conteúdo em fluxo | margem do `body`, via o "Auto Inject Safe Area" |
-| App | `position: fixed` / `sticky` | `var(--app-safe-top)` |
+```
+falta = max(0, entalhe − margem que o wrapper já pôs)
+```
 
-O wrapper empurra as *margens do body*, e margem de body só alcança fluxo: quem
-é `fixed`/`sticky` se ancora na viewport e a ignora. Por isso a faixa que cobre
-o entalhe ([Layout.jsx](src/Layout.jsx)) e o header grudento do Dashboard usam a
-variável direto — nada mais no app usa. **Somar as duas reservas dá uma faixa
-branca do tamanho de dois entalhes**, e foi exatamente o que apareceu na primeira
-tentativa. *Como se sabe:* print do aparelho, 27/08/2026.
-
-Daí o par de variáveis no [index.css](src/index.css), que tela nova precisa
-respeitar:
-
-- `--app-safe-top` — o valor real. **Só para `fixed`/`sticky`.**
-- `--app-safe-top-fluxo` — `0px` dentro do Despia (o body já desceu), o valor
-  real fora. **É esta que conteúdo normal usa.** A marca que faz a troca vem do
-  [safeArea.js](src/utils/safeArea.js), por user agent, antes do primeiro render.
+Não importa se o wrapper empurra tudo, um pedaço ou nada: a soma dá sempre um
+entalhe. **O padrão do CSS é reservar o entalhe inteiro, e a medição só tira o
+excesso** — se ela atrasar ou falhar, sobra espaço em vez de faltar. Espaço a
+mais é feio; espaço a menos corta conteúdo. Não há checagem de plataforma: fora
+do app a margem é zero e a mesma conta devolve o de sempre.
 
 **`env(safe-area-inset-*)` não vale dentro do Despia.** O runtime deles não
 popula as variáveis de ambiente do padrão CSS: injeta custom properties próprias,
@@ -401,41 +395,48 @@ não `env()`. O app inteiro estava escrito com `env()` — no iPhone toda reserv
 caía no fallback `0px`. *Como se sabe:* documentação do Despia
 (`setup.despia.com`), lida em 27/08/2026.
 
+As variáveis, e qual usar ([index.css](src/index.css)):
+
+| Variável | Para quem | Valor |
+|---|---|---|
+| `--app-safe-top` | **só** `fixed` / `sticky` | o entalhe real |
+| `--app-safe-top-fluxo` | conteúdo normal | o que falta reservar (medido) |
+| `--app-margem-wrapper` | alturas de tela cheia | o que o wrapper tomou (medido) |
+
+**Margem de body não alcança `fixed` nem `sticky`.** Esses se ancoram na
+viewport, então nenhuma reserva do wrapper chega neles — é por isso que a faixa
+que cobre o entalhe e o header grudento do Dashboard usam `--app-safe-top`
+direto. Foi o defeito original: o header do Dashboard sumia debaixo do relógio
+ao rolar, enquanto o resto da tela estava no lugar.
+
+**`100vh` não sabe da margem do wrapper.** Cada `min-h-screen` (são 63 no app)
+pede a tela inteira dentro de um espaço que já perdeu parte dela, e sobra
+rolagem fantasma em toda tela — basta um toque para a página parar nesse fim de
+curso e o topo sumir. Por isso `min-h-screen` é sobrescrito com
+`calc(100vh - var(--app-margem-wrapper))`, e a altura do `body` e o `minHeight`
+do wrapper mobile descontam o mesmo.
+
 **O rodapé é do wrapper inteiro, e continua sendo.** A barra de baixo já estava
-no lugar certo antes de tudo isto. Reservar o indicador de home também pelo app
-descolou a barra do fim da tela — revertido no mesmo dia: `<nav>`, botão
-flutuante e Home voltaram ao `env(safe-area-inset-bottom)`, que dentro do Despia
-resolve `0px` de propósito. **Não "conserte" o rodapé por simetria com o topo:
-esse foi o erro.** *Como se sabe:* print do aparelho, antes e depois.
+certa antes de tudo isto; reservar o indicador de home também pelo app descolou
+a barra do fim da tela. `<nav>`, botão flutuante e Home usam
+`env(safe-area-inset-bottom)`, que dentro do Despia resolve `0px` de propósito.
+**Não "conserte" o rodapé por simetria com o topo:** esse foi um dos erros.
+*Como se sabe:* prints do aparelho, antes e depois.
 
-**Padding no topo de algo que rola não protege nada.** É por isto que este defeito
-*volta* depois de corrigido: no primeiro gesto o padding sobe junto com o conteúdo
-e o texto reaparece debaixo do relógio. Quem cobre o entalhe tem que ser um
-elemento **fixo**; padding serve só para reservar espaço em fluxo. Pelo mesmo
-motivo, cabeçalho grudento gruda em `top: var(--app-safe-top)`, nunca em `top: 0`.
-*Como se sabe:* observado no iPhone em 06/08/2026 — foi o que 4dbeba7 quebrou, e a
-mensagem de f09f27f já explicava o mecanismo.
-
-**Uma reserva por tela, nunca duas.** O `<main>` do [Layout.jsx](src/Layout.jsx)
-reserva o topo de todas as telas que passam por ele. Tela que reserva de novo
-soma, e o conteúdo desce para o meio — era o caso de AprendaECG e ConteudoECG.
-
-**A margem do wrapper encurta a tela útil, e `100vh` não sabe disso.** Cada
-`min-h-screen` (são 63 no app) pede a tela inteira dentro de um espaço que já
-perdeu o entalhe — sobra exatamente um entalhe de rolagem fantasma em toda tela.
-Não é cosmético: basta um toque para a página parar nesse fim de curso, e aí o
-topo do conteúdo some debaixo da faixa. Corrigido subtraindo `--app-margem-wrapper`
-em três lugares: a altura do `body` (o `<style>` que o Layout injeta), o
-`minHeight` do wrapper mobile, e um override de `.min-h-screen` no
-[index.css](src/index.css). *Como se sabe:* prints do aparelho, 27/08/2026 —
-Módulos, Troféus, Aprenda ECG e Perfil apareceram com o topo cortado; o Dashboard
-não, porque o header dele é `sticky` e não acompanha a rolagem.
+**Padding no topo de algo que rola não protege nada.** No primeiro gesto o
+padding sobe junto com o conteúdo e o texto reaparece debaixo do relógio. Quem
+cobre o entalhe tem que ser um elemento **fixo**; padding só reserva espaço em
+fluxo. Pelo mesmo motivo, cabeçalho grudento gruda em `top: var(--app-safe-top)`,
+nunca em `top: 0`. *Como se sabe:* observado no iPhone em 06/08/2026 — foi o que
+4dbeba7 quebrou, e f09f27f já explicava.
 
 **A cor da faixa acompanha o que está abaixo dela.** Faixa branca sobre tela de
-fundo cinza vira uma tarja no alto e faz o conteúdo que passa por baixo parecer
-cortado. O padrão é o cinza do wrapper (`#F2F2F2`), que é o fundo de quase toda
-tela; o Dashboard é a exceção, porque o header branco dele encosta na faixa.
-*Como se sabe:* mesmas prints.
+fundo cinza vira uma tarja no alto. O padrão é o cinza do wrapper (`#F2F2F2`);
+o Dashboard é a exceção, porque o header branco dele encosta na faixa.
+
+**Uma reserva por tela, nunca duas.** O `<main>` do [Layout.jsx](src/Layout.jsx)
+reserva o topo de todas as telas que passam por ele — tela que reserva de novo
+soma. Era o caso de AprendaECG e ConteudoECG.
 
 ### Push nativo: o que só se aprende testando (19/08/2026)
 
