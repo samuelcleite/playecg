@@ -129,30 +129,25 @@
        ancoram na viewport e nenhum wrapper alcanca. */
     --app-safe-top: var(--safe-area-top, env(safe-area-inset-top, 0px));
 
-    /* Quanto o CONTEUDO EM FLUXO ainda precisa reservar. Fora do app nativo e o
-       mesmo valor; dentro do Despia e zero, porque o "Auto Inject Safe Area" ja
-       empurrou as margens do body. Somar os dois da uma faixa branca do tamanho
-       de dois entalhes -- ver utils/safeArea.js. */
+    /* Quanto o CONTEUDO EM FLUXO ainda precisa reservar, e quanto o wrapper ja
+       tomou. Os dois sao SOBRESCRITOS pelo utils/safeArea.js, que mede a margem
+       real do body no boot: falta = entalhe - margem. Os valores abaixo sao o
+       ponto de partida, e o padrao e reservar o entalhe INTEIRO de proposito --
+       se a medicao atrasar ou falhar, sobra espaco em vez de faltar. Espaco a
+       mais e feio; espaco a menos corta conteudo. */
     --app-safe-top-fluxo: var(--app-safe-top);
-  }
-
-  /* A marca vem do safeArea.js, por user agent, antes do primeiro render. */
-  html[data-safe-area-do-wrapper="1"] body {
-    --app-safe-top-fluxo: 0px;
-
-    /* Quanto o wrapper empurrou o body para baixo. Fora do Despia e zero. */
-    --app-margem-wrapper: var(--app-safe-top);
+    --app-margem-wrapper: 0px;
   }
 
   /* A margem do wrapper encurta a tela util, e `100vh` nao sabe disso: cada
-     `min-h-screen` pede a tela INTEIRA dentro de um espaco que ja perdeu o
-     entalhe, e sobra exatamente um entalhe de rolagem fantasma em toda tela do
-     app. Nao e cosmetico -- basta um toque para a pagina parar nesse fim de
-     curso, e ai o topo do conteudo some debaixo da faixa. Foi o que apareceu no
-     aparelho em 27/08/2026, em Modulos, Trofeus, Aprenda ECG e Perfil.
-     A conta certa e a tela menos o que o wrapper tomou. */
-  html[data-safe-area-do-wrapper="1"] .min-h-screen {
-    min-height: calc(100vh - var(--app-safe-top, 0px));
+     `min-h-screen` pede a tela INTEIRA dentro de um espaco que ja perdeu parte
+     dela, e sobra rolagem fantasma em toda tela do app. Nao e cosmetico --
+     basta um toque para a pagina parar nesse fim de curso. A conta certa e a
+     tela menos o que o wrapper tomou; com a variavel em 0px (navegador,
+     Android) isto e exatamente `100vh`, como sempre foi.
+     `html body` so para ganhar da utility do Tailwind na especificidade. */
+  html body .min-h-screen {
+    min-height: calc(100vh - var(--app-margem-wrapper, 0px));
   }
 
   html, body {

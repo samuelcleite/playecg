@@ -1,40 +1,70 @@
-// Quem reserva o entalhe: o wrapper para o conteúdo em fluxo, o app para o resto.
+// A reserva do entalhe deixa de ser suposta e passa a ser MEDIDA.
 // -----------------------------------------------------------------------------
-// DEPENDÊNCIA DE PAINEL: isto só fecha a conta com a opção **"Auto Inject Safe
-// Area" LIGADA** no dashboard do Despia. Ela é peça obrigatória, não
-// conveniência. Se alguém desligar, o topo do app volta para debaixo da câmera e
-// nada no código avisa.
+// Duas versões anteriores erraram pelo mesmo motivo: as duas apostaram no que o
+// wrapper do Despia faz, em vez de olhar.
 //
-// A divisão de trabalho, e por que ela não é simétrica:
+//   1ª: o app tomava a reserva para si e zerava a margem que o "Auto Inject
+//       Safe Area" injeta no body. Perdeu a corrida -- a margem chega quando o
+//       runtime quer, e o observador nunca via a injeção. Resultado no
+//       aparelho: dois entalhes de espaço no topo.
+//   2ª: o app parou de reservar dentro do Despia, confiando que a margem do
+//       wrapper faria o trabalho. Resultado no aparelho: conteúdo cortado no
+//       topo em Módulos, Troféus, Aprenda ECG e Perfil -- ou seja, a margem
+//       NÃO estava fazendo o trabalho, ou não inteiro.
 //
-//   Conteúdo em fluxo -> do wrapper. O "Auto Inject Safe Area" empurra as
-//   MARGENS do body, e isso já põe toda tela normal abaixo do entalhe. O app
-//   NÃO pode reservar de novo: as duas somam e sobra uma faixa branca do
-//   tamanho de dois entalhes. Foi o que apareceu no aparelho em 27/08/2026.
+// As duas apostas eram sobre o mesmo número, e esse número dá para ler. É o que
+// esta versão faz: mede quanto o wrapper já empurrou o body e reserva só o que
+// falta para completar um entalhe. Não importa se o wrapper empurra tudo, um
+// pedaço ou nada -- a soma dá sempre exatamente um entalhe.
 //
-//   `position: fixed` / `sticky` -> do app. Esses se ancoram na viewport e
-//   ignoram margem de body, então o wrapper não tem como alcançá-los. É o caso
-//   da faixa que cobre o entalhe e do header grudento do Dashboard, que usam
-//   `--app-safe-top` direto.
+//     falta = max(0, entalhe - margem que o wrapper já pôs)
 //
-// Houve uma versão anterior (revertida no mesmo dia) em que o app tomava a
-// reserva para si e zerava a margem injetada. Não funcionou no aparelho: a
-// margem chega quando o runtime do Despia quer, e o observador de mutação nunca
-// via a injeção. Trocar a corrida por uma checagem de user agent é o ponto desta
-// versão -- a marca abaixo é decidida por `isDespiaApp()`, antes do primeiro
-// render, e não depende de o wrapper já ter feito a parte dele.
+// O padrão do CSS é reservar o entalhe INTEIRO, e a medição só tira o excesso.
+// A direção da falha importa: se a medição atrasar ou falhar, sobra espaço --
+// nunca falta. Espaço a mais é feio; espaço a menos corta conteúdo.
 //
-// O par de variáveis está no index.css:
-//   --app-safe-top        -> o valor real do entalhe. Para quem é fixed/sticky.
-//   --app-safe-top-fluxo  -> 0px aqui dentro, porque o body já desceu.
+// Sem checagem de plataforma de propósito. Fora do app nativo a margem do body é
+// zero (preflight do Tailwind) e o entalhe vem do env(), então a mesma conta
+// devolve o mesmo resultado de sempre. Um caminho só, exercitado em todo lugar.
+//
+// As duas variáveis que isto escreve (ver index.css):
+//   --app-safe-top-fluxo  o que o conteúdo em fluxo ainda precisa reservar
+//   --app-margem-wrapper  o que o wrapper tomou -- descontado das alturas de
+//                         tela cheia, senão `100vh` pede mais do que existe e
+//                         sobra uma rolagem fantasma do tamanho do entalhe
 
-import { isDespiaApp } from "@/utils/platform";
+function px(valor) {
+  const n = parseFloat(valor);
+  return Number.isFinite(n) ? n : 0;
+}
 
-export function assumirSafeArea() {
-  if (typeof document === "undefined") return;
-  if (!isDespiaApp()) return;
+function medir() {
+  const estilo = getComputedStyle(document.body);
 
-  // No <html> e não no <body>: o React não toca no elemento raiz, então a marca
-  // sobrevive a qualquer re-render.
-  document.documentElement.setAttribute("data-safe-area-do-wrapper", "1");
+  // O entalhe real. Dentro do Despia vem da custom property deles; fora, do
+  // env() padrão. A cadeia está no index.css.
+  const entalhe = px(estilo.getPropertyValue("--app-safe-top"));
+
+  // Quanto o wrapper já empurrou. O app nunca escreve `margin` no body, então o
+  // valor computado aqui é só o que veio de fora.
+  const margem = px(estilo.marginTop);
+
+  document.body.style.setProperty("--app-margem-wrapper", `${margem}px`);
+  document.body.style.setProperty("--app-safe-top-fluxo", `${Math.max(0, entalhe - margem)}px`);
+}
+
+export function sincronizarSafeArea() {
+  if (typeof document === "undefined" || !document.body) return;
+
+  medir();
+
+  // A injeção do wrapper não tem hora marcada. Medir de novo é barato e
+  // idempotente -- ao contrário de brigar com a margem, remedir sempre converge
+  // para o mesmo número.
+  window.addEventListener("load", medir);
+  window.addEventListener("resize", medir);
+  window.addEventListener("orientationchange", medir);
+
+  // Cobre a injeção que chega depois do boot e antes de qualquer evento.
+  [0, 100, 300, 800, 1500].forEach((ms) => setTimeout(medir, ms));
 }
