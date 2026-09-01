@@ -2,9 +2,15 @@ import React, { useState, useEffect } from "react";
 import { savePushSubscription } from "@/functions/savePushSubscription";
 import { getVapidPublicKey } from "@/functions/getVapidPublicKey";
 import { motion } from "framer-motion";
-import { consultarPromoPush, resgatarPromoPush } from "@/lib/promocaoPush";
+import { consultarPromoPush, resgatarPromoPush, reconciliarPromoPush } from "@/lib/promocaoPush";
+import {
+  marcarVistoSemPermissao,
+  marcarPedidoRecusado,
+  pedidoJaRecusado,
+  limparMemoriaPush
+} from "@/lib/memoriaPush";
 import Confete from "@/components/Confete";
-import { Bell, X, Loader2, Gift, Sparkles } from "lucide-react";
+import { Bell, BellOff, X, Loader2, Gift, Sparkles, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isIOSNativeApp } from "@/utils/platform";
 import {
@@ -47,6 +53,13 @@ export default function NotificationBanner() {
   // simplesmente travada.
   const [pedindo, setPedindo] = useState(false);
 
+  // Ela já tocou no botão e não concedeu — em ALGUM carregamento, não só neste.
+  // É o que troca o convite grande pelo lembrete discreto, e é a única marca que
+  // sobrevive ao recarregamento (ver lib/memoriaPush.js). Sem ela, o app tratava
+  // quem recusou como quem nunca foi perguntado e repetia o convite inteiro,
+  // toda vez, para um botão que no iOS não pode mais dar certo.
+  const [jaRecusou, setJaRecusou] = useState(false);
+
   // Promoção: null = desligada, indisponível, ou esta pessoa não é elegível.
   // Os três casos são o mesmo para a tela — o banner volta a ser o que era
   // antes de a campanha existir.
@@ -73,8 +86,26 @@ export default function NotificationBanner() {
       // que um binário sem o SDK devolve, e mostrar um botão que não faz nada
       // seria pior do que não mostrar botão nenhum.
       if (estado === "indeterminado") { setStatus("indeterminado"); return; }
-      if (estado === "concedida") { setStatus("subscribed"); return; }
+
+      if (estado === "concedida") {
+        setStatus("subscribed");
+        // A pessoa tem permissão AGORA. Se em algum carregamento anterior ela
+        // não tinha, a permissão foi concedida no meio — inclusive pelos
+        // Ajustes, que é o único caminho de quem já havia recusado — e é
+        // exatamente o gesto que a promoção paga. Ver reconciliarPromoPush.
+        const ganho = await reconciliarPromoPush();
+        if (ganho) setResgatado({ dias: ganho.dias });
+        return;
+      }
+
+      // Sem permissão. A marca é o que permite reconhecer a transição depois:
+      // sem ela, quem liberar pelos Ajustes volta e não recebe nada.
+      marcarVistoSemPermissao();
       setStatus("prompt");
+      // Já pediu e não conseguiu? O convite grande vira aviso discreto — e o
+      // destino passa a ser os Ajustes, porque no iOS o prompt não reabre e
+      // insistir no botão só entrega dez segundos de espera inútil.
+      setJaRecusou(pedidoJaRecusado());
       return;
     }
 
@@ -124,6 +155,7 @@ export default function NotificationBanner() {
           const estado = await pedirPermissaoNativa();
           if (estado === "concedida") {
             setStatus("subscribed");
+            limparMemoriaPush();
             // Resgate na sequência do mesmo gesto: a pessoa clicou por causa do
             // presente, e pedir um segundo clique para recebê-lo perderia
             // justamente quem já fez a parte difícil.
@@ -136,6 +168,13 @@ export default function NotificationBanner() {
             await resgatar();
           } else {
             setStatus("denied");
+            // Ela tocou e não concedeu. A partir daqui o convite grande não faz
+            // mais sentido — no iOS o prompt não reabre, então repetir o botão
+            // só entrega dez segundos de espera e a mesma recusa. O que
+            // continua fazendo sentido é lembrar, discretamente, e apontar para
+            // o único lugar que resolve.
+            marcarPedidoRecusado();
+            setJaRecusou(true);
           }
         } finally {
           setPedindo(false);
@@ -242,6 +281,46 @@ export default function NotificationBanner() {
   // exatamente o que a promoção não deveria pagar.
   if (status === "loading" || status === "unsupported" || status === "indeterminado"
       || status === "subscribed" || dismissed) return null;
+
+  // INSISTÊNCIA DISCRETA (só app iOS).
+  //
+  // Quem já tocou no botão e não concedeu vê isto, e vê SEMPRE — em todo
+  // carregamento, sem X para fechar. É de propósito: notificação desligada é um
+  // canal perdido, e uma linha fina custa pouco de quem não quer.
+  //
+  // O que mudou não é a frequência (o convite grande já voltava a cada
+  // carregamento, porque o "denied" só existia em memória). Foi o TAMANHO e o
+  // DESTINO. Antes: um card de dois blocos com botão que, no iOS, levava a dez
+  // segundos de "Aguardando sua permissão..." e à mesma recusa — o prompt não
+  // reabre depois de decidido. Agora: uma linha, e o toque vai direto para os
+  // Ajustes, que é o único lugar onde isso se resolve.
+  //
+  // A promoção aparece aqui quando está no ar, e agora ela é HONRÁVEL por este
+  // caminho: quem liberar nos Ajustes e voltar recebe os dias pela
+  // reconciliação (ver lib/promocaoPush.js). Antes, prometer aqui seria mentir.
+  if (isIOSNativeApp() && jaRecusou) {
+    return (
+      // `flex` já torna o button block-level, então ele ocupa a largura toda
+      // menos as margens — sem w-full nem cálculo de largura.
+      <button
+        onClick={abrirAjustesDoSistema}
+        className="mx-4 mb-4 rounded-xl bg-gray-50 border border-gray-200 px-3 py-2.5 flex items-center gap-2.5 text-left hover:bg-gray-100 transition-colors"
+      >
+        <BellOff className="w-4 h-4 text-gray-400 flex-shrink-0" />
+        <span className="flex-1 min-w-0">
+          <span className="block text-xs font-semibold text-gray-600 leading-tight">
+            Notificações desligadas
+          </span>
+          <span className="block text-[11px] text-gray-400 leading-tight mt-0.5">
+            {promo
+              ? `Ative nos Ajustes e ganhe ${promo.dias} dias de Premium`
+              : "Ative nos Ajustes para receber novidades e lembretes"}
+          </span>
+        </span>
+        <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+      </button>
+    );
+  }
 
   if (status === "denied") {
     return (

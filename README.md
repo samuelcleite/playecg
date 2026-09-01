@@ -305,6 +305,32 @@ estar no ar. Quem já tinha notificações ativas não vê oferta nenhuma. O cor
 pelo fluxo porque a API do OneSignal não expõe quando a permissão foi dada —
 e o campo que existiria marcaria o primeiro open do app, não o aceite.
 
+**Resgate por reconciliação, não só no gesto.** O resgate dentro do clique cobria
+UM caminho, e três situações reais ficavam de fora — nas três a pessoa cumpre o
+combinado e não recebe nada:
+
+1. **Liberou pelos Ajustes** — o único caminho de quem já recusou. Voltava com a
+   permissão dada, o componente via `concedida`, escondia o banner e nunca
+   resgatava. Com a insistência discreta apontando para os Ajustes, isso deixou
+   de ser borda e virou o caminho principal.
+2. **Demorou mais de 10s** para tocar em "Permitir": o laço desiste e conclui
+   "não concedeu", mesmo que a permissão venha logo depois.
+3. **O OneSignal ainda não sabia** — a inscrição leva um tempo para refletir a
+   permissão recém-dada, a verificação voltava `sem_inscricao` e não havia
+   segunda tentativa.
+
+O `reconciliarPromoPush` fecha os três com uma regra só: se um carregamento
+anterior VIU esta pessoa sem permissão e agora ela tem, a permissão foi concedida
+no meio — que é exatamente o gesto que a promoção paga. **Não vira retroativa:**
+quem já tinha push nunca foi observado sem permissão, logo nunca tem a marca. A
+testemunha continua sendo o app; só passou a atravessar carregamentos em vez de
+viver dentro de um clique. Quem confirma segue sendo o servidor, contra o
+OneSignal.
+
+Falha por `sem_inscricao` **mantém** a marca (é a segunda tentativa); recusa
+silenciosa (desligada, já resgatou, já premium) apaga. Teto de 5 tentativas para
+uma vinculação quebrada não virar uma requisição por carregamento, para sempre.
+
 **Reclamou que não recebeu? Aba Diagnóstico**, na tela de cortesias: informe o
 e-mail e ela mostra a cadeia inteira (campanha, conta, elegibilidade, e o que o
 OneSignal respondeu de verdade), terminando num veredito. Quando a inscrição está
@@ -491,6 +517,25 @@ autorizar, só reinstalando o app ou usando um aparelho virgem.** Trocar de cont
 no mesmo iPhone não adianta: a permissão é do app, não da conta. Foi isso que
 impediu de testar a promoção de push com um usuário que já tinha ativado, e é
 por isso que a tela de cortesias ganhou o `resgatar_admin`.
+
+**Quem recusou continua sendo cobrado — discretamente.** O Despia devolve um
+booleano só, então `estadoDaPermissaoNativa` não distingue "nunca perguntou" de
+"já recusou": as duas viram `nao_concedida`. Sem memória, a tela tratava quem
+recusou como quem nunca foi perguntado e repetia o convite inteiro, com um botão
+que no iOS **não pode mais dar certo** — o prompt não reabre, e o laço de 10s do
+`pedirPermissaoNativa` só entregava espera. O
+[`memoriaPush.js`](src/lib/memoriaPush.js) guarda o que o app observou e o banner
+passa a mostrar uma **linha fina** que leva direto aos Ajustes. Sem X: notificação
+desligada é canal perdido, e uma linha custa pouco de quem não quer.
+
+⚠️ **Duas marcas, e elas não são a mesma coisa.** `visto_sem_permissao` é gravada
+pela simples OBSERVAÇÃO e é a testemunha da transição (usada pela promoção);
+`pedido_recusado` só é gravada quando a pessoa TOCA no botão e não concede, e é
+só ela que troca o convite pela linha discreta. Marcar a forma discreta pela
+observação faria o convite nunca aparecer — na primeira visita, quem nunca foi
+perguntado também está `nao_concedida`.
+
+**A cortesia agora é reconciliada, e não só resgatada no gesto.** Ver §5.
 
 **Para saber se o binário do Despia tem o SDK do OneSignal, olhe o banner.** Se
 o banner de notificações aparece no app, o comando `checkNativePushPermissions://`
