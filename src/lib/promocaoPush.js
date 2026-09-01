@@ -1,6 +1,12 @@
 import { base44 } from "@/api/base44Client";
 import { refreshCurrentUser } from "@/lib/currentUser";
 import { isIOSNativeApp } from "@/utils/platform";
+import {
+  viuSemPermissao,
+  tentativasEsgotadas,
+  registrarTentativaResgate,
+  limparMemoriaPush
+} from "@/lib/memoriaPush";
 
 // Promoção "ativou notificações, ganhou premium" — o lado do cliente.
 //
@@ -89,6 +95,7 @@ export async function resgatarPromoPush() {
     }
     return {
       ok: false,
+      motivo: d?.motivo || null,
       erro: d?.error || "Não foi possível liberar seu acesso agora.",
       silencioso: RECUSAS_SILENCIOSAS.includes(d?.motivo)
     };
@@ -96,8 +103,68 @@ export async function resgatarPromoPush() {
     const dados = error?.response?.data;
     return {
       ok: false,
+      motivo: dados?.motivo || null,
       erro: dados?.error || "Não foi possível liberar seu acesso agora.",
       silencioso: RECUSAS_SILENCIOSAS.includes(dados?.motivo)
     };
   }
+}
+
+// ─── RECONCILIAÇÃO ───────────────────────────────────────────────────────────
+//
+// O resgate no gesto cobre um caminho só: tocar no botão e conceder ali. Três
+// situações reais ficavam de fora, e nas três a pessoa CUMPRE o combinado e não
+// recebe nada:
+//
+//   1. LIBEROU PELOS AJUSTES. É o único caminho de quem já tinha recusado — no
+//      iOS o prompt não reabre. Ela volta ao app com a permissão concedida, o
+//      componente vê "concedida", esconde o banner, e nunca chama o resgate.
+//      Hoje é um caso de borda; com o aviso discreto empurrando para os Ajustes,
+//      vira o caminho PRINCIPAL.
+//
+//   2. DEMOROU MAIS DE DEZ SEGUNDOS para tocar em "Permitir". O laço do
+//      `pedirPermissaoNativa` desiste, a tela conclui "não concedeu" e não
+//      resgata — mesmo que a permissão tenha sido dada logo depois.
+//
+//   3. O ONESIGNAL AINDA NÃO SABIA. O resgate confere a inscrição contra a API
+//      deles, e ela leva um tempo para refletir a permissão recém-dada. A
+//      primeira tentativa volta `sem_inscricao` e não havia nenhuma segunda.
+//
+// A reconciliação fecha as três com uma regra só: se em algum carregamento
+// anterior nós VIMOS esta pessoa sem permissão, e agora ela tem, então a
+// permissão foi concedida no meio — e isso é exatamente o gesto que a promoção
+// paga.
+//
+// NÃO TORNA A PROMOÇÃO RETROATIVA. Quem já tinha push antes da campanha nunca
+// foi observado sem permissão, então nunca tem a marca, então nunca entra aqui.
+// A garantia é a mesma de antes — o app testemunhou a transição —, só que agora
+// a testemunha atravessa carregamentos em vez de viver dentro de um clique.
+//
+// E quem confirma continua sendo o SERVIDOR, contra o OneSignal. Esta função não
+// afirma nada: ela só decide quando vale a pena perguntar.
+export async function reconciliarPromoPush() {
+  if (!isIOSNativeApp()) return null;
+  if (!viuSemPermissao()) return null;
+  if (tentativasEsgotadas()) return null;
+
+  const r = await resgatarPromoPush();
+
+  if (r.ok) {
+    limparMemoriaPush();
+    return { dias: r.dias };
+  }
+
+  // Recusa silenciosa = não havia promoção para esta pessoa (desligada, já
+  // resgatou, já é premium). O assunto está encerrado: apagar a marca evita
+  // uma pergunta por carregamento para sempre.
+  if (r.silencioso) {
+    limparMemoriaPush();
+    return null;
+  }
+
+  // Sobrou o caso 3: o OneSignal ainda não reflete a inscrição, ou a consulta
+  // falhou. A marca FICA, de propósito — é o que dá a segunda tentativa no
+  // próximo carregamento. O teto de tentativas impede que isso vire eterno.
+  registrarTentativaResgate();
+  return null;
 }

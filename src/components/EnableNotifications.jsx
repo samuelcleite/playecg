@@ -3,7 +3,13 @@ import { savePushSubscription } from "@/functions/savePushSubscription";
 import { getVapidPublicKey } from "@/functions/getVapidPublicKey";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { consultarPromoPush, resgatarPromoPush } from "@/lib/promocaoPush";
+import { consultarPromoPush, resgatarPromoPush, reconciliarPromoPush } from "@/lib/promocaoPush";
+import {
+  marcarVistoSemPermissao,
+  marcarPedidoRecusado,
+  pedidoJaRecusado,
+  limparMemoriaPush
+} from "@/lib/memoriaPush";
 import { Bell, BellOff, CheckCircle2, Loader2, Gift } from "lucide-react";
 import { isIOSNativeApp } from "@/utils/platform";
 import {
@@ -52,7 +58,22 @@ export default function EnableNotifications({ className }) {
       const estado = await estadoDaPermissaoNativa();
       // Indeterminado renderiza NADA. Ver utils/pushNativo.js.
       if (estado === "indeterminado") { setStatus("indeterminado"); return; }
-      setStatus(estado === "concedida" ? "subscribed" : "prompt");
+
+      if (estado === "concedida") {
+        setStatus("subscribed");
+        // Mesma reconciliação do banner: se já vimos esta pessoa SEM permissão e
+        // agora ela tem, a promoção é devida — inclusive (e principalmente) para
+        // quem liberou pelos Ajustes. Ver lib/promocaoPush.js.
+        const ganho = await reconciliarPromoPush();
+        if (ganho) setResgatado({ dias: ganho.dias });
+        return;
+      }
+
+      marcarVistoSemPermissao();
+      // Quem já tocou no botão e não concedeu vai direto para o estado
+      // bloqueado, que nesta tela já é o certo: a mensagem e o atalho para os
+      // Ajustes, sem oferecer de novo um botão que no iOS não pode dar certo.
+      setStatus(pedidoJaRecusado() ? "denied" : "prompt");
       return;
     }
 
@@ -89,6 +110,10 @@ export default function EnableNotifications({ className }) {
         try {
           const estado = await pedirPermissaoNativa();
           setStatus(estado === "concedida" ? "subscribed" : "denied");
+          if (estado === "concedida") limparMemoriaPush();
+          // Tocou e não concedeu: a partir daqui esta tela abre já no estado
+          // bloqueado, com o atalho para os Ajustes. Ver lib/memoriaPush.js.
+          else marcarPedidoRecusado();
           // Resgate na sequência do gesto que autorizou — e SÓ aqui. É esta
           // amarração que mantém a promoção não-retroativa: não existe caminho
           // na tela que ofereça o resgate a quem já estava inscrito.
