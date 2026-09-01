@@ -545,6 +545,27 @@ denominador virar a base inteira — misturando quem recusou com quem nunca teve
 chance, que são problemas opostos: banner que não convence versus app com pouco
 alcance.
 
+### Envio em lote
+
+**Um destinatário ou vinte custam a mesma requisição.** O `include_aliases` do
+OneSignal aceita o array de external_ids inteiro, então o `sendOneSignalPush`
+recebe `user_emails` (lista) e dispara **uma** chamada. `user_email` (singular)
+continua valendo e vira lista de um — um caminho só, para o envio individual não
+poder divergir do em lote.
+
+Fatiamos em **2.000 por chamada**: as fontes da OneSignal discordam do teto
+(2.000 numa, 20.000 na referência atual) e errar para baixo custa uma requisição
+a mais, enquanto errar para cima trunca o envio em silêncio.
+
+**Continua sem broadcast no iOS**, de propósito — `included_segments` erra a base
+inteira de uma vez se o nome do segmento estiver errado. Mirar todo mundo é
+selecionar todo mundo, com a lista à vista antes de apertar enviar.
+
+⚠️ **Lista vazia NÃO é broadcast.** No `sendTestPush`, `user_emails: []` devolve
+400 em vez de cair no ramo de "todos" — que é o oposto exato do que quem escolheu
+destinatários pediu. Broadcast só quando o campo não vem: é uma ausência, não uma
+lista vazia.
+
 Páginas públicas exigidas pela Apple/Google: `/termos`, `/privacidade`,
 `/suporte`, `/excluir-conta`. Links externos não abrem na WebView do Despia —
 por isso tudo é hospedado em `playecg.app`.
