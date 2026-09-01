@@ -17,10 +17,21 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 // A entrada desta função é o e-mail (é o que a tela de admin já tem) e a
 // resolução para Account.id acontece aqui dentro.
 //
-// SEM BROADCAST NESTA VERSÃO, de propósito: user_email vazio devolve 400. Um
-// broadcast exigiria included_segments, cujo nome padrão mudou na migração do
-// OneSignal para o modelo de Subscriptions, e um erro de configuração ali
-// acerta a base inteira de uma vez. Entra quando houver base para valer.
+// UM OU MUITOS DESTINATÁRIOS, pelo mesmo caminho: `user_emails` é uma lista e
+// `user_email` vira uma lista de um. O `include_aliases` aceita o array inteiro,
+// então mandar para vinte pessoas é UMA chamada, não vinte — e o custo de um
+// lote é o mesmo de um envio individual.
+//
+// SEM BROADCAST, de propósito: lista vazia devolve 400. Um broadcast exigiria
+// included_segments, cujo nome padrão mudou na migração do OneSignal para o
+// modelo de Subscriptions, e um erro de configuração ali acerta a base inteira
+// de uma vez. A seleção explícita cobre o caso prático sem esse risco: mirar
+// todo mundo é selecionar todo mundo, e aí a tela mostra quem vai receber ANTES
+// de enviar.
+//
+// TETO POR CHAMADA: as fontes da OneSignal discordam (2.000 numa, 20.000 na
+// referência atual). Fatiamos em 2.000, o menor dos dois — errar para baixo
+// custa uma requisição a mais; errar para cima trunca o envio em silêncio.
 //
 // FORMATO DA API: "rich key" (o formato atual). Se a chave configurada for uma
 // REST API Key legada, a resposta vem 401 e a migração é mecânica:
@@ -126,6 +137,119 @@ function normalizeEmail(email) {
   return (email || '').trim().toLowerCase();
 }
 
+// Ver o cabeçalho: o menor dos dois tetos que a OneSignal documenta.
+const MAX_ALIASES_POR_CHAMADA = 2000;
+
+// Quantas resoluções de conta em paralelo. Mesma razão do pool no
+// adminPushStats: serial, uma seleção de cinquenta viraria cinquenta idas ao
+// banco em fila.
+const SIMULTANEAS = 6;
+
+// Uma lista de e-mails normalizada e SEM REPETIÇÃO. O `Set` não é zelo: a mesma
+// pessoa seria mirada duas vezes no array de aliases, e o OneSignal poderia
+// entregar duas notificações idênticas para o mesmo aparelho.
+function normalizarLista(lista, unico) {
+  const bruto = Array.isArray(lista) ? lista : [];
+  if (unico) bruto.push(unico);
+  return [...new Set(bruto.map(normalizeEmail).filter(Boolean))];
+}
+
+function* fatiar(itens, tamanho) {
+  for (let i = 0; i < itens.length; i += tamanho) yield itens.slice(i, i + tamanho);
+}
+
+// E-mails -> Account.id, guardando quem não existe.
+//
+// Quem não vira conta é REPORTADO, não ignorado: a tela precisa dizer "mandei
+// para 8 dos 10 selecionados" em vez de deixar duas pessoas de fora em silêncio.
+async function resolverContas(base44, emails) {
+  const ids = [];
+  const naoEncontrados = [];
+  let proximo = 0;
+
+  async function trabalhador() {
+    while (true) {
+      const i = proximo++;
+      if (i >= emails.length) return;
+      const email = emails[i];
+      const contas = await base44.asServiceRole.entities.Account.filter({ email });
+      if (contas && contas.length > 0) ids.push(String(contas[0].id));
+      else naoEncontrados.push(email);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(SIMULTANEAS, emails.length) }, trabalhador)
+  );
+
+  return { ids, naoEncontrados };
+}
+
+// Uma chamada ao OneSignal para uma fatia de external_ids.
+//
+// O SINAL CONFIÁVEL É `errors`. NÃO É `recipients`.
+//
+// A API rich NÃO devolve recipients: ela aceita a mensagem, responde na hora, e
+// só depois resolve os aliases e conta os destinatários. Um envio comprovadamente
+// entregue no device voltou assim:
+//   { id: "31a1aee1-...", recipients: ausente, errors: null }
+// Ou seja: `recipients` chega indefinido SEMPRE, e por isso não é repassado como
+// 0. Fabricar o 0 fazia a tela de admin acusar "nenhum dispositivo inscrito" em
+// envio que funcionou.
+//
+// Quem separa sucesso de problema é `errors`:
+//   errors: null             -> o OneSignal aceitou a mensagem
+//   errors: <qualquer coisa> -> ele sinalizou algo, e o conteúdo diz o quê
+// Antes do rebuild do binário, um external_id sem subscription voltava
+// errors: ["All included players are not subscribed"]. Com lote, o formato que
+// interessa é `errors.invalid_aliases.external_id`: os ids que ele não resolveu.
+//
+// A CONTAGEM REAL DE ENTREGA VIVE NO PAINEL DO ONESIGNAL (Delivery), não nesta
+// resposta. Não há como obtê-la aqui de forma síncrona.
+//
+// O FORMATO DE `errors` NÃO É GARANTIDO — array de strings em erro, null em
+// sucesso, objeto no caso de aliases inválidos. O repasse é verbatim e quem
+// renderiza trata os formatos defensivamente (ver renderErros na tela).
+async function dispararLote(externalIds, { appId, apiKey, title, body, dataExtra }) {
+  const payload = {
+    app_id: appId,
+    target_channel: 'push',
+    include_aliases: { external_id: externalIds },
+    headings: { en: title.trim() },
+    contents: { en: body.trim() }
+  };
+  if (dataExtra) payload.data = dataExtra;
+
+  const upstream = await fetch(ONESIGNAL_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Key ${apiKey}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  // Lê como texto antes de tentar JSON: em erro de autenticação o OneSignal pode
+  // responder com corpo não-JSON, e um throw aqui viraria um 500 opaco
+  // justamente no caso que mais precisa ser diagnosticado.
+  const bruto = await upstream.text();
+  let resposta;
+  try {
+    resposta = JSON.parse(bruto);
+  } catch (_e) {
+    resposta = { raw: bruto };
+  }
+
+  return {
+    // `ok` reflete a CHAMADA ter dado certo (HTTP 2xx), não a entrega.
+    ok: upstream.ok,
+    status: upstream.status,
+    id: resposta?.id ?? null,
+    errors: resposta?.errors ?? null,
+    mirados: externalIds.length
+  };
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -138,16 +262,21 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    const { user_email, title, body, path } = await req.json();
+    const { user_email, user_emails, title, body, path } = await req.json();
 
     if (!title || !title.trim() || !body || !body.trim()) {
       return Response.json({ error: 'Título e mensagem são obrigatórios' }, { status: 400 });
     }
 
-    // Sem broadcast nesta versão — ver o cabeçalho.
-    if (!user_email || !user_email.trim()) {
+    // Um destinatário ou muitos entram pelo MESMO caminho: `user_email` vira uma
+    // lista de um. Sem ramificação, o envio individual e o em lote não podem
+    // divergir — e divergir aqui significaria a tela funcionar com uma pessoa e
+    // falhar com duas, ou o contrário.
+    const alvos = normalizarLista(user_emails, user_email);
+
+    if (alvos.length === 0) {
       return Response.json(
-        { error: 'Informe o e-mail do destinatário (envio em massa ainda não disponível)' },
+        { error: 'Selecione ao menos um destinatário (envio para toda a base ainda não disponível)' },
         { status: 400 }
       );
     }
@@ -161,21 +290,16 @@ Deno.serve(async (req) => {
     // E-mail -> Account.id. A tela de admin trabalha com e-mail; o OneSignal
     // trabalha com o Account.id. A tradução vive aqui para que a tela não
     // precise aprender um identificador novo nem exibir ids opacos.
-    const contas = await base44.asServiceRole.entities.Account.filter({
-      email: normalizeEmail(user_email)
-    });
-    const conta = contas && contas.length > 0 ? contas[0] : null;
-    if (!conta) {
-      return Response.json({ error: 'Conta não encontrada', success: false }, { status: 404 });
-    }
+    const { ids, naoEncontrados } = await resolverContas(base44, alvos);
 
-    const payload = {
-      app_id: appId,
-      target_channel: 'push',
-      include_aliases: { external_id: [String(conta.id)] },
-      headings: { en: title.trim() },
-      contents: { en: body.trim() }
-    };
+    // Nenhum e-mail virou conta: não há o que mandar, e devolver 200 faria a
+    // tela dizer "enviada" para um envio que não existiu.
+    if (ids.length === 0) {
+      return Response.json(
+        { error: 'Nenhuma conta encontrada para os e-mails informados', success: false, nao_encontrados: naoEncontrados },
+        { status: 404 }
+      );
+    }
 
     // Roteamento: o Despia lê `path` de dentro de `data`, atualiza a URL pela
     // History API e dispara popstate ao tocar na notificação. O router do app
@@ -183,65 +307,33 @@ Deno.serve(async (req) => {
     // preciso código de roteamento no frontend.
     // Escotilha, caso um dia o router ignore o popstate: o Despia também expõe
     // window.onNotificationEvent. Não usamos hoje.
-    if (path && path.trim()) {
-      payload.data = { path: path.trim() };
+    const dataExtra = path && path.trim() ? { path: path.trim() } : null;
+
+    // UMA chamada por fatia, não uma por pessoa: o `include_aliases` aceita o
+    // array inteiro. Mandar para vinte custa o mesmo que mandar para um.
+    const envios = [];
+    for (const fatia of fatiar(ids, MAX_ALIASES_POR_CHAMADA)) {
+      envios.push(await dispararLote(fatia, { appId, apiKey, title, body, dataExtra }));
     }
 
-    const upstream = await fetch(ONESIGNAL_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Key ${apiKey}`
-      },
-      body: JSON.stringify(payload)
-    });
+    // Sucesso é TODAS as fatias terem passado. Com uma fatia — o caso real de
+    // hoje — isto é idêntico ao comportamento anterior.
+    const sucesso = envios.every(e => e.ok);
 
-    // Lê como texto antes de tentar JSON: em erro de autenticação o OneSignal
-    // pode responder com corpo não-JSON, e um throw aqui viraria um 500 opaco
-    // justamente no caso que mais precisa ser diagnosticado.
-    const bruto = await upstream.text();
-    let resposta;
-    try {
-      resposta = JSON.parse(bruto);
-    } catch (_e) {
-      resposta = { raw: bruto };
-    }
-
-    // O SINAL CONFIÁVEL É `errors`. NÃO É `recipients`.
-    //
-    // A API rich NÃO devolve recipients: ela aceita a mensagem, responde na
-    // hora, e só depois resolve o alias e conta os destinatários. Um envio
-    // comprovadamente entregue no device voltou assim:
-    //   { id: "31a1aee1-...", recipients: ausente, errors: null }
-    // Ou seja: `recipients` chega indefinido SEMPRE, e por isso é repassado
-    // como null — "a API não informou" — e não como 0. Fabricar o 0 fazia a
-    // tela de admin acusar "nenhum dispositivo inscrito" em envio que
-    // funcionou.
-    //
-    // Quem separa sucesso de problema é `errors`:
-    //   errors: null            -> o OneSignal aceitou a mensagem
-    //   errors: <qualquer coisa> -> ele sinalizou algo, e o conteúdo diz o quê
-    // Antes do rebuild do binário, um external_id sem subscription voltava
-    // errors: ["All included players are not subscribed"]. Depois do rebuild,
-    // com a vinculação valendo, passou a vir null.
-    //
-    // A CONTAGEM REAL DE ENTREGA VIVE NO PAINEL DO ONESIGNAL (Delivery), não
-    // nesta resposta. Não há como obtê-la aqui de forma síncrona.
-    //
-    // O FORMATO DE `errors` NÃO É GARANTIDO: em erro real observamos array de
-    // strings, e em sucesso observamos null. É só isso que sabemos, então o
-    // repasse é verbatim e quem renderiza trata os formatos defensivamente —
-    // ver o renderErros em AdminNotifications.jsx.
-    //
-    // `success` reflete a CHAMADA ter dado certo (HTTP 2xx), não a entrega.
     return Response.json({
-      success: upstream.ok,
-      status: upstream.status,
-      id: resposta?.id ?? null,
-      recipients: resposta?.recipients ?? null,
-      errors: resposta?.errors ?? null,
-      external_id_alvo: String(conta.id)
+      success: sucesso,
+      destinatarios: ids.length,
+      nao_encontrados: naoEncontrados,
+      envios,
+      // Compatibilidade com o formato de um destinatário só: a tela sabe ler os
+      // dois, mas manter estes campos evita que um envio individual perca
+      // informação de diagnóstico que já existia.
+      status: envios[0]?.status ?? null,
+      id: envios[0]?.id ?? null,
+      errors: envios[0]?.errors ?? null,
+      external_id_alvo: ids.length === 1 ? ids[0] : null
     });
+
   } catch (error) {
     console.error('Erro em sendOneSignalPush:', error);
     return Response.json({ error: error.message }, { status: 500 });

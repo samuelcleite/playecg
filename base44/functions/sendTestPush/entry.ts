@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    const { user_email, title, body } = await req.json();
+    const { user_email, user_emails, title, body } = await req.json();
 
     const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
     const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
@@ -104,13 +104,38 @@ Deno.serve(async (req) => {
 
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
-    // Alvo por user_email. O fallback por user_id foi removido junto com o
-    // campo: a entidade não tem mais essa chave.
+    // Alvo por e-mail: um, vários, ou toda a base. O fallback por user_id foi
+    // removido junto com o campo: a entidade não tem mais essa chave.
+    //
+    // Com LISTA, o filtro é em memória e não uma consulta por e-mail. O SDK do
+    // Base44 não tem operador de conjunto, então a alternativa seria N idas ao
+    // banco — e a lista completa já é lida assim no caminho de broadcast logo
+    // abaixo, com o mesmo teto de 1000.
+    const alvos = new Set(
+      [...(Array.isArray(user_emails) ? user_emails : []), user_email]
+        .map(e => (e || '').trim().toLowerCase())
+        .filter(Boolean)
+    );
+
+    // SELEÇÃO VAZIA NÃO É BROADCAST.
+    //
+    // Sem esta guarda, mandar `user_emails: []` cairia no ramo de "todos" logo
+    // abaixo e a mensagem iria para a base inteira — o oposto exato do que quem
+    // escolheu destinatários pediu. Broadcast só quando o campo não vem: é uma
+    // ausência, não uma lista vazia. A tela também trava o botão nesse estado,
+    // mas a proteção precisa estar aqui: o único jeito de um engano deste tipo
+    // ser reversível é ele não acontecer.
+    if (Array.isArray(user_emails) && alvos.size === 0) {
+      return Response.json(
+        { success: false, error: 'Nenhum destinatário selecionado' },
+        { status: 400 }
+      );
+    }
+
     let subscriptions;
-    if (user_email) {
-      subscriptions = await base44.asServiceRole.entities.PushSubscription.filter({
-        user_email: user_email.trim().toLowerCase()
-      });
+    if (alvos.size > 0) {
+      const todas = await base44.asServiceRole.entities.PushSubscription.list('-created_date', 1000);
+      subscriptions = todas.filter(s => alvos.has((s.user_email || '').trim().toLowerCase()));
     } else {
       subscriptions = await base44.asServiceRole.entities.PushSubscription.list('-created_date', 1000);
     }

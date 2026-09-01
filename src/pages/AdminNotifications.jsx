@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { sendTestPush } from "@/functions/sendTestPush";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Send, CheckCircle2, XCircle, Loader2, Smartphone, AlertTriangle, RefreshCw, Search, Globe } from "lucide-react";
+import { Bell, Send, CheckCircle2, XCircle, Loader2, Smartphone, AlertTriangle, RefreshCw, Search, Globe, Check, X } from "lucide-react";
 
 // Rotas que fazem sentido como destino de notificação. O Despia lê este valor
 // de `data.path`, atualiza a URL pela History API e dispara popstate — o router
@@ -61,8 +61,15 @@ export default function AdminNotifications() {
   const [sending, setSending] = useState(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [targetMode, setTargetMode] = useState("all"); // "all" | "user"
-  const [targetUserEmail, setTargetUserEmail] = useState("");
+  // "all" = toda a base (só Web Push tem esse caminho) | "selecionados" = lote.
+  //
+  // O modo "usuário específico" SUMIU, e não porque perdeu utilidade: mandar
+  // para uma pessoa é selecionar uma pessoa. Um modo separado para o caso de N=1
+  // seria um segundo caminho para o mesmo envio, e dois caminhos divergem.
+  const [targetMode, setTargetMode] = useState("all");
+  const [selecionados, setSelecionados] = useState([]);
+  const [busca, setBusca] = useState("");
+  const [emailManual, setEmailManual] = useState("");
   const [path, setPath] = useState("");
   const [result, setResult] = useState(null);
 
@@ -172,6 +179,71 @@ export default function AdminNotifications() {
     }
   };
 
+  // ─── SELEÇÃO DE DESTINATÁRIOS ──────────────────────────────────────────────
+
+  // Candidatos = quem tem push iOS ativo (da varredura) ∪ quem tem Web Push,
+  // deduplicados POR E-MAIL, que é a chave que os dois transportes usam.
+  //
+  // A mesma pessoa pode estar nos dois canais — daí `ios` e `web` serem flags
+  // independentes na mesma linha, e não duas linhas. Duas linhas para o mesmo
+  // e-mail deixariam marcar "a mesma pessoa" duas vezes.
+  //
+  // Quem foi adicionado à mão entra como candidato sem canal conhecido: não dá
+  // para afirmar que ele recebe, mas esconder da lista quem está selecionado
+  // seria pior — o chip diria que está marcado e a lista não confirmaria.
+  const candidatos = useMemo(() => {
+    const mapa = new Map();
+
+    (varredura?.ativos || []).forEach(c => {
+      const email = (c.email || "").trim().toLowerCase();
+      if (!email) return;
+      mapa.set(email, { email, nome: c.nome || null, ios: true, web: false });
+    });
+
+    subscriptions.forEach(s => {
+      const email = (s.user_email || "").trim().toLowerCase();
+      if (!email) return;
+      const existente = mapa.get(email);
+      if (existente) existente.web = true;
+      else mapa.set(email, { email, nome: null, ios: false, web: true });
+    });
+
+    selecionados.forEach(email => {
+      if (!mapa.has(email)) mapa.set(email, { email, nome: null, ios: false, web: false });
+    });
+
+    return [...mapa.values()].sort((a, b) => a.email.localeCompare(b.email));
+  }, [varredura, subscriptions, selecionados]);
+
+  const candidatosFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return candidatos;
+    return candidatos.filter(c =>
+      c.email.includes(termo) || (c.nome || "").toLowerCase().includes(termo)
+    );
+  }, [candidatos, busca]);
+
+  const alternarSelecao = (email) => {
+    setSelecionados(atual =>
+      atual.includes(email) ? atual.filter(e => e !== email) : [...atual, email]
+    );
+  };
+
+  // Marca os VISÍVEIS, não "todos": com busca ativa, marcar quem está fora do
+  // filtro é justamente o engano que a busca deveria evitar.
+  const marcarTodosVisiveis = () => {
+    setSelecionados(atual => [
+      ...new Set([...atual, ...candidatosFiltrados.map(c => c.email)])
+    ]);
+  };
+
+  const adicionarManual = () => {
+    const email = emailManual.trim().toLowerCase();
+    if (!email) return;
+    setSelecionados(atual => (atual.includes(email) ? atual : [...atual, email]));
+    setEmailManual("");
+  };
+
   // Web Push (navegador e PWA). Inalterado — só o estado de `sending` mudou de
   // booleano para o nome do transporte, e o resultado passou a ser etiquetado.
   const handleSend = async () => {
@@ -180,8 +252,8 @@ export default function AdminNotifications() {
     setResult(null);
     try {
       const payload = { title, body };
-      if (targetMode === "user" && targetUserEmail.trim()) {
-        payload.user_email = targetUserEmail.trim();
+      if (targetMode === "selecionados") {
+        payload.user_emails = selecionados;
       }
       const res = await sendTestPush(payload);
       setResult({ transporte: "web", success: res.data.success, results: res.data.results });
@@ -208,7 +280,7 @@ export default function AdminNotifications() {
         title,
         body,
         path,
-        user_email: targetUserEmail.trim()
+        user_emails: selecionados
       });
       setResult({ transporte: "ios", ...res.data });
     } catch (err) {
@@ -244,6 +316,11 @@ export default function AdminNotifications() {
 
   const sentCount = result?.results?.filter(r => r.status === "sent").length ?? 0;
   const failedCount = result?.results?.filter(r => r.status !== "sent").length ?? 0;
+
+  // Modo "escolher" com ninguém marcado trava os DOIS botões. Sem isto, o de Web
+  // Push cairia no ramo de broadcast da function (lista vazia = toda a base) e
+  // mandaria para todo mundo justamente quando a tela diz "escolher".
+  const semSelecao = targetMode === "selecionados" && selecionados.length === 0;
 
   return (
     <div className="min-h-screen bg-ecg-gray p-6">
@@ -438,25 +515,21 @@ export default function AdminNotifications() {
                     </p>
                   )}
 
+                  {/* Lista de LEITURA. Escolher quem recebe acontece num lugar
+                      só — o seletor de destinatários do formulário, que já
+                      inclui estas contas. Clicar aqui também mirava o envio, e
+                      duas portas para a mesma seleção é como se perde a noção do
+                      que está marcado na hora de apertar enviar. */}
                   {varredura.ativos.length > 0 && (
                     <div className="max-h-48 overflow-y-auto space-y-1 pt-1">
                       {varredura.ativos.map((c, i) => (
-                        <button
+                        <div
                           key={`${c.email}-${i}`}
-                          onClick={() => {
-                            // Mirar o envio é o uso natural desta lista — sem
-                            // ela, o e-mail do destinatário iOS tinha de ser
-                            // digitado de cabeça (a lista de baixo é de Web
-                            // Push, público disjunto).
-                            setTargetMode("user");
-                            setTargetUserEmail(c.email || "");
-                          }}
-                          disabled={!c.email}
-                          className={`w-full text-left px-3 py-2 rounded-lg text-xs border transition-all disabled:opacity-50 ${c.email && targetUserEmail === c.email ? "border-ecg-green bg-ecg-green/10 text-ecg-midnight font-bold" : "border-gray-100 bg-white hover:bg-gray-50 text-gray-600"}`}
+                          className="px-3 py-2 rounded-lg text-xs border border-gray-100 bg-white text-gray-600"
                         >
                           <span className="font-mono">{c.email || "(sem e-mail)"}</span>
                           {c.nome && <span className="ml-2 text-gray-400">{c.nome}</span>}
-                        </button>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -493,57 +566,129 @@ export default function AdminNotifications() {
             <h2 className="font-bold text-ecg-midnight">Compor Notificação</h2>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Target */}
+            {/* Destinatários */}
             <div>
-              <label className="text-sm font-semibold text-gray-700 block mb-2">Destinatário</label>
+              <label className="text-sm font-semibold text-gray-700 block mb-2">Destinatários</label>
               <div className="flex gap-2">
                 <button
                   onClick={() => setTargetMode("all")}
                   className={`flex-1 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${targetMode === "all" ? "border-ecg-midnight bg-ecg-midnight text-white" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
                 >
-                  Todos os usuários
+                  Todos
                 </button>
                 <button
-                  onClick={() => setTargetMode("user")}
-                  className={`flex-1 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${targetMode === "user" ? "border-ecg-midnight bg-ecg-midnight text-white" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                  onClick={() => setTargetMode("selecionados")}
+                  className={`flex-1 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${targetMode === "selecionados" ? "border-ecg-midnight bg-ecg-midnight text-white" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
                 >
-                  Usuário específico
+                  Escolher {selecionados.length > 0 && `(${selecionados.length})`}
                 </button>
               </div>
+              {/* "Todos" é SÓ Web Push. O envio iOS não tem broadcast — mirar
+                  todo mundo lá é selecionar todo mundo, com a lista à vista
+                  antes de apertar enviar. */}
+              {targetMode === "all" && (
+                <p className="text-[11px] text-gray-400 mt-1.5">
+                  Toda a base do Web Push. O app iOS não tem envio em massa — use “Escolher”.
+                </p>
+              )}
             </div>
 
-            {targetMode === "user" && (
-              <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-1">E-mail do usuário</label>
-                <input
-                  type="text"
-                  value={targetUserEmail}
-                  onChange={e => setTargetUserEmail(e.target.value)}
-                  placeholder="email@exemplo.com"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ecg-green"
-                />
-                {/* Atalhos de Web Push. NÃO servem para o envio iOS: os
-                    públicos são disjuntos, então ninguém desta lista tem
-                    subscription no OneSignal. Para mirar um iPhone, use a lista
-                    da varredura, no card do App iOS lá em cima. */}
-                {subscriptions.length > 0 && (
-                  <>
-                    <p className="text-[11px] text-gray-400 mt-2 mb-1">Inscritos no Web Push:</p>
-                    <div className="max-h-40 overflow-y-auto space-y-1">
-                    {subscriptions.map(s => (
+            {targetMode === "selecionados" && (
+              <div className="rounded-xl border border-gray-200 p-3 space-y-3">
+                {/* Chips do que já está marcado. Existem porque a lista rola e
+                    filtra: sem um resumo fixo, dá para apertar enviar sem ver
+                    metade de quem foi marcado. */}
+                {selecionados.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selecionados.map(email => (
                       <button
-                        key={s.id}
-                        onClick={() => setTargetUserEmail(s.user_email || "")}
-                        disabled={!s.user_email}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-xs border transition-all disabled:opacity-50 ${s.user_email && targetUserEmail === s.user_email ? "border-ecg-green bg-ecg-green/10 text-ecg-midnight font-bold" : "border-gray-100 bg-white hover:bg-gray-50 text-gray-600"}`}
+                        key={email}
+                        onClick={() => alternarSelecao(email)}
+                        className="flex items-center gap-1 bg-ecg-midnight text-white text-xs font-semibold rounded-full pl-2.5 pr-1.5 py-1 hover:bg-ecg-midnight/85"
+                        title="Remover"
                       >
-                        <span className="font-mono">{s.user_email || '(sem e-mail)'}</span>
-                        <span className="ml-2 text-gray-400 truncate">{s.endpoint?.slice(0, 40)}...</span>
+                        <span className="font-mono">{email}</span>
+                        <X className="w-3 h-3" />
                       </button>
                     ))}
-                    </div>
-                  </>
+                    <button
+                      onClick={() => setSelecionados([])}
+                      className="text-xs text-gray-400 hover:text-ecg-midnight underline px-1"
+                    >
+                      limpar
+                    </button>
+                  </div>
                 )}
+
+                <input
+                  type="text"
+                  value={busca}
+                  onChange={e => setBusca(e.target.value)}
+                  placeholder="Buscar por e-mail ou nome..."
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ecg-green"
+                />
+
+                {candidatosFiltrados.length > 0 && (
+                  <button
+                    onClick={() => marcarTodosVisiveis()}
+                    className="text-xs text-ecg-blue hover:underline font-semibold"
+                  >
+                    Marcar os {candidatosFiltrados.length} visívei{candidatosFiltrados.length !== 1 ? "s" : "s"}
+                  </button>
+                )}
+
+                <div className="max-h-56 overflow-y-auto space-y-1">
+                  {candidatosFiltrados.map(c => {
+                    const marcado = selecionados.includes(c.email);
+                    return (
+                      <button
+                        key={c.email}
+                        onClick={() => alternarSelecao(c.email)}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-xs border transition-all flex items-center gap-2 ${marcado ? "border-ecg-green bg-ecg-green/10 text-ecg-midnight font-bold" : "border-gray-100 bg-white hover:bg-gray-50 text-gray-600"}`}
+                      >
+                        <span className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${marcado ? "bg-ecg-green border-ecg-green" : "border-gray-300"}`}>
+                          {marcado && <Check className="w-3 h-3 text-white" />}
+                        </span>
+                        <span className="font-mono truncate">{c.email}</span>
+                        {c.nome && <span className="text-gray-400 truncate">{c.nome}</span>}
+                        <span className="ml-auto flex gap-1 flex-shrink-0">
+                          {/* O canal importa: marcar alguém que só tem Web Push
+                              e apertar o botão do iOS não entrega nada. */}
+                          {c.ios && <Badge className="bg-ecg-blue/10 text-ecg-blue border border-ecg-blue/20 text-[10px] px-1.5 py-0">iOS</Badge>}
+                          {c.web && <Badge className="bg-gray-100 text-gray-500 border border-gray-200 text-[10px] px-1.5 py-0">Web</Badge>}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {candidatosFiltrados.length === 0 && (
+                    <p className="text-xs text-gray-400 py-2">
+                      {busca
+                        ? "Ninguém com esse e-mail ou nome."
+                        : "Nenhum candidato listado. Rode “Ver quem tem push ativo” no card do App iOS para carregar as contas do app."}
+                    </p>
+                  )}
+                </div>
+
+                {/* Escotilha para quem não está em lista nenhuma — mandar um
+                    teste para si mesmo, por exemplo, antes de a varredura rodar. */}
+                <div className="flex gap-2 pt-1 border-t border-gray-100">
+                  <input
+                    type="text"
+                    value={emailManual}
+                    onChange={e => setEmailManual(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") adicionarManual(); }}
+                    placeholder="adicionar e-mail manualmente"
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ecg-green"
+                  />
+                  <Button
+                    onClick={adicionarManual}
+                    disabled={!emailManual.trim()}
+                    variant="outline"
+                    className="rounded-xl h-auto py-2 px-3 text-xs"
+                  >
+                    Adicionar
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -596,31 +741,37 @@ export default function AdminNotifications() {
                 públicos que não se sobrepõem. */}
             <Button
               onClick={handleSend}
-              disabled={!!sending || !title.trim() || !body.trim()}
+              disabled={!!sending || !title.trim() || !body.trim() || semSelecao}
               className="w-full bg-ecg-midnight hover:bg-ecg-midnight/90 text-white font-black rounded-xl h-11"
             >
               {sending === "web" ? (
                 <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Enviando...</>
               ) : (
-                <><Send className="w-4 h-4 mr-2" /> Enviar por Web Push (navegador)</>
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Enviar por Web Push {targetMode === "all" ? "(toda a base)" : `(${selecionados.length})`}
+                </>
               )}
             </Button>
 
             <Button
               onClick={handleSendOneSignal}
-              disabled={!!sending || !title.trim() || !body.trim() || !targetUserEmail.trim()}
+              disabled={!!sending || !title.trim() || !body.trim() || selecionados.length === 0}
               className="w-full bg-ecg-blue hover:bg-ecg-blue/90 text-white font-black rounded-xl h-11"
             >
               {sending === "ios" ? (
                 <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Enviando...</>
               ) : (
-                <><Smartphone className="w-4 h-4 mr-2" /> Enviar para o app iOS</>
+                <>
+                  <Smartphone className="w-4 h-4 mr-2" />
+                  Enviar para o app iOS {selecionados.length > 0 && `(${selecionados.length})`}
+                </>
               )}
             </Button>
 
-            {!targetUserEmail.trim() && (
+            {selecionados.length === 0 && (
               <p className="text-xs text-gray-400 -mt-2">
-                O envio para o app iOS exige um e-mail de destinatário — ainda não há envio em massa.
+                O envio para o app iOS exige destinatários selecionados — não há envio em massa nesse canal.
               </p>
             )}
           </CardContent>
@@ -661,7 +812,10 @@ export default function AdminNotifications() {
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-bold text-green-800">Notificação enviada ao OneSignal</p>
+                    <p className="font-bold text-green-800">
+                      Notificação enviada ao OneSignal
+                      {result.destinatarios > 1 && ` — ${result.destinatarios} destinatários`}
+                    </p>
                     <p className="text-sm text-green-700 mt-1">
                       A contagem de entrega fica no painel do OneSignal, em Delivery — a API
                       resolve os destinatários depois de responder, então esse número não chega aqui.
@@ -689,6 +843,20 @@ export default function AdminNotifications() {
                     <span className="font-semibold">External ID alvo:</span>{" "}
                     <span className="font-mono">{result.external_id_alvo}</span>
                   </p>
+                )}
+                {/* Quem foi selecionado e não virou conta. Reportado, nunca
+                    ignorado: "mandei para 8 dos 10" é uma informação que só
+                    aparece se alguém disser qual foram os 2 que ficaram de
+                    fora. */}
+                {result.nao_encontrados?.length > 0 && (
+                  <div className="text-amber-700">
+                    <span className="font-semibold">
+                      Sem conta ({result.nao_encontrados.length}) — não receberam:
+                    </span>
+                    <ul className="list-disc list-inside mt-0.5 font-mono">
+                      {result.nao_encontrados.map(e => <li key={e}>{e}</li>)}
+                    </ul>
+                  </div>
                 )}
                 {result.errors && (
                   <div>
