@@ -103,7 +103,12 @@ Deno.serve(async (req) => {
                     // getMyAccount rebaixar, na data do trial, alguém que
                     // acabou de comprar acesso permanente.
                     trial_ends_at: null,
-                    trial_started_at: null
+                    trial_started_at: null,
+                    // INVARIANTE store_expires_at
+                    // Mesma lógica, para a outra marca de "este premium vence":
+                    // o comprador do vitalício pode ter tido assinatura de loja
+                    // antes, e o prazo dela ficaria armado contra ele.
+                    store_expires_at: null
                 });
             }
 
@@ -172,7 +177,15 @@ Deno.serve(async (req) => {
                     // comprou durante o trial seria rebaixado pela expiração do
                     // getMyAccount no dia em que a cortesia venceria.
                     trial_ends_at: null,
-                    trial_started_at: null
+                    trial_started_at: null,
+                    // INVARIANTE store_expires_at
+                    // Este premium passa a vir do Stripe, e o prazo da loja não
+                    // manda mais nele. Quem assinou no iPhone, cancelou, e
+                    // depois assinou pela web chegaria aqui com a data antiga
+                    // pendurada — e a expiração do getMyAccount rebaixaria um
+                    // assinante ativo do Stripe no prazo de uma assinatura que
+                    // ele já substituiu.
+                    store_expires_at: null
                 });
             }
 

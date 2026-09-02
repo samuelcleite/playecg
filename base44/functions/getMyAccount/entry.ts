@@ -155,6 +155,148 @@ function avaliarCortesia(conta, agora) {
   return { vencida: true, rebaixar: true };
 }
 
+// -----------------------------------------------------------------------------
+// INVARIANTE store_expires_at
+//
+// A cortesia acima vence por data. O premium de LOJA não tinha nenhuma: até
+// aqui, o único caminho do sistema capaz de rebaixar um assinante da App Store
+// ou da Play Store era o `EXPIRATION` do revenuecatWebhook — um evento externo,
+// entregue uma vez, sem segunda chance. Perdido, atribuído à conta errada ou
+// respondido com 500, o acesso pago virava permanente e ninguém percebia. Foi
+// exatamente o que aconteceu com uma assinatura mensal cancelada e expirada na
+// App Store: a conta seguiu premium depois da data.
+//
+// O `store_expires_at` fecha isso do mesmo jeito que o `trial_ends_at` fecha a
+// cortesia: uma data na nossa Account, conferida no único ponto por onde toda
+// tela passa. Não há cron nesta plataforma — ver o cabeçalho.
+//
+// A DIFERENÇA IMPORTANTE, e é ela que torna isto seguro: a data NÃO decide nada.
+// Ela só autoriza a PERGUNTA. Quem responde é o RevenueCat, e só uma resposta
+// explícita de "esta assinatura existe e acabou" rebaixa alguém. É a objeção
+// registrada no syncStoreSubscription — "o RevenueCat não conhece este usuário"
+// é indistinguível de "a assinatura dele acabou" — respondida por construção:
+//
+//   ativa        -> não rebaixa; empurra a data para a frente. É o que faz um
+//                   RENEWAL perdido virar um não-evento em vez de um cliente
+//                   pagante rebaixado.
+//   expirada     -> rebaixa. A loja mostrou a assinatura e mostrou o fim dela.
+//   desconhecido -> NÃO rebaixa. A resposta veio, mas sem assinatura nenhuma:
+//                   estamos olhando o app_user_id errado, e o comprador de
+//                   vitalício (que nunca teve compra de loja) cai aqui por
+//                   definição. Rebaixar por ausência é o erro caro.
+//   erro         -> NÃO rebaixa. Rede, 500, JSON quebrado. Tenta de novo na
+//                   próxima leitura; até lá o acesso continua.
+//
+// CUSTO: uma ida ao RevenueCat só quando o prazo já passou — nunca no
+// carregamento normal de quem está em dia. Depois dela a data é reescrita ou
+// apagada, então o caso não se repete a cada tela.
+// -----------------------------------------------------------------------------
+
+// Stripe e promotional não são compra de loja. Mesma lista do
+// syncStoreSubscription e do getUserSubscriptionInfo.
+const NAO_LOJA = ['stripe', 'promotional'];
+
+function avaliarAssinaturaLoja(conta, agora) {
+  if (!conta.store_expires_at) return { agir: false };
+
+  const fim = new Date(conta.store_expires_at);
+  // Data ilegível: nenhum caminho nosso grava isso, mas se estiver lá ela nunca
+  // vence e nunca sai. Descartar é o único desfecho que não deixa lixo armado.
+  if (isNaN(fim.getTime())) return { agir: true, verificar: false, motivo: 'data_invalida' };
+  if (fim > agora) return { agir: false };
+
+  // INVARIANTE lifetime_access
+  // Quem comprou acesso permanente pode ter tido assinatura de loja antes. O
+  // prazo dela vence aqui e não pode custar o acesso dele.
+  if (conta.lifetime_access === true) {
+    return { agir: true, verificar: false, motivo: 'lifetime_access' };
+  }
+
+  // INVARIANTE trial_ends_at
+  // Cortesia em curso barra o rebaixamento pelo mesmo motivo e no mesmo
+  // cenário. Ela segue com o prazo que tinha e vence sozinha em avaliarCortesia.
+  const cortesia = conta.trial_ends_at ? new Date(conta.trial_ends_at) : null;
+  if (cortesia && !isNaN(cortesia.getTime()) && cortesia > agora) {
+    return { agir: true, verificar: false, motivo: 'cortesia_em_curso' };
+  }
+
+  return { agir: true, verificar: true };
+}
+
+// Estado da assinatura de loja de UM app_user_id.
+// { estado: 'ativa'|'expirada'|'desconhecido'|'erro', expiraEm?: string }
+async function consultarEstadoDaLoja(appUserId, apiKey) {
+  let resp;
+  try {
+    resp = await fetch(
+      `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(appUserId)}`,
+      { headers: { Authorization: `Bearer ${apiKey}` } }
+    );
+  } catch (e) {
+    console.error('getMyAccount: rede RevenueCat:', e.message);
+    return { estado: 'erro' };
+  }
+
+  if (resp.status !== 200 && resp.status !== 201) {
+    console.error('getMyAccount: RevenueCat status inesperado:', resp.status);
+    return { estado: 'erro' };
+  }
+
+  let body;
+  try {
+    body = await resp.json();
+  } catch (_e) {
+    return { estado: 'erro' };
+  }
+
+  // `subscriptions`, e não `entitlements`: o entitlement vencido some da
+  // resposta em alguns formatos, e é justamente a assinatura vencida que
+  // precisamos ENXERGAR para poder rebaixar. Assinatura é histórico; entitlement
+  // é o estado de agora.
+  const subscriptions = body?.subscriber?.subscriptions || {};
+  const agora = Date.now();
+
+  // A que vai mais longe manda: houve troca de produto, vale a de fim mais
+  // distante.
+  let melhor = null;
+  for (const sub of Object.values(subscriptions)) {
+    if (typeof sub?.store === 'string' && NAO_LOJA.includes(sub.store)) continue;
+    const fim = sub?.expires_date ? new Date(sub.expires_date).getTime() : null;
+    if (fim == null || isNaN(fim)) continue;
+    if (melhor == null || fim > melhor) melhor = fim;
+  }
+
+  if (melhor == null) return { estado: 'desconhecido' };
+  return {
+    estado: melhor > agora ? 'ativa' : 'expirada',
+    expiraEm: new Date(melhor).toISOString()
+  };
+}
+
+// Consolida os vários app_user_id sob os quais a compra pode estar (Account.id,
+// o id anônimo do aparelho, o User.id legado — mesma lista do
+// syncStoreSubscription).
+//
+// A precedência não é a ordem da lista, é a força da resposta: uma 'ativa' em
+// qualquer id vence tudo, e um 'erro' em qualquer id impede o rebaixamento
+// mesmo que outro id já tenha dito 'expirada' — o id que falhou podia ser o que
+// tinha a assinatura viva.
+async function estadoDaLojaEntreIds(ids, apiKey) {
+  let houveErro = false;
+  let expirada = null;
+
+  for (const id of ids) {
+    const r = await consultarEstadoDaLoja(id, apiKey);
+    if (r.estado === 'ativa') return r;
+    if (r.estado === 'erro') houveErro = true;
+    if (r.estado === 'expirada' && (!expirada || r.expiraEm > expirada.expiraEm)) expirada = r;
+  }
+
+  if (houveErro) return { estado: 'erro' };
+  if (expirada) return expirada;
+  return { estado: 'desconhecido' };
+}
+
 function sanitize(account, identity) {
   const { password_hash, google_id, apple_id, ...rest } = account;
   return {
@@ -212,6 +354,73 @@ Deno.serve(async (req) => {
           `🔒 INVARIANTE trial_ends_at (${cortesia.motivo}): rebaixamento ignorado para`,
           account.email
         );
+      }
+    }
+
+    // Ciclo de loja vencido: confere com o RevenueCat antes de responder, pela
+    // mesma razão da cortesia acima — o currentUser.js guarda esta resposta pelo
+    // carregamento inteiro da página, e discordar dela mostraria conteúdo pago
+    // por mais uma tela. Ver o bloco INVARIANTE store_expires_at.
+    const loja = avaliarAssinaturaLoja(account, new Date());
+
+    if (loja.agir && !loja.verificar) {
+      // Protegido por invariante (ou data ilegível): o prazo sai, o acesso fica.
+      const fim = { store_expires_at: null };
+      await base44.asServiceRole.entities.Account.update(account.id, fim);
+      Object.assign(account, fim);
+      console.log(
+        `🔒 INVARIANTE store_expires_at (${loja.motivo}): prazo de loja descartado sem rebaixar`,
+        account.email
+      );
+    } else if (loja.agir) {
+      const apiKey = Deno.env.get('REVENUECAT_SECRET_KEY');
+      if (!apiKey) {
+        // Sem chave não há pergunta a fazer, e sem resposta não se rebaixa
+        // ninguém. O acesso continua; o log é o que denuncia a configuração.
+        console.error('getMyAccount: REVENUECAT_SECRET_KEY ausente — prazo de loja não conferido');
+      } else {
+        // Os três ids pela mesma razão do syncStoreSubscription: a compra pode
+        // estar sob o Account.id, sob o id anônimo do aparelho (offer code do
+        // iOS) ou sob o User.id legado, anterior ao corte do AuthContext.
+        const users = await base44.asServiceRole.entities.User.filter({ email });
+        const idLegado = users && users.length > 0 ? users[0].id : null;
+        const ids = [...new Set([account.id, account.revenuecat_user_id, idLegado].filter(Boolean))];
+
+        const estado = await estadoDaLojaEntreIds(ids, apiKey);
+
+        if (estado.estado === 'ativa') {
+          // Renovou e o webhook não chegou até nós. Empurrar a data é o que
+          // impede este caminho de perguntar de novo a cada tela — e é a prova
+          // de que um RENEWAL perdido não custa o acesso de ninguém.
+          const fim = { store_expires_at: estado.expiraEm };
+          await base44.asServiceRole.entities.Account.update(account.id, fim);
+          Object.assign(account, fim);
+          console.log('🔄 Prazo de loja reconciliado:', account.email, '->', estado.expiraEm);
+        } else if (estado.estado === 'expirada') {
+          const fim = {
+            subscription_type: 'free',
+            store_expires_at: null,
+            // INVARIANTE trial_ends_at
+            // Não há cortesia em curso aqui — avaliarAssinaturaLoja recusa
+            // rebaixar quando há. Limpar mesmo assim é a mesma higiene do
+            // adminSetSubscription: marca de cortesia numa conta free é uma
+            // expiração armada contra a próxima cortesia que essa pessoa ganhar.
+            trial_ends_at: null,
+            trial_started_at: null
+          };
+          await base44.asServiceRole.entities.Account.update(account.id, fim);
+          Object.assign(account, fim);
+          console.log('🛒 Assinatura de loja expirada:', account.email, '-> free (fim', estado.expiraEm + ')');
+        } else {
+          // 'desconhecido' e 'erro' não rebaixam ninguém — e é aqui que um
+          // premium indevido sobrevive, de propósito. 'desconhecido' merece
+          // investigação: quer dizer que a compra existiu (o prazo veio de um
+          // webhook nosso) mas não está sob nenhum dos ids que consultamos.
+          console.warn(
+            `⚠️ Prazo de loja vencido e não confirmado (${estado.estado}) para ${account.email} — ` +
+            `acesso mantido. Ids consultados: ${ids.join(', ')}`
+          );
+        }
       }
     }
 

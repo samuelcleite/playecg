@@ -67,6 +67,11 @@
       "format": "date-time",
       "description": "Início da cortesia em curso. Existe só para os caminhos de expiração compararem com subscription_start_date: data de assinatura mais recente que esta significa que a pessoa pagou depois de ganhar a cortesia, e então o vencimento do trial não pode rebaixá-la. Sai junto com trial_ends_at."
     },
+    "store_expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Fim do ciclo pago da assinatura de loja (App Store / Google Play), como o RevenueCat informou. Preenchido = o premium desta conta vem da loja e tem data. Ausente (null) = o premium, se houver, vem de outro lugar (Stripe, cortesia, vitalício, concessão manual) e NÃO vence por este caminho. Como o trial_ends_at e o lifetime_access, ele não concede acesso nenhum: quem concede continua sendo subscription_type. A data sozinha também não REBAIXA — ela só autoriza o getMyAccount a perguntar ao RevenueCat, que é quem decide. Ver INVARIANTE store_expires_at."
+    },
     "pending_referral_coupon_id": {
       "type": "string",
       "description": "Id do Coupon de parceria que o usuário digitou e que AINDA NÃO virou atribuição. Intenção, não atribuição: quem digita e nunca compra nunca aparece no relatório de nenhum parceiro. O webhook de pagamento promove estes três campos para os referred_by_* e limpa os pendentes."

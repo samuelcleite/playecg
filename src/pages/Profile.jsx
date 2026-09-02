@@ -49,17 +49,25 @@ import { clearToken } from "@/lib/customAuth";
 // Instrução de cancelamento por loja. `store` ausente => texto neutro: acontece
 // com resposta de backend anterior ao campo ou quando o RevenueCat não respondeu.
 // Nunca chutar a loja — quem assinou no iPhone abre o app Android com a mesma conta.
-function instrucaoDaLoja(store, cancelada) {
+// `encerrada` é um estado à parte, e não um "cancelada mais forte": quem
+// cancelou dentro do período pago ainda pode REATIVAR a renovação na loja, e
+// quem já expirou não — para essa pessoa a assinatura não existe mais, e mandá-la
+// procurar uma tela de reativação que não vai encontrar é pior que não dizer
+// nada.
+function instrucaoDaLoja(store, cancelada, encerrada) {
   if (store === 'APP_STORE') {
+    if (encerrada) return 'Esta assinatura era gerenciada pela App Store e já foi encerrada. Para voltar ao Premium, é preciso assinar de novo pelo app.';
     return cancelada
       ? 'Sua assinatura é gerenciada pela App Store. Mudou de ideia? Você pode reativar a renovação em Ajustes > sua conta Apple > Assinaturas.'
       : 'Sua assinatura é gerenciada pela App Store. Para alterar ou cancelar, acesse Ajustes > sua conta Apple > Assinaturas.';
   }
   if (store === 'PLAY_STORE') {
+    if (encerrada) return 'Esta assinatura era gerenciada pelo Google Play e já foi encerrada. Para voltar ao Premium, é preciso assinar de novo pelo app.';
     return cancelada
       ? 'Sua assinatura é gerenciada pelo Google Play. Mudou de ideia? Você pode reativar a renovação na Play Store > Pagamentos e assinaturas > Assinaturas.'
       : 'Sua assinatura é gerenciada pelo Google Play. Para alterar ou cancelar, acesse a Play Store > Pagamentos e assinaturas > Assinaturas.';
   }
+  if (encerrada) return 'Esta assinatura era gerenciada pela loja onde você assinou e já foi encerrada. Para voltar ao Premium, é preciso assinar de novo pelo app.';
   return cancelada
     ? 'Sua assinatura é gerenciada pela loja onde você assinou. Mudou de ideia? Você pode reativar a renovação na área de Assinaturas da App Store ou da Google Play.'
     : 'Sua assinatura é gerenciada pela loja onde você assinou. Para alterar ou cancelar, acesse a área de Assinaturas na App Store ou na Google Play.';
@@ -252,6 +260,10 @@ export default function Profile() {
           // null quando o backend não sabe (Stripe/manual/RevenueCat fora do ar):
           // nesse caso a tela mantém o texto de renovação automática.
           willRenew: info.willRenew ?? null,
+          // O ciclo pago já acabou, segundo a loja ou o Stripe. Diferente de
+          // `willRenew: false`, que é "acaba em tal dia" — aqui já acabou.
+          // Ausente vira false: resposta antiga do backend não afirma o fim.
+          expired: info.expired === true,
           // 'month' | 'year' | null. Este objeto é montado CAMPO A CAMPO, não
           // por spread: campo novo no backend que não for copiado aqui chega na
           // tela como undefined e cai no fallback sem erro nenhum — foi o que
@@ -346,9 +358,23 @@ export default function Profile() {
   };
 
   const isPremium = user?.subscription_type === "premium";
+  // O ciclo pago ACABOU — a loja (ou o Stripe) já encerrou a assinatura.
+  //
+  // Vem antes da `assinaturaCancelada` e tem precedência sobre ela em toda a
+  // tela: uma assinatura encerrada é também uma que não renova, então as duas
+  // são verdadeiras ao mesmo tempo e só uma pode falar. Dizer "você continua
+  // com acesso até 29 de agosto" em setembro é a mensagem errada com a data
+  // certa.
+  //
+  // Esta tela ainda pode ser vista com o acesso encerrado: o rebaixamento
+  // depende de o RevenueCat CONFIRMAR o fim (ver INVARIANTE store_expires_at no
+  // getMyAccount), e quando ele não confirma — id do aparelho não resolvido,
+  // API fora do ar — o premium continua de propósito. Nesses casos a tela é o
+  // único lugar onde a verdade aparece.
+  const assinaturaEncerrada = subscriptionInfo?.expired === true;
   // Cancelada na loja mas ainda dentro do período pago: o acesso continua até a
   // data de expiração, e é justamente isso que a tela precisa dizer.
-  const assinaturaCancelada = subscriptionInfo?.willRenew === false;
+  const assinaturaCancelada = subscriptionInfo?.willRenew === false && !assinaturaEncerrada;
 
   const nextLevelPoints = (user?.level || 1) * 100;
   const currentLevelProgress = ((user?.points || 0) % 100);
@@ -553,9 +579,11 @@ export default function Profile() {
                     </div>
                     <div>
                       <p className="text-sm text-gray-600 mb-1">
-                        {assinaturaCancelada ? 'Acesso Premium até' : 'Próxima Renovação'}
+                        {assinaturaEncerrada
+                          ? 'Acesso Premium encerrado em'
+                          : assinaturaCancelada ? 'Acesso Premium até' : 'Próxima Renovação'}
                       </p>
-                      <p className={`text-lg font-medium ${assinaturaCancelada ? 'text-red-600' : 'text-gray-900'}`}>
+                      <p className={`text-lg font-medium ${assinaturaEncerrada || assinaturaCancelada ? 'text-red-600' : 'text-gray-900'}`}>
                         {dataLonga(subscriptionInfo.nextRenewal)}
                       </p>
                     </div>
@@ -567,7 +595,17 @@ export default function Profile() {
                     </div>
                   </div>
 
-                  {assinaturaCancelada ? (
+                  {assinaturaEncerrada ? (
+                    <Alert className="bg-red-50 border-red-200 mb-4">
+                      <XCircle className="w-5 h-5 text-red-600" />
+                      <AlertDescription className="text-red-900 ml-2">
+                        <strong>Assinatura encerrada:</strong> ela terminou em{' '}
+                        {dataLonga(subscriptionInfo.nextRenewal)}
+                        {' '}e não foi renovada. Para voltar a ter acesso Premium, é preciso
+                        assinar de novo.
+                      </AlertDescription>
+                    </Alert>
+                  ) : assinaturaCancelada ? (
                     <Alert className="bg-red-50 border-red-200 mb-4">
                       <XCircle className="w-5 h-5 text-red-600" />
                       <AlertDescription className="text-red-900 ml-2">
@@ -594,7 +632,7 @@ export default function Profile() {
                       getUserSubscriptionInfo consulta o Stripe de verdade, os
                       dois apareceriam juntos — "sua assinatura está cancelada" e
                       "cancelar assinatura" na mesma tela. */}
-                  {subscriptionInfo.paymentMethod === 'Stripe' && subscriptionInfo.paymentId && !assinaturaCancelada && (
+                  {subscriptionInfo.paymentMethod === 'Stripe' && subscriptionInfo.paymentId && !assinaturaCancelada && !assinaturaEncerrada && (
                     <Button
                       variant="outline"
                       className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
@@ -613,7 +651,7 @@ export default function Profile() {
                             "compra de loja", não "Apple": é o discriminador
                             legado, mantido para não jogar cliente em cache no
                             ramo 'Manual'. Quem diz a loja é `store`. */}
-                        {instrucaoDaLoja(subscriptionInfo.store, assinaturaCancelada)}
+                        {instrucaoDaLoja(subscriptionInfo.store, assinaturaCancelada, assinaturaEncerrada)}
                       </AlertDescription>
                     </Alert>
                   ) : (subscriptionInfo.paymentMethod === 'Manual' || !subscriptionInfo.paymentId) && (

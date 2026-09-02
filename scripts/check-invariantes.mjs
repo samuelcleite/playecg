@@ -100,7 +100,7 @@ const DISPENSAS = {
     lifetime: 'O guard existe dentro de avaliarCortesia, verificada por hash na checagem 2.'
   },
   'getMyAccount': {
-    lifetime: 'O guard existe dentro de avaliarCortesia, verificada por hash na checagem 2.'
+    lifetime: 'Os guards existem dentro de avaliarCortesia (verificada por hash na checagem 2) e de avaliarAssinaturaLoja, que recusa rebaixar vitalício pelo prazo de loja.'
   },
   'adminGrantTrial': {
     lifetime: 'Não rebaixa ninguém: só promove. A recusa de conta vitalícia está em avaliarElegibilidade.'
@@ -130,6 +130,7 @@ const ESCREVE_FREE = /subscription_type:\s*['"]free['"]/;
 const ESCREVE_PREMIUM = /subscription_type:\s*['"]premium['"]/;
 const MARCA_LIFETIME = /INVARIANTE lifetime_access/;
 const MARCA_TRIAL = /INVARIANTE trial_ends_at/;
+const MARCA_STORE = /INVARIANTE store_expires_at/;
 
 // Dispensa pontual, escrita ao lado do código que a justifica:
 //   // check-invariantes: dispensa trial_ends_at — <motivo>
@@ -151,11 +152,34 @@ function semComentarios(src) {
 // Extrai o corpo de `function <nome>(...) { ... }` contando chaves. Sem AST de
 // propósito: uma dependência a mais para um script que precisa rodar em máquina
 // limpa não se paga.
+//
+// A LISTA DE PARÂMETROS É PULADA PRIMEIRO, e isso não é detalhe. A versão
+// anterior pegava o primeiro `{` depois do nome — que no `conceder` é o do
+// parâmetro desestruturado, não o do corpo. Resultado: a checagem 2 comparava
+// as duas cópias do `conceder` pela ASSINATURA e nada mais. Os corpos podiam
+// divergir à vontade, e o script dizia "as cópias concordam" — exatamente a
+// falsa segurança que ele existe para não dar. Foi encontrado quando uma edição
+// real nos dois corpos não mexeu no hash.
 function extrairFuncao(src, nome) {
   const inicio = src.indexOf(`function ${nome}(`);
   if (inicio === -1) return null;
 
-  const abre = src.indexOf('{', inicio);
+  // Fim da lista de parâmetros, por contagem de parênteses: default value com
+  // chamada de função dentro (`origem = padrao()`) tem parêntese aninhado.
+  const abreParen = src.indexOf('(', inicio);
+  if (abreParen === -1) return null;
+  let paren = 0;
+  let fimParams = -1;
+  for (let i = abreParen; i < src.length; i++) {
+    if (src[i] === '(') paren++;
+    else if (src[i] === ')') {
+      paren--;
+      if (paren === 0) { fimParams = i; break; }
+    }
+  }
+  if (fimParams === -1) return null;
+
+  const abre = src.indexOf('{', fimParams);
   if (abre === -1) return null;
 
   let nivel = 0;
@@ -335,6 +359,28 @@ for (const nome of readdirSync(DIR_FUNCTIONS)) {
     }
   }
 
+  // A mesma regra para a OUTRA marca de "este premium vence". Só na direção da
+  // promoção: `store_expires_at` é armado pelos dois caminhos de loja e precisa
+  // ser apagado por todos os outros, senão o prazo de uma assinatura de loja
+  // antiga fica armado contra um premium que hoje vem do Stripe, da cortesia ou
+  // da mão do admin. Na direção do rebaixamento não se cobra nada: quem escreve
+  // 'free' por um motivo que não é a loja (fim de cortesia, cancelamento no
+  // Stripe) não tem por que saber que a loja existe.
+  if (!dispensa.store) {
+    for (const linha of linhasCom(src, ESCREVE_PREMIUM)) {
+      if (dispensadoNaLinha(linhas, linha, 'store_expires_at')) continue;
+      if (!temPerto(linhas, ehComentario, linha, 'store_expires_at')) {
+        falhas.push({
+          nome,
+          linha,
+          regra: 'INVARIANTE store_expires_at',
+          motivo: "promove a 'premium' sem tratar store_expires_at por perto",
+          consequencia: 'o prazo de uma assinatura de loja anterior rebaixaria este premium na data dela'
+        });
+      }
+    }
+  }
+
   if (!dispensa.lifetime) {
     for (const linha of linhasCom(src, ESCREVE_FREE)) {
       if (dispensadoNaLinha(linhas, linha, 'lifetime_access')) continue;
@@ -363,6 +409,14 @@ for (const nome of readdirSync(DIR_FUNCTIONS)) {
     falhas.push({
       nome,
       regra: 'INVARIANTE trial_ends_at',
+      motivo: 'falta o comentário do invariante explicando o tratamento',
+      consequencia: 'quem ler depois não sabe que a regra existe'
+    });
+  }
+  if (escrevePremium && !MARCA_STORE.test(src) && !dispensa.store) {
+    falhas.push({
+      nome,
+      regra: 'INVARIANTE store_expires_at',
       motivo: 'falta o comentário do invariante explicando o tratamento',
       consequencia: 'quem ler depois não sabe que a regra existe'
     });
