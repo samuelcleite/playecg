@@ -170,21 +170,40 @@ async function consultarAssinaturaLoja(appUserId, apiKey) {
 
   // Pega a assinatura de loja que vai mais longe: se houve troca de produto, é
   // ela quem define até quando o acesso vale.
+  //
+  // A ASSINATURA VENCIDA TAMBÉM CONTA, e ela é o motivo desta reescrita. A
+  // versão anterior descartava tudo que já tinha expirado (`fim <= agora`) e
+  // devolvia null — o MESMO null de "a consulta falhou". Com null, o chamador
+  // caía na aritmética de reserva (`paid_at + 30 dias`) e a tela anunciava
+  // "Próxima Renovação: 28 de agosto" com "sua assinatura será renovada
+  // automaticamente todo mês", em setembro, para uma assinatura que a pessoa
+  // tinha cancelado e que a App Store já havia encerrado. A informação certa
+  // existia na resposta do RevenueCat e era jogada fora justamente no dia em
+  // que passava a importar.
+  //
+  // Como só a de fim mais distante vence, uma assinatura ativa sempre ganha da
+  // vencida — trocar de plano continua mostrando o plano novo.
   let melhor = null;
   // Object.entries e não values: a CHAVE é o identificador do produto, e é dela
   // que sai a periodicidade — o corpo da assinatura não a carrega.
   for (const [productId, sub] of Object.entries(subscriptions)) {
     if (typeof sub?.store === 'string' && LOJAS_NAO_APP.includes(sub.store)) continue;
     const fim = sub?.expires_date ? new Date(sub.expires_date).getTime() : null;
-    if (fim == null || fim <= agora) continue;
+    if (fim == null || isNaN(fim)) continue;
     if (!melhor || fim > melhor.fim) melhor = { fim, sub, productId };
   }
 
   if (!melhor) return null;
 
+  const expirada = melhor.fim <= agora;
+
   return {
     expiresAt: new Date(melhor.fim).toISOString(),
-    willRenew: !melhor.sub.unsubscribe_detected_at,
+    // Vencida NÃO renova, tenha ou não `unsubscribe_detected_at`. Falha de
+    // cobrança encerra a assinatura sem que ninguém cancele nada, e sem esta
+    // linha esse caso voltaria a prometer renovação automática.
+    willRenew: expirada ? false : !melhor.sub.unsubscribe_detected_at,
+    expirada,
     store: melhor.sub.store || null,
     interval: periodoDoProduto(melhor.productId)
   };
@@ -241,12 +260,21 @@ async function consultarAssinaturaStripe(subscriptionId, apiKey) {
 
   const recorrencia = sub?.items?.data?.[0]?.price?.recurring?.interval ?? null;
 
+  const fimMs = fimUnix * 1000;
+  // Mesmo discriminador do caminho de loja, pela mesma razão: sem ele, uma
+  // assinatura do Stripe encerrada apareceria como "Acesso Premium até <data no
+  // passado>" em vez de dizer que acabou.
+  const expirada = fimMs <= Date.now()
+    || sub.status === 'canceled'
+    || sub.status === 'incomplete_expired';
+
   return {
-    expiresAt: new Date(fimUnix * 1000).toISOString(),
+    expiresAt: new Date(fimMs).toISOString(),
     // Status terminal não renova, por mais que a flag diga o contrário.
     willRenew: sub.status !== 'canceled'
       && sub.status !== 'incomplete_expired'
       && sub.cancel_at_period_end !== true,
+    expirada,
     store: null,
     // 'month' | 'year', direto do preço. NUNCA deduzido do valor pago: um anual
     // com cupom de 99% custa R$ 4,99 e qualquer limiar o classificaria como
@@ -455,17 +483,60 @@ Deno.serve(async (req) => {
         if (isLoja) {
             const apiKey = Deno.env.get('REVENUECAT_SECRET_KEY');
             if (apiKey) {
-                // Os dois ids pela mesma razão do syncStoreSubscription: compra
-                // feita antes do corte do AuthContext está gravada sob o User.id.
+                // Os três ids pela mesma razão do syncStoreSubscription: compra
+                // feita antes do corte do AuthContext está gravada sob o User.id,
+                // e o offer code do iOS nasce colado no id anônimo do aparelho.
                 const users = await base44.asServiceRole.entities.User.filter({ email });
                 const idLegado = users && users.length > 0 ? users[0].id : null;
-                const ids = [...new Set([user.id, idLegado].filter(Boolean))];
+                const ids = [...new Set([user.id, user.revenuecat_user_id, idLegado].filter(Boolean))];
                 for (const id of ids) {
                     estadoLoja = await consultarAssinaturaLoja(id, apiKey);
                     if (estadoLoja) break;
                 }
             } else {
                 console.error('getUserSubscriptionInfo: REVENUECAT_SECRET_KEY ausente');
+            }
+        }
+
+        // INVARIANTE store_expires_at — ONDE A CONTA ANTIGA GANHA O PRAZO QUE
+        // NUNCA TEVE.
+        //
+        // O campo passou a existir depois que muita gente já era assinante de
+        // loja, e quem arma a data são os eventos do RevenueCat: uma conta que
+        // não receber mais nenhum evento — a que expirou e ninguém percebeu, que
+        // é justamente o caso que motivou tudo isto — nunca seria alcançada.
+        //
+        // Isto NÃO é uma function de migração, de propósito. Uma varredura de
+        // uso único vira exatamente o tipo de coisa que fica no repositório
+        // depois de servir, e daqui a dois anos ninguém sabe mais o que é nem se
+        // pode rodar. Aqui não há nada para lembrar de apagar: a consulta ao
+        // RevenueCat que dá a resposta já estava sendo feita acima, para esta
+        // mesma tela, por este mesmo usuário. Só o descarte do resultado é que
+        // era desperdício.
+        //
+        // Escrever num endpoint de leitura é a mesma escolha, pelo mesmo motivo,
+        // que o getMyAccount já fez ao expirar a cortesia: não há cron nesta
+        // plataforma.
+        //
+        // Só grava quando o valor MUDA — senão seria uma escrita a cada abertura
+        // do Perfil. E armar uma data no passado é seguro: quem decide o
+        // rebaixamento continua sendo a verificação do getMyAccount, que
+        // pergunta à loja de novo antes de tirar o acesso de alguém.
+        //
+        // Falha aqui é engolida. O prazo é conveniência de manutenção; a tela de
+        // assinatura não pode cair por causa dela.
+        if (estadoLoja) {
+            const prazoAtual = user.store_expires_at ? new Date(user.store_expires_at).getTime() : null;
+            const prazoNovo = new Date(estadoLoja.expiresAt).getTime();
+            if (prazoNovo !== prazoAtual) {
+                try {
+                    await base44.asServiceRole.entities.Account.update(user.id, {
+                        store_expires_at: estadoLoja.expiresAt
+                    });
+                    console.log('🗓️ store_expires_at anotado para', email, '->', estadoLoja.expiresAt);
+                } catch (e) {
+                    console.error('Falha ao anotar store_expires_at (a tela segue normalmente):', e.message);
+                }
             }
         }
 
@@ -517,6 +588,12 @@ Deno.serve(async (req) => {
             // agora o Stripe também consegue dizer false, o que antes era
             // exclusividade do caminho de loja.
             willRenew: estadoExterno ? estadoExterno.willRenew : null,
+            // O ciclo pago JÁ TERMINOU, segundo a fonte externa. Discriminador
+            // separado do `willRenew` porque as duas coisas são diferentes na
+            // tela e a diferença é o usuário inteiro: `willRenew: false` é
+            // "você ainda tem acesso, até tal dia"; `expired: true` é "acabou".
+            // Só true com resposta externa: sem ela não se afirma que terminou.
+            expired: estadoExterno?.expirada === true,
             // 'month' | 'year' | null. Null mantém o rótulo antigo na tela.
             interval: estadoExterno?.interval ?? null
         };

@@ -110,6 +110,32 @@ Deno.serve(async (req) => {
       return `Não identificada (product_id: ${productId || 'ausente'})`;
     }
 
+    // INVARIANTE store_expires_at
+    // Até quando o ciclo pago vale, em ISO, ou null quando o evento não diz.
+    //
+    // É esta data que dá ao premium de loja a única coisa que ele não tinha: um
+    // prazo escrito na nossa Account. Sem ela, o EXPIRATION do RevenueCat era o
+    // ÚNICO caminho no sistema inteiro capaz de rebaixar um assinante de loja —
+    // um evento externo, sem segunda chance. Perdido, mal atribuído ou
+    // respondido com erro, o acesso pago virava vitalício por acidente, e nada
+    // no sistema percebia. Foi o que aconteceu: assinatura cancelada, expirada
+    // na App Store em 29/08, e a conta seguiu premium.
+    //
+    // A data NÃO rebaixa ninguém sozinha — ela só autoriza o getMyAccount a
+    // perguntar ao RevenueCat quando o prazo passa. Quem decide continua sendo
+    // a loja. Por isso um RENEWAL perdido não derruba pagante: o prazo vence, a
+    // consulta responde "ativa", e a data é empurrada para a frente.
+    //
+    // null quando ausente (o NON_RENEWING_PURCHASE não tem expiração): campo
+    // vazio significa "não vence por este caminho", que é o certo para uma
+    // compra sem prazo.
+    function fimDoCicloPago(ev) {
+      const ms = ev?.expiration_at_ms;
+      if (typeof ms !== 'number' || !isFinite(ms)) return null;
+      const d = new Date(ms);
+      return isNaN(d.getTime()) ? null : d.toISOString();
+    }
+
     // Mesmo contrato do stripeWebhook: falha de e-mail é engolida. Erro aqui
     // faria o RevenueCat re-tentar o evento e regravar o Payment.
     async function notificarCompra(conta, ev) {
@@ -151,7 +177,12 @@ Deno.serve(async (req) => {
           // na loja durante o trial seria rebaixado pela expiração do
           // getMyAccount no dia em que a cortesia venceria.
           trial_ends_at: null,
-          trial_started_at: null
+          trial_started_at: null,
+          // INVARIANTE store_expires_at
+          // O prazo do ciclo pago, reescrito a CADA ativação. É o RENEWAL que
+          // empurra a data para a frente mês a mês; sem ele aqui, o segundo mês
+          // de todo assinante venceria na data do primeiro.
+          store_expires_at: fimDoCicloPago(event)
         });
 
       // ── ATRIBUIÇÃO DE PARCERIA ──────────────────────────────────────
@@ -309,13 +340,23 @@ Deno.serve(async (req) => {
           fimCortesia && !isNaN(fimCortesia.getTime()) && fimCortesia > new Date()
         );
 
+        // INVARIANTE store_expires_at
+        // O ciclo pago acabou — este evento É a notícia disso. A data sai da
+        // Account nos TRÊS desfechos abaixo, inclusive nos dois em que o
+        // rebaixamento é recusado: deixá-la lá seria deixar uma expiração
+        // armada contra quem o invariante acabou de proteger, e o getMyAccount
+        // gastaria uma consulta ao RevenueCat a cada carregamento de tela para
+        // reencontrar a mesma resposta.
         if (conta.lifetime_access === true) {
           console.log('🔒 INVARIANTE lifetime_access: rebaixamento ignorado para', conta.email);
+          await base44.asServiceRole.entities.Account.update(conta.id, { store_expires_at: null });
         } else if (emCortesia) {
           console.log('🔒 INVARIANTE trial_ends_at: rebaixamento ignorado (cortesia em curso) para', conta.email);
+          await base44.asServiceRole.entities.Account.update(conta.id, { store_expires_at: null });
         } else {
           await base44.asServiceRole.entities.Account.update(conta.id, {
-            subscription_type: 'free'
+            subscription_type: 'free',
+            store_expires_at: null
           });
         }
       }

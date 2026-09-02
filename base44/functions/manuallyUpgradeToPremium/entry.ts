@@ -134,7 +134,13 @@ Deno.serve(async (req) => {
             // manter a marca faria o getMyAccount desfazer o clique do admin na
             // data em que o trial venceria.
             trial_ends_at: null,
-            trial_started_at: null
+            trial_started_at: null,
+            // INVARIANTE store_expires_at
+            // A outra marca de "este premium vence" sai pelo mesmo motivo: o
+            // premium desta tela não tem prazo nenhum, e um prazo de loja
+            // herdado de uma assinatura anterior desfaria o clique do admin na
+            // data em que aquela assinatura vencesse.
+            store_expires_at: null
         });
 
         console.log('✅ User upgraded successfully:', user_email);

@@ -112,7 +112,17 @@ async function resolveIdentity(req, base44) {
 }
 
 // Procura entitlement de loja ATIVO para um app_user_id.
-// Devolve { ativo: bool, erro: bool }.
+// Devolve { ativo: bool, erro: bool, expiraEm: string|null }.
+//
+// `expiraEm` é o fim do ciclo pago do entitlement encontrado, em ISO — o mesmo
+// valor que o revenuecatWebhook grava a partir do expiration_at_ms. Esta função
+// já lia a data para decidir se o entitlement estava ativo e a jogava fora;
+// devolvê-la é o que permite ao caminho de compra sem webhook armar o
+// store_expires_at. Ver INVARIANTE store_expires_at.
+//
+// null = ativo sem data de fim (entitlement vitalício/promocional do painel do
+// RevenueCat). Vira campo vazio na Account, que significa "não vence por este
+// caminho" — é o certo: não há prazo para conferir depois.
 async function consultarSubscriber(appUserId, apiKey) {
   let resp;
   try {
@@ -122,19 +132,19 @@ async function consultarSubscriber(appUserId, apiKey) {
     );
   } catch (e) {
     console.error('syncStoreSubscription: rede:', e.message);
-    return { ativo: false, erro: true };
+    return { ativo: false, erro: true, expiraEm: null };
   }
 
   if (resp.status !== 200 && resp.status !== 201) {
     console.error('syncStoreSubscription: status inesperado:', resp.status);
-    return { ativo: false, erro: true };
+    return { ativo: false, erro: true, expiraEm: null };
   }
 
   let body;
   try {
     body = await resp.json();
   } catch (e) {
-    return { ativo: false, erro: true };
+    return { ativo: false, erro: true, expiraEm: null };
   }
 
   const subscriber = body?.subscriber || {};
@@ -153,10 +163,14 @@ async function consultarSubscriber(appUserId, apiKey) {
     // primeiro, e cortesia não deve ser concedida por este caminho.
     if (typeof store === 'string' && NAO_LOJA.includes(store)) continue;
 
-    return { ativo: true, erro: false };
+    return {
+      ativo: true,
+      erro: false,
+      expiraEm: exp ? new Date(exp).toISOString() : null
+    };
   }
 
-  return { ativo: false, erro: false };
+  return { ativo: false, erro: false, expiraEm: null };
 }
 
 Deno.serve(async (req) => {
@@ -219,9 +233,10 @@ Deno.serve(async (req) => {
     const ids = [...new Set([account.id, account.revenuecat_user_id, idLegado].filter(Boolean))];
 
     let ativo = false;
+    let expiraEm = null;
     for (const id of ids) {
       const r = await consultarSubscriber(id, apiKey);
-      if (r.ativo) { ativo = true; break; }
+      if (r.ativo) { ativo = true; expiraEm = r.expiraEm; break; }
     }
 
     if (!ativo) {
@@ -271,7 +286,15 @@ Deno.serve(async (req) => {
       // quando ela existe — então a segunda barreira (pagamento posterior ao
       // início da cortesia) NÃO cobre este caminho. Esta linha é a que cobre.
       trial_ends_at: null,
-      trial_started_at: null
+      trial_started_at: null,
+      // INVARIANTE store_expires_at
+      // Este caminho existe justamente para os casos em que o webhook não
+      // chegou (ou chegou tarde). Sem gravar o prazo aqui, a assinatura
+      // destravada por ele nasceria SEM data — e ficaria de fora da expiração
+      // do getMyAccount até o primeiro RENEWAL, que pode nunca vir se a pessoa
+      // cancelar no primeiro mês. Era esse exatamente o buraco que se queria
+      // fechar.
+      store_expires_at: expiraEm
     });
 
     console.log('syncStoreSubscription: premium liberado para', email);

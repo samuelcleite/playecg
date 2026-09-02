@@ -287,12 +287,14 @@ combinação dos dois que sustenta o plano vitalício sem alterar uma linha de t
 
 O comprador vitalício precisa estar `free` no dia da compra, mas pode ter sido assinante antes.
 Meses depois, a assinatura antiga expira em algum lugar e o evento chega — e rebaixaria alguém
-que pagou pelo acesso permanente. São três os caminhos que escrevem `'free'` por expiração:
-`stripeWebhook` (`customer.subscription.deleted`), `revenuecatWebhook` (`EXPIRATION`) e
+que pagou pelo acesso permanente. São quatro os caminhos que escrevem `'free'` por expiração:
+`stripeWebhook` (`customer.subscription.deleted`), `revenuecatWebhook` (`EXPIRATION`),
 `syncStoreSubscription` (RevenueCat sem entitlement ativo — que hoje não escreve, e o guard
-está lá para que não comece a escrever). Os três carregam a frase exata
-`INVARIANTE lifetime_access` no comentário: **`grep -rn "INVARIANTE lifetime_access" base44/`
-tem que continuar achando os três.** Qualquer caminho novo de expiração precisa do quarto.
+está lá para que não comece a escrever) e `getMyAccount` (prazo de loja vencido e confirmado,
+ver §5.10). Os quatro carregam a frase exata `INVARIANTE lifetime_access` no comentário:
+**`grep -rn "INVARIANTE lifetime_access" base44/functions/` tem que continuar achando os
+quatro**, mais o `adminRevokeTrial` e a `auditTrialInvariants`. Caminho novo de expiração
+precisa do quinto.
 
 O `cancelStripeSubscription` também escreve `'free'`, e de propósito não tem guard: ele exige um
 `Payment` com `stripe_subscription_id`, que a compra vitalícia não tem, e recusa com 404 antes
@@ -347,6 +349,56 @@ disciplina de código — e disciplina de código falha em silêncio:
   com `Payment` pago e marca de cortesia ainda pendurada, vitalício com cortesia, cortesia sem
   `TrialGrant`. O resultado aparece no topo da tela `AdminTrials` a cada carregamento — verde
   quando não há nada, que é o resultado esperado.
+
+**10. `store_expires_at` marca "este premium vem da loja e tem prazo" — e a data não decide nada sozinha.**
+O premium de loja era o único que não tinha data em lugar nenhum. O único caminho capaz de
+rebaixar um assinante da App Store ou da Play Store era o `EXPIRATION` do `revenuecatWebhook`:
+um evento externo, entregue uma vez, sem segunda chance. Perdido, atribuído à conta errada ou
+respondido com 500, o acesso pago virava permanente e nada no sistema percebia — foi o que
+aconteceu com uma mensal cancelada e expirada em 29/08/2026, que seguiu premium depois da data.
+
+O campo é o `trial_ends_at` do mundo pago: não concede acesso (quem concede continua sendo
+`subscription_type`), só diz até quando o ciclo vale. **A diferença que o torna seguro é que ele
+não rebaixa ninguém — ele só autoriza a PERGUNTA.** Vencido o prazo, o `getMyAccount` consulta o
+RevenueCat, e só uma resposta explícita rebaixa:
+
+| resposta | o que é | efeito |
+| --- | --- | --- |
+| `ativa` | a loja mostra a assinatura, ainda válida | não rebaixa; empurra a data para a frente |
+| `expirada` | a loja mostra a assinatura e mostra o fim dela | rebaixa para `free` |
+| `desconhecido` | respondeu, sem assinatura nenhuma | **não rebaixa** — é o id errado, não o fim |
+| `erro` | rede, 500, JSON quebrado | **não rebaixa** — tenta na próxima leitura |
+
+É a objeção que estava escrita no `syncStoreSubscription` — "o RevenueCat não conhece este
+usuário" é indistinguível de "a assinatura dele acabou" — respondida por construção. O ramo
+`ativa` é o que faz um `RENEWAL` perdido virar um não-evento em vez de um cliente pagante
+rebaixado. Consulta-se os três app_user_id possíveis (Account.id, o id anônimo do aparelho, o
+User.id legado), e um `erro` em qualquer um deles impede o rebaixamento mesmo que outro já tenha
+dito `expirada`.
+
+**Quem ARMA a data são os caminhos de loja**: `revenuecatWebhook` em toda ativação,
+`syncStoreSubscription` quando destrava sem webhook, e `getUserSubscriptionInfo` ao anotar o
+prazo que a consulta dele já trouxe. Este terceiro existe porque o campo nasceu depois de muita
+gente já ser assinante, e quem só recebe eventos futuros nunca alcançaria a conta que já expirou
+sem ninguém notar — que é o caso que motivou tudo isto. **Não foi feita uma function de migração
+de propósito:** varredura de uso único fica no repositório depois de servir e vira código que
+ninguém sabe mais se pode rodar. Aqui não há nada para lembrar de apagar — a consulta ao
+RevenueCat que dá a resposta já era feita para desenhar a tela de assinatura; só o descarte do
+resultado é que era desperdício. Na prática, abrir o Perfil uma vez anota o prazo, e o
+`getMyAccount` resolve na leitura seguinte.
+
+**Quem a APAGA são todos os outros
+caminhos que concedem premium** — `stripeWebhook` (assinatura *e* vitalício),
+`manuallyUpgradeToPremium`, `adminSetSubscription` e o `conceder` da cortesia —, pelo mesmo motivo
+simétrico do `trial_ends_at`: sem isso, o prazo de uma assinatura de loja antiga fica armado
+contra um premium que hoje vem de outro lugar. Todos carregam a frase exata
+`INVARIANTE store_expires_at`, e o `check:invariantes` cobra o tratamento em código a cada
+escrita literal de `'premium'`.
+
+*(Enquanto se corrigia isto, descobriu-se que o `extrairFuncao` do `check:invariantes` parava no
+primeiro `{` depois do nome da função — que no `conceder` é o do parâmetro desestruturado. A
+checagem de cópias idênticas comparava a assinatura do `conceder` e nada mais; os corpos podiam
+divergir em silêncio. Corrigido junto.)*
 
 **Onde a cortesia efetivamente acaba é o `getMyAccount`.** Não existe cron nesta plataforma, e o
 `getMyAccount` é o único ponto por onde toda tela passa — expirar ali torna impossível usar o app

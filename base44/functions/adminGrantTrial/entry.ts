@@ -212,7 +212,14 @@ async function conceder(base44, conta, { dias, reason, identity, agora, emCortes
     // expiração descobrem se um pagamento veio depois.
     trial_started_at: emCortesia
       ? (conta.trial_started_at || agora.toISOString())
-      : agora.toISOString()
+      : agora.toISOString(),
+    // INVARIANTE store_expires_at
+    // A cortesia não tem prazo de loja, e a elegibilidade já recusa quem é
+    // assinante — então o campo aqui é sempre nulo na prática. Escrever o nulo
+    // mesmo assim é o que torna isso verdade por construção em vez de por
+    // argumento: no dia em que um caminho novo conceder cortesia a quem tem
+    // assinatura de loja, o prazo dela não sobra armado contra a cortesia.
+    store_expires_at: null
     // subscription_start_date NÃO entra aqui. Ver cabeçalho.
   });
 

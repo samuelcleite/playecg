@@ -136,10 +136,16 @@ Deno.serve(async (req) => {
     //     o getMyAccount desfazer o clique na data em que o trial venceria;
     //   - ao REBAIXAR, o acesso acabou agora; deixar a marca é deixar armada
     //     uma expiração para uma cortesia que não existe mais.
+    // INVARIANTE store_expires_at
+    // Some nas duas direções, pelos mesmos motivos opostos: ao PROMOVER, este
+    // premium é da mão do admin e não tem prazo de loja; ao REBAIXAR, o acesso
+    // já acabou e a data seria uma expiração armada contra uma assinatura que
+    // não concede mais nada.
     const updates = {
       subscription_type,
       trial_ends_at: null,
-      trial_started_at: null
+      trial_started_at: null,
+      store_expires_at: null
     };
     // Só carimba a data ao PROMOVER. Ao rebaixar, preservamos a data original:
     // ela é histórico de quando a assinatura começou, e zerá-la apagaria a única
