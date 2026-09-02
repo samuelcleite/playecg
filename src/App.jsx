@@ -5,6 +5,7 @@ import { useLocation } from 'react-router-dom';
 import PageTransition from '@/components/PageTransition';
 import { ThemeProvider } from 'next-themes';
 import InstallPWA from './pages/InstallPWA';
+import Baixar from './pages/Baixar';
 import Privacidade from './pages/Privacidade';
 import Termos from './pages/Termos';
 import Suporte from './pages/Suporte';
@@ -35,6 +36,12 @@ const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, navigateToLogin } = useAuth();
   const location = useLocation();
 
+  // A /baixar é o link único de divulgação: lê o user agent e manda para a loja
+  // certa. Ela sai antes do gate de auth de propósito — quem chega de um post
+  // não pode ver o spinner da checagem de sessão antes do redirecionamento, e a
+  // página não lê nada da sessão.
+  if (location.pathname.toLowerCase() === '/baixar') return <Baixar />;
+
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
@@ -48,7 +55,7 @@ const AuthenticatedApp = () => {
   // o retorno do OAuth entrega o `code`, e ela roda por definição com o usuário
   // deslogado. Mandá-la para a tela de login descarta o code e o login nunca
   // conclui — o usuário fica preso num ciclo de "entrar" que volta para a Home.
-  const rotasPublicas = ['/', '/auth', '/home', '/instale',
+  const rotasPublicas = ['/', '/auth', '/home', '/instale', '/baixar',
                          '/privacidade', '/termos', '/suporte', '/excluir-conta'];
   const rotaEhPublica = rotasPublicas.includes(location.pathname.toLowerCase());
 
@@ -93,6 +100,7 @@ const AuthenticatedApp = () => {
         />
       ))}
       <Route path="/instale" element={<InstallPWA />} />
+      <Route path="/baixar" element={<Baixar />} />
       <Route path="/privacidade" element={<Privacidade />} />
       <Route path="/termos" element={<Termos />} />
       <Route path="/suporte" element={<Suporte />} />
