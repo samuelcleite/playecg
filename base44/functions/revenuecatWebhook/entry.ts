@@ -75,8 +75,67 @@ Deno.serve(async (req) => {
       return contas.length > 0 ? contas[0] : null;
     }
 
+    // EVENTO NÃO ATRIBUÍDO PRECISA GRITAR.
+    //
+    // O `if (conta)` de cada ramo abaixo era mudo: quando o resolveAccount não
+    // achava ninguém, a function pulava tudo e respondia 200 {received:true}. Do
+    // lado do RevenueCat isso aparece como "Sent ✓ 200", idêntico a um evento
+    // processado com sucesso; do nosso lado não sobrava nem uma linha de log.
+    //
+    // Ou seja: um EXPIRATION descartado e um EXPIRATION aplicado eram
+    // indistinguíveis nas DUAS pontas. Investigar por que uma assinatura
+    // expirada não rebaixou ninguém virava adivinhação — não havia como saber se
+    // o evento chegou e foi ignorado, ou se chegou e funcionou.
+    //
+    // Isto não é hipótese: a transferência de compra entre App User IDs (o
+    // "Transfer Behavior: Transfer to new App User ID" do projeto) faz os
+    // eventos futuros chegarem sob um id DIFERENTE do que fez a compra. Se esse
+    // id novo não for a Account, o evento cai aqui — e sem este log ninguém fica
+    // sabendo.
+    async function resolverContaDoEvento() {
+      const conta = await resolveAccount();
+      if (!conta) {
+        console.error(
+          `🚨 Evento ${type} DESCARTADO: app_user_id ${appUserId} não resolveu para nenhuma ` +
+          `Account (nem por id, nem por revenuecat_user_id, nem pelo User legado). ` +
+          `original_app_user_id: ${event.original_app_user_id || '-'} · ` +
+          `aliases: ${(event.aliases || []).join(', ') || '-'} · ` +
+          `product: ${event.product_id || '-'}`
+        );
+      }
+      return conta;
+    }
+
     const ACTIVATE = ['INITIAL_PURCHASE','RENEWAL','UNCANCELLATION','PRODUCT_CHANGE','NON_RENEWING_PURCHASE'];
     const DEACTIVATE = ['EXPIRATION']; // CANCELLATION NÃO revoga (só desliga a renovação)
+
+    // NÃO MEXEM NO ACESSO, MAS TRAZEM O PRAZO — e o prazo é a rede de segurança.
+    //
+    // Esta lista existe por causa de um evento real. O CANCELLATION desta
+    // assinatura chegou em 31/07/2026, foi entregue com 200, e trazia
+    // `expiration_at_ms` = 29/08/2026 08:32 — a data exata em que o acesso
+    // acabaria, um mês antes de acabar. A function leu o corpo inteiro e jogou
+    // fora, porque CANCELLATION não estava em ACTIVATE nem em DEACTIVATE.
+    //
+    // Isso importa muito mais do que parece: o CANCELLATION chegou sob o
+    // app_user_id que RESOLVIA (o mesmo que dois dias antes tinha criado o
+    // Payment), enquanto o EXPIRATION de 29/08 chegou um mês depois, sob outro
+    // id, porque a compra tinha sido TRANSFERIDA entre App User IDs no meio do
+    // caminho. Anotar o prazo aqui teria armado a expiração na conta certa,
+    // no dia certo, e o getMyAccount teria rebaixado sozinho — independente do
+    // que acontecesse com a atribuição do evento seguinte.
+    //
+    // É a lição do incidente virando código: o aviso de que uma assinatura vai
+    // acabar vale mais que o aviso de que ela acabou, porque chega quando ainda
+    // dá para registrar.
+    //
+    // BILLING_ISSUE entra pela mesma razão — ele carrega o fim do período de
+    // tolerância, que é quando o acesso realmente termina se a cobrança não
+    // passar.
+    //
+    // Nenhum dos dois toca em subscription_type: cancelar não é perder o acesso,
+    // e falha de cobrança em tolerância também não. Quem paga o mês usa o mês.
+    const SO_PRAZO = ['CANCELLATION', 'BILLING_ISSUE'];
     // Eventos que representam dinheiro novo. UNCANCELLATION e PRODUCT_CHANGE
     // reativam/alteram o plano, mas não geram cobrança — não viram Payment.
     const BILLABLE = ['INITIAL_PURCHASE','RENEWAL','NON_RENEWING_PURCHASE'];
@@ -167,7 +226,7 @@ Deno.serve(async (req) => {
     }
 
     if (ACTIVATE.includes(type)) {
-      const conta = await resolveAccount();
+      const conta = await resolverContaDoEvento();
       if (conta) {
         await base44.asServiceRole.entities.Account.update(conta.id, {
           subscription_type: 'premium',
@@ -312,7 +371,7 @@ Deno.serve(async (req) => {
         }
       }
     } else if (DEACTIVATE.includes(type)) {
-      const conta = await resolveAccount();
+      const conta = await resolverContaDoEvento();
       if (conta) {
         // INVARIANTE lifetime_access
         // Quem tem lifetime_access NUNCA é escrito como 'free'.
@@ -358,6 +417,24 @@ Deno.serve(async (req) => {
             subscription_type: 'free',
             store_expires_at: null
           });
+        }
+      }
+    } else if (SO_PRAZO.includes(type)) {
+      const conta = await resolverContaDoEvento();
+      // INVARIANTE store_expires_at
+      // Só o prazo. Nenhuma linha de acesso é tocada aqui de propósito — ver o
+      // comentário do SO_PRAZO acima. Sem data no evento não há o que anotar, e
+      // apagar a que já existe seria pior que não fazer nada: tiraria a rede de
+      // segurança de uma assinatura que continua com prazo.
+      if (conta) {
+        const prazo = fimDoCicloPago(event);
+        if (prazo) {
+          await base44.asServiceRole.entities.Account.update(conta.id, {
+            store_expires_at: prazo
+          });
+          console.log(`🗓️ ${type}: prazo anotado para ${conta.email} ->`, prazo);
+        } else {
+          console.warn(`${type} sem expiration_at_ms para ${conta.email} — prazo não anotado`);
         }
       }
     }

@@ -376,9 +376,25 @@ rebaixado. Consulta-se os três app_user_id possíveis (Account.id, o id anônim
 User.id legado), e um `erro` em qualquer um deles impede o rebaixamento mesmo que outro já tenha
 dito `expirada`.
 
-**Quem ARMA a data são os caminhos de loja**: `revenuecatWebhook` em toda ativação,
-`syncStoreSubscription` quando destrava sem webhook, e `getUserSubscriptionInfo` ao anotar o
-prazo que a consulta dele já trouxe. Este terceiro existe porque o campo nasceu depois de muita
+**Quem ARMA a data são os caminhos de loja**: `revenuecatWebhook` em toda ativação **e também no
+`CANCELLATION`/`BILLING_ISSUE`**, `syncStoreSubscription` quando destrava sem webhook, e
+`getUserSubscriptionInfo` ao anotar o prazo que a consulta dele já trouxe.
+
+O `CANCELLATION` entrou por causa do incidente. O desta assinatura chegou em **31/07/2026**, foi
+entregue com 200, e trazia `expiration_at_ms` = **29/08/2026 08:32** — a data exata do fim, um mês
+antes. A function leu o corpo inteiro e descartou, porque `CANCELLATION` não estava em `ACTIVATE`
+nem em `DEACTIVATE`. E ele chegou sob o `app_user_id` que **resolvia** (o mesmo que dois dias antes
+criara o `Payment`), enquanto o `EXPIRATION` de 29/08 chegou sob **outro id**, porque a compra foi
+transferida entre App User IDs no meio do caminho (`Transfer Behavior: Transfer to new App User
+ID`). Anotar o prazo no cancelamento arma a expiração na conta certa, no dia certo, e torna o
+desfecho independente da atribuição do evento seguinte. **O aviso de que uma assinatura vai acabar
+vale mais que o aviso de que ela acabou** — chega enquanto ainda dá para registrar.
+
+**Evento não atribuído agora grita.** O `if (conta)` de cada ramo era mudo: sem Account
+resolvida, a function pulava tudo e respondia `200 {received:true}` — no painel do RevenueCat isso
+é idêntico a um evento processado, e do nosso lado não sobrava log nenhum. Um `EXPIRATION`
+descartado e um aplicado eram indistinguíveis nas duas pontas, que é a razão de este incidente não
+ter deixado rastro. O `resolverContaDoEvento` loga o id, o `original_app_user_id` e os aliases. Este terceiro existe porque o campo nasceu depois de muita
 gente já ser assinante, e quem só recebe eventos futuros nunca alcançaria a conta que já expirou
 sem ninguém notar — que é o caso que motivou tudo isto. **Não foi feita uma function de migração
 de propósito:** varredura de uso único fica no repositório depois de servir e vira código que
