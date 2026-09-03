@@ -536,13 +536,19 @@ export default function Upgrade() {
 
   const originalPrice = selectedPlan === "annual" ? 499 : 59;
 
-  // NO ANDROID O CUPOM NÃO MEXE NO PREÇO EXIBIDO.
+  // EM APP DE LOJA O CUPOM NÃO MEXE NO PREÇO EXIBIDO — nos DOIS.
   //
-  // Quem cobra lá é o Google, pelo preço da oferta cadastrada no Play — não
-  // pelo percentual do nosso cupom. Mostrar um valor calculado aqui e o Google
-  // cobrar outro é pior do que não mostrar desconto nenhum. O valor real
-  // aparece na folha de pagamento do Google, que é a fonte da verdade.
-  const descontoValeAqui = !isAndroidNativeApp();
+  // Quem cobra é a loja, pelo preço da oferta cadastrada nela, não pelo
+  // percentual do nosso cupom. Mostrar um valor calculado aqui e a loja cobrar
+  // outro é pior do que não mostrar desconto nenhum. O valor real aparece na
+  // folha da própria loja, que é a fonte da verdade.
+  //
+  // O iOS entrou nesta conta depois: quando o guard foi escrito, o campo de
+  // cupom ainda era escondido no iPhone, e ao abri-lo a tela passou a anunciar
+  // "R$ 48,97 · Desconto de R$ 10,03 aplicado!" — números do Stripe — enquanto
+  // a folha da Apple cobrava R$ 49,90. Nenhum dos dois valores tinha relação
+  // com o outro.
+  const descontoValeAqui = !isAndroidNativeApp() && !isIOSNativeApp();
   const finalPrice = (descontoValeAqui && appliedCoupon?.pricing?.final_price) || originalPrice;
   const discountAmount = (descontoValeAqui && appliedCoupon?.pricing?.discount_amount) || 0;
   const avisoDeDuracao = descontoValeAqui
