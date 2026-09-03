@@ -33,12 +33,21 @@ Deno.serve(async (req) => {
     // `store` no log: é o campo que decide o payment_method logo abaixo, e sem
     // isso só dá para conferir se ele chegou olhando o Payment já gravado.
     console.log('📩 RevenueCat event:', type, 'store:', event.store, 'user:', appUserId);
-    if (!appUserId) return Response.json({ received: true });
+    // O TRANSFER é o único evento SEM app_user_id: ele carrega
+    // `transferred_from` e `transferred_to`, duas listas. Esta linha o descartava
+    // aqui, antes de qualquer coisa — era literalmente impossível o webhook
+    // reagir a uma transferência de compra. Ver o ramo do TRANSFER lá embaixo.
+    if (!appUserId && type !== 'TRANSFER') return Response.json({ received: true });
 
-    // Resolve o app_user_id até a Account, que passa a ser o registro de escrita.
+    // Resolve um app_user_id até a Account, que passa a ser o registro de escrita.
     // Tenta como Account.id (compras feitas depois do corte); se não achar, tenta
     // como User.id (todas as compras anteriores) e chega na Account pelo email.
-    async function resolveAccount() {
+    //
+    // Recebe o id POR PARÂMETRO por causa do TRANSFER, que precisa resolver
+    // vários ids num evento só — origem e destino — em vez do único `app_user_id`
+    // que todos os outros eventos trazem.
+    async function resolveAccount(idBruto) {
+      const appUserId = idBruto;
       const porId = await base44.asServiceRole.entities.Account.filter({ id: appUserId });
       if (porId.length > 0) return porId[0];
 
@@ -75,8 +84,67 @@ Deno.serve(async (req) => {
       return contas.length > 0 ? contas[0] : null;
     }
 
+    // EVENTO NÃO ATRIBUÍDO PRECISA GRITAR.
+    //
+    // O `if (conta)` de cada ramo abaixo era mudo: quando o resolveAccount não
+    // achava ninguém, a function pulava tudo e respondia 200 {received:true}. Do
+    // lado do RevenueCat isso aparece como "Sent ✓ 200", idêntico a um evento
+    // processado com sucesso; do nosso lado não sobrava nem uma linha de log.
+    //
+    // Ou seja: um EXPIRATION descartado e um EXPIRATION aplicado eram
+    // indistinguíveis nas DUAS pontas. Investigar por que uma assinatura
+    // expirada não rebaixou ninguém virava adivinhação — não havia como saber se
+    // o evento chegou e foi ignorado, ou se chegou e funcionou.
+    //
+    // Isto não é hipótese: a transferência de compra entre App User IDs (o
+    // "Transfer Behavior: Transfer to new App User ID" do projeto) faz os
+    // eventos futuros chegarem sob um id DIFERENTE do que fez a compra. Se esse
+    // id novo não for a Account, o evento cai aqui — e sem este log ninguém fica
+    // sabendo.
+    async function resolverContaDoEvento() {
+      const conta = await resolveAccount(appUserId);
+      if (!conta) {
+        console.error(
+          `🚨 Evento ${type} DESCARTADO: app_user_id ${appUserId} não resolveu para nenhuma ` +
+          `Account (nem por id, nem por revenuecat_user_id, nem pelo User legado). ` +
+          `original_app_user_id: ${event.original_app_user_id || '-'} · ` +
+          `aliases: ${(event.aliases || []).join(', ') || '-'} · ` +
+          `product: ${event.product_id || '-'}`
+        );
+      }
+      return conta;
+    }
+
     const ACTIVATE = ['INITIAL_PURCHASE','RENEWAL','UNCANCELLATION','PRODUCT_CHANGE','NON_RENEWING_PURCHASE'];
     const DEACTIVATE = ['EXPIRATION']; // CANCELLATION NÃO revoga (só desliga a renovação)
+
+    // NÃO MEXEM NO ACESSO, MAS TRAZEM O PRAZO — e o prazo é a rede de segurança.
+    //
+    // Esta lista existe por causa de um evento real. O CANCELLATION desta
+    // assinatura chegou em 31/07/2026, foi entregue com 200, e trazia
+    // `expiration_at_ms` = 29/08/2026 08:32 — a data exata em que o acesso
+    // acabaria, um mês antes de acabar. A function leu o corpo inteiro e jogou
+    // fora, porque CANCELLATION não estava em ACTIVATE nem em DEACTIVATE.
+    //
+    // Isso importa muito mais do que parece: o CANCELLATION chegou sob o
+    // app_user_id que RESOLVIA (o mesmo que dois dias antes tinha criado o
+    // Payment), enquanto o EXPIRATION de 29/08 chegou um mês depois, sob outro
+    // id, porque a compra tinha sido TRANSFERIDA entre App User IDs no meio do
+    // caminho. Anotar o prazo aqui teria armado a expiração na conta certa,
+    // no dia certo, e o getMyAccount teria rebaixado sozinho — independente do
+    // que acontecesse com a atribuição do evento seguinte.
+    //
+    // É a lição do incidente virando código: o aviso de que uma assinatura vai
+    // acabar vale mais que o aviso de que ela acabou, porque chega quando ainda
+    // dá para registrar.
+    //
+    // BILLING_ISSUE entra pela mesma razão — ele carrega o fim do período de
+    // tolerância, que é quando o acesso realmente termina se a cobrança não
+    // passar.
+    //
+    // Nenhum dos dois toca em subscription_type: cancelar não é perder o acesso,
+    // e falha de cobrança em tolerância também não. Quem paga o mês usa o mês.
+    const SO_PRAZO = ['CANCELLATION', 'BILLING_ISSUE'];
     // Eventos que representam dinheiro novo. UNCANCELLATION e PRODUCT_CHANGE
     // reativam/alteram o plano, mas não geram cobrança — não viram Payment.
     const BILLABLE = ['INITIAL_PURCHASE','RENEWAL','NON_RENEWING_PURCHASE'];
@@ -136,6 +204,61 @@ Deno.serve(async (req) => {
       return isNaN(d.getTime()) ? null : d.toISOString();
     }
 
+    // Stripe e promotional não são compra de loja. Mesma lista do
+    // syncStoreSubscription, do getMyAccount e do getUserSubscriptionInfo.
+    const NAO_LOJA_RC = ['stripe', 'promotional'];
+
+    // Pergunta à API o estado da assinatura de loja de UM app_user_id.
+    // { ativa, expiraEm, erro }
+    //
+    // O TRANSFER não diz se a assinatura que mudou de dono ainda VALE — ele só
+    // diz que mudou de dono. Sem esta consulta, conceder premium ao destino
+    // seria conceder no escuro: uma transferência de assinatura já vencida
+    // liberaria acesso a quem não tem nada pago.
+    async function consultarLojaDoId(id) {
+      const apiKey = Deno.env.get('REVENUECAT_SECRET_KEY');
+      if (!apiKey) {
+        console.error('revenuecatWebhook: REVENUECAT_SECRET_KEY ausente');
+        return { ativa: false, expiraEm: null, erro: true };
+      }
+
+      let resp;
+      try {
+        resp = await fetch(
+          `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(id)}`,
+          { headers: { Authorization: `Bearer ${apiKey}` } }
+        );
+      } catch (e) {
+        console.error('revenuecatWebhook: rede RevenueCat:', e.message);
+        return { ativa: false, expiraEm: null, erro: true };
+      }
+
+      if (resp.status !== 200 && resp.status !== 201) {
+        console.error('revenuecatWebhook: RevenueCat status inesperado:', resp.status);
+        return { ativa: false, expiraEm: null, erro: true };
+      }
+
+      let body;
+      try {
+        body = await resp.json();
+      } catch (_e) {
+        return { ativa: false, expiraEm: null, erro: true };
+      }
+
+      const subs = body?.subscriber?.subscriptions || {};
+      const agora = Date.now();
+      let melhor = null;
+      for (const sub of Object.values(subs)) {
+        if (typeof sub?.store === 'string' && NAO_LOJA_RC.includes(sub.store)) continue;
+        const fim = sub?.expires_date ? new Date(sub.expires_date).getTime() : null;
+        if (fim == null || isNaN(fim)) continue;
+        if (melhor == null || fim > melhor) melhor = fim;
+      }
+
+      if (melhor == null) return { ativa: false, expiraEm: null, erro: false };
+      return { ativa: melhor > agora, expiraEm: new Date(melhor).toISOString(), erro: false };
+    }
+
     // Mesmo contrato do stripeWebhook: falha de e-mail é engolida. Erro aqui
     // faria o RevenueCat re-tentar o evento e regravar o Payment.
     async function notificarCompra(conta, ev) {
@@ -167,7 +290,7 @@ Deno.serve(async (req) => {
     }
 
     if (ACTIVATE.includes(type)) {
-      const conta = await resolveAccount();
+      const conta = await resolverContaDoEvento();
       if (conta) {
         await base44.asServiceRole.entities.Account.update(conta.id, {
           subscription_type: 'premium',
@@ -312,7 +435,7 @@ Deno.serve(async (req) => {
         }
       }
     } else if (DEACTIVATE.includes(type)) {
-      const conta = await resolveAccount();
+      const conta = await resolverContaDoEvento();
       if (conta) {
         // INVARIANTE lifetime_access
         // Quem tem lifetime_access NUNCA é escrito como 'free'.
@@ -358,6 +481,114 @@ Deno.serve(async (req) => {
             subscription_type: 'free',
             store_expires_at: null
           });
+        }
+      }
+    } else if (type === 'TRANSFER') {
+      // O RECIBO É DO APPLE ID, NÃO DA NOSSA CONTA — e este ramo existe porque
+      // essa diferença custou um bug.
+      //
+      // Duas Accounts nossas (e-mails diferentes) logaram no MESMO iPhone. Com o
+      // "Transfer Behavior: Transfer to new App User ID" do projeto, o RevenueCat
+      // MOVEU a assinatura da conta que pagou para a outra. A partir dali a conta
+      // pagante não recebeu mais evento nenhum: o EXPIRATION seguinte chegou sob
+      // o id da segunda conta, foi corretamente aplicado NELA, e a primeira ficou
+      // premium por ausência — para sempre.
+      //
+      // Sem tratar isto, uma assinatura libera quantas contas se quiser: basta
+      // alternar logins no mesmo aparelho. O acesso passa a seguir o recibo, que
+      // é o que a loja entende por "quem pagou".
+      const origens = Array.isArray(event.transferred_from) ? event.transferred_from : [];
+      const destinos = Array.isArray(event.transferred_to) ? event.transferred_to : [];
+      console.log(`🔁 TRANSFER: [${origens.join(', ') || '-'}] -> [${destinos.join(', ') || '-'}]`);
+
+      // ── A ORIGEM PERDE ──────────────────────────────────────────────
+      for (const id of origens) {
+        const conta = await resolveAccount(id);
+        // Id anônimo do aparelho, ou conta que não é nossa: nada a fazer.
+        if (!conta) continue;
+
+        // TRÊS BARREIRAS, e cada uma protege um tipo de acesso que a loja não
+        // manda:
+        //
+        // INVARIANTE lifetime_access — comprou acesso permanente. Nunca rebaixa.
+        //
+        // INVARIANTE trial_ends_at — cortesia em curso não veio da loja e não é
+        // afetada pelo destino do recibo; ela vence sozinha no getMyAccount.
+        //
+        // INVARIANTE store_expires_at — O DISCRIMINADOR, e é só por causa dele
+        // que este rebaixamento pode existir. Sem a marca, o premium desta conta
+        // veio de outro lugar (Stripe, concessão manual) ou não existe — e tirar
+        // o acesso de um assinante do Stripe porque um recibo da App Store mudou
+        // de dono seria estrago muito pior que o vazamento que este ramo fecha.
+        // Conta antiga, de antes do campo existir, não é rebaixada: é o preço de
+        // não chutar. Ela ganha a marca no primeiro evento de loja ou na
+        // primeira abertura do Perfil, e passa a ser coberta.
+        const fimCortesia = conta.trial_ends_at ? new Date(conta.trial_ends_at) : null;
+        const emCortesia = !!(fimCortesia && !isNaN(fimCortesia.getTime()) && fimCortesia > new Date());
+
+        if (conta.lifetime_access === true) { console.log('🔒 lifetime_access: origem do TRANSFER mantida —', conta.email); continue; }
+        if (emCortesia) { console.log('🔒 trial_ends_at: origem do TRANSFER mantida (cortesia) —', conta.email); continue; }
+        if (!conta.store_expires_at) { console.log('TRANSFER: origem sem prazo de loja, premium não é de loja — mantida:', conta.email); continue; }
+
+        await base44.asServiceRole.entities.Account.update(conta.id, {
+          subscription_type: 'free',
+          store_expires_at: null,
+          trial_ends_at: null,
+          trial_started_at: null
+        });
+        console.log('🔁 TRANSFER: assinatura saiu de', conta.email, '-> free');
+      }
+
+      // ── O DESTINO GANHA ─────────────────────────────────────────────
+      for (const id of destinos) {
+        const conta = await resolveAccount(id);
+        if (!conta) continue;
+
+        // Só concede se a assinatura transferida REALMENTE vale agora. Ver o
+        // consultarLojaDoId: o TRANSFER não diz nada sobre validade, e uma
+        // assinatura vencida pode mudar de dono como qualquer outra.
+        const estado = await consultarLojaDoId(id);
+        if (estado.erro) {
+          console.error('TRANSFER: consulta ao RevenueCat falhou, destino não promovido —', conta.email);
+          continue;
+        }
+        if (!estado.ativa) {
+          console.log('TRANSFER: assinatura recebida já vencida, destino não promovido —', conta.email);
+          continue;
+        }
+
+        await base44.asServiceRole.entities.Account.update(conta.id, {
+          subscription_type: 'premium',
+          subscription_start_date: conta.subscription_start_date || new Date().toISOString(),
+          // INVARIANTE trial_ends_at
+          // Quem passa a ter assinatura paga deixa de ter cortesia, senão o
+          // vencimento dela rebaixaria um assinante de verdade.
+          trial_ends_at: null,
+          trial_started_at: null,
+          // INVARIANTE store_expires_at
+          // O prazo vem da consulta, não do evento: o TRANSFER não carrega
+          // expiration_at_ms. Sem ele a conta ficaria premium SEM prazo — o
+          // defeito original, reintroduzido pela porta dos fundos.
+          store_expires_at: estado.expiraEm
+        });
+        console.log('🔁 TRANSFER: assinatura chegou em', conta.email, '-> premium até', estado.expiraEm);
+      }
+    } else if (SO_PRAZO.includes(type)) {
+      const conta = await resolverContaDoEvento();
+      // INVARIANTE store_expires_at
+      // Só o prazo. Nenhuma linha de acesso é tocada aqui de propósito — ver o
+      // comentário do SO_PRAZO acima. Sem data no evento não há o que anotar, e
+      // apagar a que já existe seria pior que não fazer nada: tiraria a rede de
+      // segurança de uma assinatura que continua com prazo.
+      if (conta) {
+        const prazo = fimDoCicloPago(event);
+        if (prazo) {
+          await base44.asServiceRole.entities.Account.update(conta.id, {
+            store_expires_at: prazo
+          });
+          console.log(`🗓️ ${type}: prazo anotado para ${conta.email} ->`, prazo);
+        } else {
+          console.warn(`${type} sem expiration_at_ms para ${conta.email} — prazo não anotado`);
         }
       }
     }
