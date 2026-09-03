@@ -1,5 +1,48 @@
 import despia from "despia-native";
 
+// Identificador do app na App Store, usado na URL de resgate.
+const APPLE_APP_ID = "6787499219";
+
+// Códigos de oferta CUSTOM da App Store — um por tier e periodicidade.
+//
+// São reutilizáveis e existem UM POR TIER, não por parceiro: é o que faz o
+// parceiro nº 21 entrar sem tocar em configuração de loja. O código que a
+// pessoa digita no app (FULANO20) identifica QUEM indicou, do nosso lado; o
+// desconto quem dá é a Apple, por estes códigos aqui.
+//
+// Espelham as ofertas do Play, que são escolhidas por tag em vez de código.
+const CODIGOS_DE_OFERTA = {
+  "tier-a": { monthly: "PARCMA", annual: "PARCAA" },
+  "tier-b": { monthly: "PARCMB", annual: "PARCAB" }
+};
+
+// null quando o tier ou o plano não têm oferta cadastrada — o chamador não
+// oferece o resgate em vez de mandar a pessoa para uma URL que não resolve.
+export function codigoDeOfertaIOS(tier, plano) {
+  return CODIGOS_DE_OFERTA[tier]?.[plano] ?? null;
+}
+
+// Abre a folha de resgate da App Store.
+//
+// window.open e não uma chamada da ponte: o Despia NÃO expõe a folha nativa de
+// resgate do StoreKit (confirmado com o suporte deles, que registrou como
+// pedido de feature). O domínio apps.apple.com precisa estar em
+// "Open Always in Browser" no Despia Studio — sem isso o link abre no browser
+// interno e o resgate não completa.
+//
+// Devolve false quando não há código para a combinação, para a tela não
+// mostrar um botão que não leva a lugar nenhum.
+export function abrirResgateIOS(tier, plano) {
+  const codigo = codigoDeOfertaIOS(tier, plano);
+  if (!codigo) return false;
+  window.open(
+    `https://apps.apple.com/redeem?ctx=offercodes&id=${APPLE_APP_ID}` +
+      `&code=${encodeURIComponent(codigo)}`,
+    "_blank"
+  );
+  return true;
+}
+
 const PRODUCTS = {
   monthly: "com.despia.playecg.monthly",
   annual:  "com.despia.playecg.yearly",
