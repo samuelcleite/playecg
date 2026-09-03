@@ -390,6 +390,24 @@ ID`). Anotar o prazo no cancelamento arma a expiração na conta certa, no dia c
 desfecho independente da atribuição do evento seguinte. **O aviso de que uma assinatura vai acabar
 vale mais que o aviso de que ela acabou** — chega enquanto ainda dá para registrar.
 
+**O recibo é do Apple ID, não da nossa conta — e é isso que o `TRANSFER` resolve.** Duas Accounts
+nossas, com e-mails diferentes, logaram no mesmo iPhone. Com o `Transfer Behavior: Transfer to new
+App User ID` do projeto, o RevenueCat **moveu a assinatura** da conta que pagou para a outra. Daí em
+diante a conta pagante não recebeu mais evento nenhum: o `EXPIRATION` seguinte chegou sob o id da
+segunda conta, foi corretamente aplicado nela, e a primeira ficou premium por ausência, para sempre.
+
+O `TRANSFER` é o único evento **sem `app_user_id`** — ele carrega `transferred_from` e
+`transferred_to`, duas listas —, e a guarda `if (!appUserId) return` o descartava antes de tudo:
+era impossível o webhook reagir a uma transferência. Agora **o acesso segue o recibo**: as contas de
+origem são rebaixadas e as de destino promovidas. Sem isso, uma assinatura libera quantas contas se
+quiser, bastando alternar logins no mesmo aparelho.
+
+As três barreiras de sempre protegem a origem (`lifetime_access`, cortesia em curso e — o
+discriminador — `store_expires_at`: sem a marca, aquele premium não veio da loja, e tirar acesso de
+um assinante do Stripe porque um recibo mudou de dono seria estrago pior que o vazamento). O
+destino só é promovido depois de o RevenueCat **confirmar que a assinatura recebida ainda vale**: o
+`TRANSFER` não diz nada sobre validade, e assinatura vencida também muda de dono.
+
 **Evento não atribuído agora grita.** O `if (conta)` de cada ramo era mudo: sem Account
 resolvida, a function pulava tudo e respondia `200 {received:true}` — no painel do RevenueCat isso
 é idêntico a um evento processado, e do nosso lado não sobrava log nenhum. Um `EXPIRATION`
