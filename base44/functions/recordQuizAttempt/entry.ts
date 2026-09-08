@@ -50,6 +50,120 @@ function getBrasiliaDateStr(date) {
   }).format(date);
 }
 
+// ===== LIMITE DIÁRIO DO PLANO GRATUITO ========================================
+//
+// POR QUE A REGRA PASSOU A VIVER AQUI
+//
+// Ela existia só no Quiz.jsx: o app contava as questões do dia, decidia se
+// ainda havia cota e, se não houvesse, não deixava responder. O servidor
+// gravava o que chegasse, sem perguntar nada. Quem alterasse a resposta do
+// getMyAccount no navegador — trocar 'free' por 'premium' basta — tinha acesso
+// ilimitado, e nada do lado de cá notava.
+//
+// Agora o servidor decide. A tela continua contando para MOSTRAR o número, mas
+// quem recusa é esta function, com os dados na mão.
+//
+// A REGRA, IGUAL À DA TELA (checkFreeLimit, em Quiz.jsx)
+//
+//   - conta CASOS DISTINTOS tentados hoje, não tentativas: errar três vezes o
+//     mesmo caso consome uma cota, não três;
+//   - 5 por dia; depois disso, libera 1 a cada hora cheia contada a partir do
+//     momento em que o 5º caso foi feito;
+//   - o dia é o de BRASÍLIA, o mesmo que a sequência (streak) já usa nesta
+//     function. A tela foi alinhada a este fuso — antes ela cortava à
+//     meia-noite LOCAL, o que daria dias diferentes de quem está fora do
+//     Brasil e faria a tela prometer cota que o servidor recusaria.
+//
+// O QUE ELA NÃO BLOQUEIA
+//
+// Só o quiz aleatório (`quiz_type: 'random'`), que é exatamente onde a tela
+// bloqueia hoje. O caso do dia ('daily') e os módulos ('module') continuam
+// passando: módulo já é conteúdo premium por outra porta, e bloquear o caso do
+// dia seria regra nova, não a mesma regra movida de lugar.
+//
+// A CONTAGEM, essa sim, olha todos os tipos — de novo porque é o que a tela
+// faz: ela conta o dia inteiro do usuário, venha de onde vier.
+const FREE_DAILY_LIMIT = 5;
+const HORA_MS = 60 * 60 * 1000;
+
+function avaliarLimiteDiario(tentativas, agora) {
+  // Primeira tentativa de cada caso. A ordem importa: é a hora do 5º CASO que
+  // inicia a contagem horária, não a da 5ª tentativa.
+  const primeiraPorCaso = new Map();
+  for (const t of tentativas) {
+    const caso = t.case_id || '';
+    // Tentativa sem caso não consome cota: cota é por caso. A tela conta esse
+    // registro (ela usa o campo cru como chave), então neste ponto o servidor é
+    // o mais permissivo dos dois — a direção segura, já que quem erra para o
+    // lado de cá bloqueia quem tinha direito.
+    if (!caso) continue;
+    const quando = new Date(t.created_date);
+    if (isNaN(quando.getTime())) continue;
+    const atual = primeiraPorCaso.get(caso);
+    if (!atual || quando < atual) primeiraPorCaso.set(caso, quando);
+  }
+
+  const casos = [...primeiraPorCaso.values()].sort((a, b) => a - b);
+  const feitos = casos.length;
+  const base = { feitos, limite: FREE_DAILY_LIMIT, quinta_em: null, proxima_em: null };
+
+  if (feitos < FREE_DAILY_LIMIT) return { ...base, bloqueado: false };
+
+  const quinta = casos[FREE_DAILY_LIMIT - 1];
+  const horasCheias = Math.floor((agora.getTime() - quinta.getTime()) / HORA_MS);
+  const extrasUsados = feitos - FREE_DAILY_LIMIT;
+
+  if (extrasUsados < horasCheias) {
+    return { ...base, bloqueado: false, quinta_em: quinta.toISOString() };
+  }
+
+  return {
+    ...base,
+    bloqueado: true,
+    quinta_em: quinta.toISOString(),
+    proxima_em: new Date(quinta.getTime() + (extrasUsados + 1) * HORA_MS).toISOString()
+  };
+}
+
+// As tentativas de hoje (fuso de Brasília), sem baixar o histórico inteiro.
+//
+// Pagina em ordem decrescente e para no PISO — nenhum "hoje de Brasília"
+// começa mais de 48h atrás, então passar disso é garantia de ter saído do dia.
+// O piso só serve para parar de paginar; quem decide o que é hoje é a
+// comparação de data no mesmo fuso, logo abaixo.
+async function tentativasDoDia(base44, userEmail, agora) {
+  const hoje = getBrasiliaDateStr(agora);
+  const piso = new Date(agora.getTime() - 48 * HORA_MS);
+  const porPagina = 100;
+  const TETO = 1000;
+
+  const doDia = [];
+  let skip = 0;
+
+  while (skip < TETO) {
+    const pagina = await base44.asServiceRole.entities.QuizAttempt.filter(
+      { user_email: userEmail },
+      '-created_date',
+      porPagina,
+      skip
+    );
+    if (!pagina || pagina.length === 0) break;
+
+    let saiuDoDia = false;
+    for (const t of pagina) {
+      const quando = new Date(t.created_date);
+      if (isNaN(quando.getTime())) continue;
+      if (quando < piso) { saiuDoDia = true; break; }
+      if (getBrasiliaDateStr(quando) === hoje) doDia.push(t);
+    }
+
+    if (saiuDoDia || pagina.length < porPagina) break;
+    skip += porPagina;
+  }
+
+  return doDia;
+}
+
 function b64urlToBytes(input) {
   let s = input.replace(/-/g, '+').replace(/_/g, '/');
   while (s.length % 4) s += '=';
@@ -161,6 +275,38 @@ Deno.serve(async (req) => {
 
     const normalizedQuizType = quiz_type || 'random';
     const isCorrect = correct === true;
+    const agora = new Date();
+
+    // ── LIMITE DIÁRIO DO GRATUITO ────────────────────────────────────────────
+    // Ver o bloco de regra acima. A leitura só acontece para quem é gratuito:
+    // o premium sai daqui sem nenhuma ida a mais ao banco, porque a Account que
+    // responde "é premium?" já foi carregada acima.
+    let doDia = null;
+    let limiteDiario = null;
+
+    if (account.subscription_type !== 'premium') {
+      doDia = await tentativasDoDia(base44, userEmail, agora);
+      const limiteAntes = avaliarLimiteDiario(doDia, agora);
+
+      // Repetir um caso que JÁ contou hoje não consome cota nova — a contagem é
+      // por caso distinto. Recusar a repetição seria mais rígido que a tela, e
+      // deixaria alguém preso no meio de um caso que ele já tinha direito de
+      // responder.
+      const jaContouHoje = doDia.some(t => (t.case_id || '') === (case_id || ''));
+
+      if (normalizedQuizType === 'random' && limiteAntes.bloqueado && !jaContouHoje) {
+        console.log('🚫 Limite diário do gratuito:', userEmail, `(${limiteAntes.feitos} casos hoje)`);
+        return Response.json(
+          {
+            success: false,
+            code: 'limite_diario',
+            error: 'Limite diário do plano gratuito atingido.',
+            limite_diario: limiteAntes
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     // Verificar se já existia tentativa anterior para este caso (antes de criar a nova)
     const previous = await base44.asServiceRole.entities.QuizAttempt.filter(
@@ -183,8 +329,19 @@ Deno.serve(async (req) => {
       time_spent: time_spent || 0
     });
 
+    // O estado do limite DEPOIS desta tentativa, para a tela não precisar de
+    // uma segunda ida ao servidor só para recontar. A conta é feita sobre a
+    // lista que já está em memória, somada à tentativa recém-criada — nenhuma
+    // leitura nova.
+    if (doDia) {
+      limiteDiario = avaliarLimiteDiario(
+        [...doDia, { case_id: case_id || '', created_date: agora.toISOString() }],
+        agora
+      );
+    }
+
     // Atualizar stats pré-agregados na Account (update parcial)
-    const now = new Date();
+    const now = agora;
     const todayStr = getBrasiliaDateStr(now);
     const yesterdayStr = getBrasiliaDateStr(new Date(now.getTime() - 24 * 60 * 60 * 1000));
 
@@ -225,7 +382,10 @@ Deno.serve(async (req) => {
 
     await base44.asServiceRole.entities.Account.update(account.id, updates);
 
-    return Response.json({ success: true, data: attempt });
+    // `limite_diario` é null para quem é premium — a tela já não pergunta nada
+    // nesse caso. Para o gratuito ele substitui a chamada extra ao
+    // getMyQuizAttempts que a tela fazia a cada resposta só para recontar.
+    return Response.json({ success: true, data: attempt, limite_diario: limiteDiario });
   } catch (error) {
     console.error('Error in recordQuizAttempt:', error);
     return Response.json({ error: error.message }, { status: 500 });

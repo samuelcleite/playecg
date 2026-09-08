@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
@@ -211,6 +211,85 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
   };
+
+  // ── REVALIDAÇÃO AO VOLTAR AO PRIMEIRO PLANO ────────────────────────────────
+  //
+  // POR QUE ISTO EXISTE
+  //
+  // O acesso premium é decidido no cliente (`subscription_type === 'premium'`,
+  // em Quiz, ModuleDetail e Layout), a partir da Account que o getMyAccount
+  // devolveu. Quem encerra uma cortesia vencida é o próprio getMyAccount, ANTES
+  // de responder — então o acesso está correto a cada CARREGAMENTO de página.
+  //
+  // O problema é que no app nativo não existe carregamento de página. O WebView
+  // boota uma vez e fica vivo por dias: quem estava com o app aberto quando a
+  // cortesia venceu seguia premium até o sistema matar o processo, porque nada
+  // voltava a perguntar ao servidor. O cache do currentUser.js é "por
+  // carregamento de página", e no nativo essa página nunca termina.
+  //
+  // POR QUE `visibilitychange` E NÃO O `appStateChange` DO CAPACITOR
+  //
+  // Só o Android é Capacitor. O iOS roda no wrapper Despia, que é uma WebView
+  // comum detectada por user agent (ver utils/platform.js) e não tem plugin
+  // nenhum. O `visibilitychange` é o único sinal que existe nos três ambientes
+  // — Despia, Capacitor e web — e não precisa de import condicional.
+  const planoRef = useRef(null);
+  useEffect(() => {
+    planoRef.current = user?.subscription_type ?? null;
+  }, [user]);
+
+  // Piso entre duas revalidações. O getMyAccount é a function mais chamada do
+  // app e o Base44 já devolveu 429 aqui (ver currentUser.js): alternar entre
+  // dois apps dispararia uma chamada por alternância sem este piso.
+  const REVALIDAR_MIN_MS = 60 * 1000;
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let ultima = Date.now();
+    let vivo = true;
+
+    const revalidar = async () => {
+      try {
+        const res = await base44.functions.invoke('getMyAccount', {});
+        const account = res?.data?.account;
+        if (!vivo || !account) return;
+
+        const perdeuAcesso =
+          planoRef.current === 'premium' && account.subscription_type !== 'premium';
+
+        setUser(account);
+        primeCurrentUser(account);
+
+        // Atualizar o contexto não basta: as telas guardam a Account em estado
+        // local, lido uma vez na montagem (Quiz.jsx, ModuleDetail.jsx). Quem
+        // está no meio de um quiz continuaria vendo conteúdo premium até
+        // navegar para outro lugar. A recarga é o que garante que TODA tela
+        // releia — e ela só acontece na direção que importa, a da perda de
+        // acesso, que é rara. Ganhar acesso não precisa disso: quem compra já
+        // passa pelo refreshCurrentUser do Upgrade.jsx.
+        if (perdeuAcesso) window.location.reload();
+      } catch (error) {
+        // Silencioso de propósito: isto roda a cada volta ao app e uma falha de
+        // rede aqui não é evento para o usuário. Na dúvida, o estado atual
+        // permanece — o próximo boot resolve.
+        console.error('Falha ao revalidar a assinatura:', error);
+      }
+    };
+
+    const aoVoltar = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - ultima < REVALIDAR_MIN_MS) return;
+      ultima = Date.now();
+      revalidar();
+    };
+
+    document.addEventListener('visibilitychange', aoVoltar);
+    return () => {
+      vivo = false;
+      document.removeEventListener('visibilitychange', aoVoltar);
+    };
+  }, [isAuthenticated]);
 
   // CAMINHO DEGRADADO: só roda quando a Account não pôde ser resolvida e ainda
   // existe sessão hospedada do Base44. Aqui `user` volta a ser um User do

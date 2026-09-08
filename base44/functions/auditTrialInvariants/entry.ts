@@ -239,15 +239,69 @@ Deno.serve(async (req) => {
         );
       }
 
+      // ── ATENÇÃO: premium sem origem nenhuma ───────────────────────────────
+      //
+      // Premium sem NADA que explique de onde ele veio: sem marca de cortesia,
+      // sem prazo de loja, sem vitalício, sem Payment e sem
+      // subscription_start_date.
+      //
+      // O QUE ESTE CHECK COBRE, E O QUE NÃO COBRE
+      //
+      // Ele NÃO acusa a concessão permanente da tela de usuários. Aquilo é
+      // mecanismo legítimo — e os dois caminhos que a implementam
+      // (manuallyUpgradeToPremium e adminSetSubscription) sempre carimbam
+      // `subscription_start_date`. É justamente esse carimbo que os distingue
+      // aqui: exigi-lo ausente deixa a concessão intencional de fora e sobra o
+      // que nenhum caminho ATUAL do código produz — conta promovida por versão
+      // antiga, por escrita direta no banco, ou por um caminho novo que ninguém
+      // reviu.
+      //
+      // A limitação é conhecida e vale registrar: um caminho novo que conceda
+      // premium carimbando subscription_start_date passa por aqui sem ser
+      // notado. Fechar isso de verdade depende de a concessão permanente deixar
+      // registro próprio (hoje ela não deixa) — aí o check passa a ser "premium
+      // sem prova de compra E sem registro de concessão", que não precisa
+      // adivinhar nada.
+      if (
+        conta.subscription_type === 'premium' &&
+        !temMarca &&
+        !conta.store_expires_at &&
+        conta.lifetime_access !== true &&
+        !conta.subscription_start_date &&
+        !pagosPorEmail.has(email)
+      ) {
+        registrar(
+          'atencao',
+          'premium_sem_origem',
+          conta,
+          'Premium sem cortesia, sem prazo de loja, sem vitalício, sem Payment e sem subscription_start_date. ' +
+          'Nenhum caminho atual do código produz esse estado — o acesso foi escrito por fora ou por versão antiga.'
+        );
+      }
+
       // ── INFO: expiração pendente ──────────────────────────────────────────
-      // Benigno e esperado: quem venceu e não voltou ao app. Não custa acesso a
-      // ninguém, só desatualiza relatório.
+      //
+      // Esperado, mas NÃO inofensivo — e a versão anterior deste texto dizia
+      // que era ("é só o registro"). Enquanto a conta segue marcada 'premium':
+      //
+      //   - ela conta como cortesia vencida na listagem, não como conversão
+      //     (desde que o adminListTrials separe os dois — ele separa);
+      //   - a pessoa não pode receber nova cortesia nem entrar em promoção
+      //     automática enquanto a marca não sair;
+      //   - e o acesso só termina de fato quando o app volta ao servidor: no
+      //     próximo boot, ou quando o app nativo volta ao primeiro plano (ver a
+      //     revalidação no AuthContext). Sessão nativa aberta atravessando o
+      //     vencimento seguia premium até o processo morrer.
+      //
+      // "Encerrar vencidos" resolve os três de uma vez.
       if (fim && fim <= agora) {
         registrar(
           'info',
           'expiracao_pendente',
           conta,
-          'Cortesia vencida ainda marcada. O acesso já acabou (getMyAccount encerra no próximo login); é só o registro.'
+          'Cortesia vencida ainda marcada. Enquanto a marca não sair, esta conta não pode receber ' +
+          'nova cortesia nem promoção, e o acesso só termina quando o app voltar ao servidor. ' +
+          'Rodar "Encerrar vencidos" resolve.'
         );
       }
     }

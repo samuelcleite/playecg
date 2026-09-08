@@ -164,28 +164,53 @@ function avaliarElegibilidade(conta, agora) {
     };
   }
 
-  // Cortesia em curso? A data no futuro é o que distingue "premium nosso" de
-  // "premium pago". Uma data vencida não conta: quem está premium com trial
-  // vencido é alguém que a expiração preguiçosa ainda não alcançou, e o
-  // tratamento correto é o mesmo do free.
+  // Cortesia em curso? A data no FUTURO é o que distingue "premium nosso" de
+  // "premium pago".
   const fimAtual = conta.trial_ends_at ? new Date(conta.trial_ends_at) : null;
-  const emCortesia = !!(fimAtual && !isNaN(fimAtual.getTime()) && fimAtual > agora);
+  const fimValido = fimAtual && !isNaN(fimAtual.getTime()) ? fimAtual : null;
+  const emCortesia = !!(fimValido && fimValido > agora);
+
+  // Marca VENCIDA que a varredura ainda não alcançou: a conta segue 'premium'
+  // no banco só porque a pessoa não reabriu o app. Isso é tratado como free —
+  // que é o que o comentário aqui sempre prometeu e o código não fazia. A
+  // recusa abaixo pegava qualquer premium sem prazo em vigor, inclusive o
+  // restinho de uma cortesia vencida, e respondia "já é premium por assinatura
+  // paga" para quem nunca pagou nada. Na promoção automática o efeito era pior
+  // que uma mensagem errada: quem ganhou por push e não voltou ficava
+  // inelegível a qualquer campanha futura, para sempre.
+  const marcaVencida = !!(fimValido && fimValido <= agora);
+
+  // Segunda barreira, a mesma do avaliarCortesia: pagamento POSTERIOR ao início
+  // da cortesia significa que a pessoa comprou depois de ganhar, e aí o premium
+  // é dela, não nosso — mesmo com a marca vencida ainda pendurada. Sem isto, o
+  // estado que a auditTrialInvariants classifica como crítico
+  // (pagamento_com_marca_de_cortesia) viraria porta de entrada para carimbar
+  // data de validade em cima de um assinante.
+  const inicioCortesia = conta.trial_started_at ? new Date(conta.trial_started_at) : null;
+  const assinou = conta.subscription_start_date ? new Date(conta.subscription_start_date) : null;
+  const pagouDepois = !!(
+    inicioCortesia && assinou &&
+    !isNaN(inicioCortesia.getTime()) && !isNaN(assinou.getTime()) &&
+    assinou > inicioCortesia
+  );
+
+  const restoDeCortesia = marcaVencida && !pagouDepois;
 
   // INVARIANTE trial_ends_at
-  // Premium SEM trial_ends_at no futuro é premium pago, e pagante não recebe
-  // cortesia: o carimbo faria o getMyAccount rebaixá-lo quando a data chegar.
-  // Estender o acesso de quem paga não é caso de uso — se um dia for, o caminho
-  // é outro campo, não este.
-  if (conta.subscription_type === 'premium' && !emCortesia) {
+  // Premium sem prazo nenhum é premium pago — ou concessão permanente da tela
+  // de usuários —, e nenhum dos dois recebe cortesia: o carimbo faria o
+  // getMyAccount rebaixá-lo quando a data chegar. Estender o acesso de quem
+  // paga não é caso de uso; se um dia for, o caminho é outro campo, não este.
+  if (conta.subscription_type === 'premium' && !emCortesia && !restoDeCortesia) {
     return {
       ok: false,
       code: 'ja_premium',
       status: 409,
-      error: 'Esta conta já é premium por assinatura paga. Conceder cortesia aqui faria o acesso dela vencer.'
+      error: 'Esta conta já é premium sem prazo (assinatura paga ou concessão permanente). Conceder cortesia aqui faria o acesso dela vencer.'
     };
   }
 
-  return { ok: true, emCortesia, fimAtual };
+  return { ok: true, emCortesia, fimAtual: fimValido };
 }
 
 // A ESCRITA DA CONCESSÃO, EM UM LUGAR SÓ.

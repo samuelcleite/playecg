@@ -131,11 +131,23 @@ Deno.serve(async (req) => {
     const agora = new Date();
     const grants = await listAll(base44.asServiceRole.entities, 'TrialGrant');
     const contas = await listAll(base44.asServiceRole.entities, 'Account');
+    // O Payment entra aqui por uma razão só: separar quem COMPROU de quem
+    // apenas continua marcado como premium. Sem ele, a única coisa que a
+    // listagem sabe é que a conta está premium — e foi assim que a tela passou
+    // a chamar de "Virou premium" quem só não reabriu o app.
+    const pagamentos = await listAll(base44.asServiceRole.entities, 'Payment');
 
     const porEmail = new Map();
     for (const c of contas) {
       const chave = (c.email || '').trim().toLowerCase();
       if (chave) porEmail.set(chave, c);
+    }
+
+    const pagou = new Set();
+    for (const p of pagamentos) {
+      if (p.status !== 'PAID') continue;
+      const chave = (p.user_email || '').trim().toLowerCase();
+      if (chave) pagou.add(chave);
     }
 
     // Agrupa os grants por pessoa. Extensões produzem várias linhas para o mesmo
@@ -170,10 +182,38 @@ Deno.serve(async (req) => {
       } else if (emCortesia) {
         estado = 'ativo';
       } else if (conta.subscription_type === 'premium' || conta.lifetime_access === true) {
-        // "Virou premium sem cortesia pendurada": comprou durante ou depois do
-        // trial, ou um admin promoveu na mão. NÃO é prova de pagamento — quem
-        // prova é o Payment, na tela de pagamentos.
-        estado = 'premium';
+        // Premium com a cortesia fora de vigor. Três coisas MUITO diferentes
+        // caíam todas aqui, sob o rótulo "Virou premium":
+        //
+        //   1. comprou de verdade;
+        //   2. ganhou premium permanente pela tela de usuários;
+        //   3. a cortesia venceu e a varredura ainda não passou — a conta segue
+        //      'premium' no banco só porque a pessoa não reabriu o app.
+        //
+        // O caso 3 é o mais comum e o mais enganoso: ele inflava a contagem de
+        // conversão, e era exatamente o estado que a auditoria classifica como
+        // `expiracao_pendente`. Contar isso como conversão respondia "a
+        // campanha se pagou" com o número de quem nunca voltou.
+        //
+        // Prova de compra é Payment PAID, prazo de loja ou vitalício — nunca o
+        // subscription_type sozinho, e nunca o subscription_start_date, que a
+        // concessão manual também carimba.
+        const comprou =
+          conta.lifetime_access === true ||
+          !!conta.store_expires_at ||
+          pagou.has(email);
+
+        if (comprou) {
+          estado = 'comprou';
+        } else if (fimValido) {
+          // Tem marca de cortesia e ela não está mais em vigor: vencida,
+          // aguardando o "Encerrar vencidos" ou o próximo acesso da pessoa.
+          estado = 'vencido_pendente';
+        } else {
+          // Premium sem prazo nenhum e sem pagamento: concessão permanente da
+          // tela de usuários. Não é conversão nem cortesia vencida.
+          estado = 'premium';
+        }
       } else if (lista.some(g => g.revoked_at)) {
         estado = 'revogado';
       } else {
@@ -209,8 +249,8 @@ Deno.serve(async (req) => {
     // o que o admin quer conferir.
     trials.sort((a, b) => new Date(b.ultima_concessao || 0) - new Date(a.ultima_concessao || 0));
 
-    // Quem ganhou por promoção automática, e quantos desses viraram premium. É
-    // a conta que responde se a campanha se paga — a mesma pergunta que o
+    // Quem ganhou por promoção automática, e quantos desses COMPRARAM. É a
+    // conta que responde se a campanha se paga — a mesma pergunta que o
     // TrialGrant existe para responder, agora separada por origem.
     const daPromocao = trials.filter(t => t.origens.some(o => o !== 'admin'));
 
@@ -218,10 +258,15 @@ Deno.serve(async (req) => {
       ativos: trials.filter(t => t.estado === 'ativo').length,
       expirados: trials.filter(t => t.estado === 'expirado').length,
       revogados: trials.filter(t => t.estado === 'revogado').length,
-      premium: trials.filter(t => t.estado === 'premium').length,
+      // Só quem tem prova de compra. O antigo `premium` somava estes três.
+      comprou: trials.filter(t => t.estado === 'comprou').length,
+      premium_sem_prazo: trials.filter(t => t.estado === 'premium').length,
+      vencido_pendente: trials.filter(t => t.estado === 'vencido_pendente').length,
       total: trials.length,
       promocao_total: daPromocao.length,
-      promocao_virou_premium: daPromocao.filter(t => t.estado === 'premium').length,
+      // A conta que responde se a campanha se paga. Antes contava também quem
+      // só não voltou ao app, o que a tornava sempre otimista.
+      promocao_comprou: daPromocao.filter(t => t.estado === 'comprou').length,
       // Contas que a expiração preguiçosa ainda não alcançou porque a pessoa não
       // abriu o app depois do vencimento. É o número que o botão "Expirar
       // vencidos" zera.
