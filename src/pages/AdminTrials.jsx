@@ -63,10 +63,24 @@ const ESTADOS = {
     badge: "bg-emerald-100 text-emerald-800 border-emerald-300",
     icon: Clock
   },
-  premium: {
-    label: "Virou premium",
+  // "Virou premium" era um rótulo só para três situações diferentes, e a mais
+  // comum delas não era conversão nenhuma: cortesia vencida que a varredura
+  // ainda não alcançou. Quem separa é o adminListTrials, com base em Payment,
+  // prazo de loja e vitalício — ver o bloco de estados lá.
+  comprou: {
+    label: "Comprou",
     badge: "bg-amber-100 text-amber-800 border-amber-300",
     icon: Crown
+  },
+  premium: {
+    label: "Premium sem prazo",
+    badge: "bg-violet-100 text-violet-800 border-violet-300",
+    icon: Crown
+  },
+  vencido_pendente: {
+    label: "Vencido, não varrido",
+    badge: "bg-blue-100 text-blue-800 border-blue-300",
+    icon: CalendarClock
   },
   expirado: {
     label: "Expirado",
@@ -410,15 +424,23 @@ export default function AdminTrials() {
             <Card className="border-none shadow-lg bg-gradient-to-br from-amber-50 to-orange-50">
               <CardContent className="p-6 flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Viraram premium</p>
-                  <p className="text-3xl font-bold text-gray-900">{resumo.premium}</p>
+                  <p className="text-sm text-gray-600">Compraram</p>
+                  <p className="text-3xl font-bold text-gray-900">{resumo.comprou}</p>
                   {/* Recorte da promoção automática dentro do total. Sem ele,
                       não dá para saber se a campanha se paga: o número cheio
                       mistura quem você escolheu a dedo com quem entrou sozinho
                       por ter ativado as notificações. */}
                   {resumo.promocao_total > 0 && (
                     <p className="text-xs text-gray-500 mt-1">
-                      {resumo.promocao_virou_premium} de {resumo.promocao_total} vindos de promoção
+                      {resumo.promocao_comprou} de {resumo.promocao_total} vindos de promoção
+                    </p>
+                  )}
+                  {/* Premium sem prova de compra fica FORA do número acima, mas
+                      não some da tela: some da conta de conversão, que é onde
+                      ele mentia. */}
+                  {resumo.premium_sem_prazo > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      +{resumo.premium_sem_prazo} premium sem prazo (concessão manual)
                     </p>
                   )}
                 </div>
@@ -481,7 +503,9 @@ export default function AdminTrials() {
                 {[
                   ["todos", "Todos"],
                   ["ativo", "Em cortesia"],
-                  ["premium", "Viraram premium"],
+                  ["comprou", "Compraram"],
+                  ["vencido_pendente", "Vencidos, não varridos"],
+                  ["premium", "Premium sem prazo"],
                   ["expirado", "Expirados"],
                   ["revogado", "Revogados"]
                 ].map(([valor, rotulo]) => (
