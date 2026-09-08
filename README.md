@@ -238,6 +238,33 @@ Desde 09/08/2026 a cobrança acontece **na fase, não na listagem**:
 - O nome do **módulo** nunca é mascarado; o da **fase** é, enquanto bloqueada.
   Mascaramento é cosmético — os nomes reais já estão nas props (ver §8).
 
+**Quem DECIDE é o cliente, com uma exceção (08/09/2026).** Todas as checagens
+acima leem `subscription_type` da `Account` que o `getCurrentUser` trouxe; o
+servidor não confere nada. Trocar `free` por `premium` na resposta do
+`getMyAccount` pelo DevTools libera o app inteiro. A **única** exceção é o
+**limite diário do plano gratuito**, aplicado no `recordQuizAttempt`: ele conta
+os casos do dia, recusa com **403** (`code: 'limite_diario'`) e devolve
+`limite_diario` no corpo — em erro e em sucesso — para a tela não precisar
+recontar.
+
+Decisões dessa regra que não são óbvias e já estão tomadas:
+
+- **Só bloqueia `quiz_type: 'random'`**, que é onde a tela bloqueia. `'daily'` e
+  `'module'` passam: módulo já é pago por outra porta, e bloquear o caso do dia
+  seria regra nova, não a mesma regra movida de lugar.
+- **A contagem olha todos os tipos**, e conta **casos distintos**, não
+  tentativas. Repetir um caso que já contou hoje nunca é recusado — cota é por
+  caso.
+- **O dia é o de Brasília nos dois lados**, o mesmo fuso que a sequência de dias
+  já usava. A tela cortava à meia-noite **local**; com o servidor decidindo em
+  BRT, quem estuda fora do Brasil veria "5 disponíveis" logo depois da própria
+  meia-noite e tomaria recusa na primeira questão. Aceitar o fuso informado pelo
+  cliente seria falsificável.
+- A regra vive **duplicada de propósito**: `checkFreeLimit` no `Quiz.jsx` mostra
+  o número, `avaliarLimiteDiario` no `recordQuizAttempt` decide. **Mudar uma sem
+  a outra faz a tela prometer cota que o servidor recusa.** Não há check
+  automático ligando as duas — o `check-invariantes` não cobre este par.
+
 ⚠️ **A regra de plano estava duplicada em três lugares, e mudar a tela não
 bastou.** O item "Módulos" do menu (`Layout.jsx`) e o card de Módulos do
 Dashboard mobile apontavam para `Upgrade` quando `!isPremium`: o usuário
@@ -288,6 +315,34 @@ individualmente ou em lote com filtros. Quem concede acesso continua sendo
 **A cortesia acaba no `getMyAccount`** — não há cron nesta plataforma, e ele é o
 único ponto por onde toda tela passa. A varredura `adminExpireTrials` é higiene
 de relatório, não de acesso.
+
+⚠️ **Isso não bastava no app nativo (corrigido em 08/09/2026).** "Toda tela passa
+pelo `getMyAccount`" vale por **carregamento de página**, e no nativo não existe
+carregamento de página: o WebView boota uma vez e fica vivo por dias. Quem estava
+com o app aberto quando o prazo venceu seguia premium até o sistema matar o
+processo. O `AuthContext` agora revalida a `Account` quando o app volta ao
+primeiro plano e **recarrega a página** se o acesso caiu — recarregar é
+necessário porque as telas guardam a `Account` em estado local, lido uma vez na
+montagem, e não releriam sozinhas.
+
+**A marca vencida não é inofensiva.** Enquanto um `trial_ends_at` vencido
+continuar na conta, ela segue `premium` no banco: o acesso só termina quando o
+app volta a falar com o servidor, e **qualquer leitura crua de
+`subscription_type` continua vendo premium** — a tela de usuários, por exemplo.
+Quem já sabe separar é o `adminListTrials` (estado `vencido_pendente`, fora da
+conta de conversão) e o `getUserSubscriptionInfo` (responde `hasSubscription:
+false`). Receber nova cortesia **não** é mais consequência: desde 08/09/2026 o
+`avaliarElegibilidade` trata marca vencida como free — antes ele recusava, e
+recusava dizendo que a conta era pagante.
+
+**"Virou premium" na tela de cortesias não prova pagamento** (corrigido em
+08/09/2026). O estado juntava três coisas — comprou, ganhou premium permanente
+pela tela de usuários, e cortesia vencida que a varredura não alcançou —, e a
+terceira é a mais comum. Isso inflava `promocao_virou_premium`, a métrica que
+responde se a campanha se paga. Hoje são três estados, e **prova de compra é
+`Payment` PAID, `store_expires_at` ou `lifetime_access`** — nunca o
+`subscription_type` sozinho, e nunca o `subscription_start_date`, que a concessão
+manual também carimba (§8).
 
 **Nunca conceda cortesia a quem paga** (a function recusa): a marca faria o
 acesso do assinante vencer. Ver invariante 9 e a auditoria `auditTrialInvariants`,
@@ -381,6 +436,14 @@ apenas se o card do App iOS acusar 401/403; sem ela nada mais deixa de funcionar
 
 - Wrapper: **Despia**. Builds saem sempre do dashboard do Despia, nunca do Base44.
 - `isIOSNativeApp()` detecta `despia-iphone` / `despia-ipad` no user agent.
+- ⚠️ **Plugin do Capacitor não existe aqui, e falha calado.** Só o Android é
+  container Capacitor (§7); o iOS é WebView do Despia. `@capacitor/app`
+  (`appStateChange`, `appUrlOpen`), `@capacitor/browser` e afins importam sem
+  erro e simplesmente **nunca disparam** no iPhone — não há exceção, não há log,
+  o recurso só não acontece. Para qualquer coisa que precise valer nos três
+  ambientes (Despia, Capacitor e web), use API de navegador: `visibilitychange`
+  no lugar de `appStateChange`, por exemplo. (Lido no código e aplicado na
+  revalidação de assinatura do `AuthContext`, 08/09/2026.)
 - Compra: `despia("revenuecat://purchase?external_id={userId}&product={productId}")`.
 - Storage Vault: `setvault://` / `readvault://` com `locked=true` (Face ID).
 - Ponte OAuth: navegador nativo → `public/native-callback.html` → deeplink
@@ -679,6 +742,23 @@ rebaseada antes de qualquer merge** — senão o merge deleta `/termos`,
   só nela. São os dois suspeitos do incidente de 22/08/2026 (§9) — nenhum
   confirmado, porque o log da function não foi consultado. Desde 24/08 nada disso
   quebra a tela, só esconde o valor pago do vitalício. (Lido no código, 24/08/2026.)
+- **Concessão permanente de premium não deixa rastro.**
+  `manuallyUpgradeToPremium` (botão "Ativar Premium", nas telas de usuários e de
+  pagamentos) e `adminSetSubscription` gravam `subscription_type: 'premium'` e
+  **limpam** `trial_ends_at` e `store_expires_at`: acesso sem prazo, sem
+  `TrialGrant`, e sem nenhum campo que diga quem concedeu, quando ou por quê — o
+  único vestígio é o `subscription_start_date`, que significa outra coisa. É
+  mecanismo legítimo e em uso (a conta de review da Play Store é uma delas, §7).
+  A consequência é na auditoria: a `auditTrialInvariants` **não consegue**
+  distinguir uma concessão intencional de um premium escrito por engano, então o
+  check `premium_sem_origem` teve que exigir `subscription_start_date` ausente
+  para não acusar as concessões de verdade — e com isso deixa passar qualquer
+  caminho novo que carimbe o campo. Fechar exige a concessão permanente deixar
+  registro próprio. (Lido no código, 08/09/2026.)
+- `adminListTrials` também carrega a tabela `Payment` inteira (`listAll`), pelo
+  mesmo motivo do `getUserSubscriptionInfo` acima — é o que separa quem comprou
+  de quem só continua marcado premium. Aceito por ora: a tela é de admin e roda
+  sob demanda. (08/09/2026.)
 - **O app é claro por design e não pode ganhar modo noturno por acidente.** As
   telas usam ~770 cores hardcoded (`text-gray-600`, `text-gray-900`, `bg-white`)
   espalhadas por 44 arquivos. O bloco `.dark` do `src/index.css` existe e está
@@ -815,6 +895,8 @@ Só o que não coube em nenhuma seção. Mais recente no topo.
  
 | Data | O que se descobriu | Como se sabe |
 |---|---|---|
+| 08/09/2026 | **Comentário e código podem divergir sem nada acusar.** O `avaliarElegibilidade` dizia, em comentário, "uma data vencida não conta: o tratamento correto é o mesmo do free" — e o `if` logo abaixo recusava, respondendo "já é premium por assinatura paga" a quem nunca pagou nada. O `check-invariantes` passava: ele compara as duas **cópias** entre si, nunca o código com o que o comentário promete. Comentário bom não é prova; num arquivo com cópias sincronizadas por hash, ele é ainda menos. | Lido no código durante a investigação de 08/09/2026 — as duas cópias estavam idênticas, e as duas estavam erradas do mesmo jeito. |
+| 08/09/2026 | **Expiração preguiçosa vira mentira de relatório, não só atraso.** Cortesia que vence sem a pessoa reabrir o app deixa a conta `premium` no banco por tempo indefinido. Qualquer tela ou métrica que leia só `subscription_type` passa a contar essas pessoas como assinantes — foi assim que a taxa de conversão da promoção de push ficou otimista e que o Perfil anunciou "R$ 59, renova em 30 dias" para quem ganhou 3 dias de cortesia. Ao ler assinatura para **relatar** (não para liberar acesso), cruze sempre com `Payment`/`store_expires_at`/`lifetime_access`. | Quatro contas apareciam como "Virou premium" na tela de cortesias com "Nenhum pagamento registrado" no detalhe; confirmado no `adminListTrials`, no `getUserSubscriptionInfo` e no export de `Payment` de 08/09/2026. |
 | 09/08/2026 | **O sync com o Base44 carrega schema de entidade, não só código.** Campo novo declarado em `base44/entities/*.jsonc` aparece no painel sozinho depois do merge. Não é preciso recriar nada à mão nem por prompt. | Merge do PR do vitalício: `lifetime_access` apareceu no Schema Editor da `Account`, com a descrição inteira, sem ninguém tocar no painel. |
 | 09/08/2026 | **Campo novo com `default` NÃO preenche registro que já existia.** O banco é Mongo: ler `undefined` num registro antigo é o esperado, não sinal de que o schema falhou. Testar campo novo lendo registro velho não distingue as duas coisas — teste escrevendo e lendo de volta. | Custou um alarme falso: `lifetime_access` voltou `undefined` numa Account antiga e eu tratei como falha de deploy; o campo estava no painel o tempo todo. |
  
