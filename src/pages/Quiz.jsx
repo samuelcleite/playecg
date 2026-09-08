@@ -110,6 +110,39 @@ export default function Quiz() {
     }
   }, [showResult]);
 
+  // O dia do limite é o de BRASÍLIA, não o local do aparelho.
+  //
+  // Quem aplica o limite agora é o recordQuizAttempt, e lá o dia é o de
+  // Brasília — o mesmo que a sequência de dias já usava. Se esta tela
+  // continuasse cortando à meia-noite local, quem estuda fora do Brasil veria
+  // "5 disponíveis" logo depois da própria meia-noite e tomaria recusa do
+  // servidor na primeira questão. Um fuso só, nos dois lados.
+  const diaBrasilia = (d) =>
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(d);
+
+  // O instante em que o dia de Brasília começou, para pedir ao servidor só as
+  // tentativas de hoje. Subtrai do agora o quanto do dia já passou lá.
+  const inicioDoDiaBrasilia = () => {
+    const agora = new Date();
+    const [h, m, s] = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "America/Sao_Paulo",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false
+    })
+      .format(agora)
+      .split(":")
+      .map(Number);
+    const decorridoMs = (((h % 24) * 60 + m) * 60 + s) * 1000 + agora.getMilliseconds();
+    return new Date(agora.getTime() - decorridoMs);
+  };
+
   const checkFreeLimit = (todayAttempts) => {
     // Ordenar tentativas por data
     const sorted = [...todayAttempts].sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
@@ -180,15 +213,16 @@ export default function Quiz() {
     ]);
 
     // Verificar limite para usuários gratuitos (reutiliza 'attempts')
+    //
+    // Esta conta é só para EXIBIR o contador e abrir a tela de limite sem uma
+    // ida a mais ao servidor. Quem recusa de verdade é o recordQuizAttempt —
+    // por isso o recorte do dia aqui usa o mesmo fuso que ele usa.
     if (userData.subscription_type !== "premium") {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayDate = today.toISOString().split('T')[0];
+      const hojeBR = diaBrasilia(new Date());
 
       const todayAttempts = attempts.filter(attempt => {
-        const attemptDate = new Date(attempt.created_date);
-        attemptDate.setHours(0, 0, 0, 0);
-        return attemptDate.toISOString().split('T')[0] === todayDate;
+        const quando = new Date(attempt.created_date);
+        return !isNaN(quando.getTime()) && diaBrasilia(quando) === hojeBR;
       });
 
       const result = checkFreeLimit(todayAttempts);
@@ -326,15 +360,33 @@ export default function Quiz() {
 
     // Se acertou ou já tentou 3 vezes, registrar no banco e adicionar à lista de respondidos
     if (correct || newAttemptCount >= 3) {
-      await base44.functions.invoke('recordQuizAttempt', {
-        case_id: currentCase.id,
-        module_id: currentCase.module_id,
-        phase_id: currentCase.phase_id,
-        user_answer: selectedAnswers.join(", "),
-        correct: correct,
-        time_spent: timeSpent,
-        quiz_type: "random"
-      });
+      let limiteDiario = null;
+
+      try {
+        const resRegistro = await base44.functions.invoke('recordQuizAttempt', {
+          case_id: currentCase.id,
+          module_id: currentCase.module_id,
+          phase_id: currentCase.phase_id,
+          user_answer: selectedAnswers.join(", "),
+          correct: correct,
+          time_spent: timeSpent,
+          quiz_type: "random"
+        });
+        // Estado do limite já calculado pelo servidor. É o que substitui a
+        // segunda chamada que esta tela fazia a cada resposta só para recontar.
+        limiteDiario = resRegistro?.data?.limite_diario || null;
+      } catch (error) {
+        // 403 = o servidor recusou por limite diário. Em condição normal a tela
+        // nem chega aqui: ela já teria bloqueado antes. Isto cobre o caso em que
+        // as duas contas discordam — e, quando discordam, quem vale é a do
+        // servidor. Recontamos para saber a que horas libera e mostramos a tela
+        // de limite, em vez de deixar a resposta sumir em silêncio.
+        if (error?.status === 403) {
+          await recalcularLimiteDiario();
+          return;
+        }
+        throw error;
+      }
 
       // Verificar se o usuário errou 5 questões da mesma fase
       if (!correct && currentCase.module_id && currentCase.phase_id) {
@@ -363,31 +415,48 @@ export default function Quiz() {
       const updatedAttemptedIds = [...attemptedCaseIds, currentCase.id];
       setAttemptedCaseIds(updatedAttemptedIds);
 
-      // Atualizar contador diário para usuários gratuitos
+      // Atualizar contador diário para usuários gratuitos.
+      //
+      // O número vem do servidor, que acabou de fazer essa conta para decidir
+      // se aceitava a resposta. Antes esta tela disparava uma SEGUNDA chamada
+      // (getMyQuizAttempts com `since`) a cada questão só para recontar o
+      // mesmo — duas viagens em sequência por resposta, onde uma bastava.
       if (user.subscription_type !== "premium") {
-        const newCount = dailyQuizCount + 1;
-        setDailyQuizCount(newCount);
-
-        // Re-verificar limite após registrar a tentativa
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        // `since` com a meia-noite LOCAL: esta re-verificação roda a cada
-        // questão respondida e só precisa do dia de hoje. Antes ela baixava o
-        // histórico inteiro para descartar tudo menos hoje aqui no navegador.
-        // O corte vai no fuso local de propósito — é o mesmo "hoje" que o
-        // checkFreeLimit usa para contar, e cortar em UTC daria dias diferentes
-        // para quem responde perto da virada.
-        const resTodas = await base44.functions.invoke('getMyQuizAttempts', {
-          since: today.toISOString()
-        });
-        const todayAttempts = resTodas?.data?.attempts || [];
-        const result = checkFreeLimit(todayAttempts);
-        if (result.limited) {
-          setNextAvailableTime(result.nextAvailableTime);
-          setLastAttemptTime(result.fifthCaseTime);
-          setDailyLimitReached(true);
+        if (limiteDiario) {
+          setDailyQuizCount(limiteDiario.feitos);
+          if (limiteDiario.bloqueado) {
+            setNextAvailableTime(limiteDiario.proxima_em ? new Date(limiteDiario.proxima_em) : null);
+            setLastAttemptTime(limiteDiario.quinta_em ? new Date(limiteDiario.quinta_em) : null);
+            setDailyLimitReached(true);
+          }
+        } else {
+          // Resposta sem `limite_diario`: function ainda não publicada, ou a
+          // conta virou premium no servidor entre o carregamento e agora. O
+          // caminho antigo continua correto, só custa uma chamada a mais.
+          await recalcularLimiteDiario();
         }
       }
+    }
+  };
+
+  // Reconta o dia pelo servidor e aplica o resultado à tela. Só é usada nos dois
+  // caminhos de exceção acima — no fluxo normal o recordQuizAttempt já devolve
+  // essa conta pronta.
+  const recalcularLimiteDiario = async () => {
+    try {
+      const resTodas = await base44.functions.invoke('getMyQuizAttempts', {
+        since: inicioDoDiaBrasilia().toISOString()
+      });
+      const todayAttempts = resTodas?.data?.attempts || [];
+      const result = checkFreeLimit(todayAttempts);
+      setDailyQuizCount(result.count);
+      if (result.limited) {
+        setNextAvailableTime(result.nextAvailableTime);
+        setLastAttemptTime(result.fifthCaseTime);
+        setDailyLimitReached(true);
+      }
+    } catch (error) {
+      console.error('Quiz: falha ao recontar o limite diário', error);
     }
   };
 
