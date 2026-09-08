@@ -388,12 +388,37 @@ Deno.serve(async (req) => {
         // construção (o adminGrantTrial recusa conta vitalícia e os caminhos de
         // compra limpam a cortesia), e se um dia coexistirem por bug, o acesso
         // permanente é a resposta menos errada.
+        //
+        // O QUE MANDA AQUI É A MARCA, NÃO O PRAZO AINDA VALER.
+        //
+        // A versão anterior exigia `fimCortesia > agora` para entrar. Cortesia
+        // VENCIDA que a expiração preguiçosa ainda não varreu — a conta segue
+        // 'premium' no banco até a pessoa reabrir o app — escapava por baixo e
+        // caía justamente no ramo 'Manual', que é a mentira que este bloco
+        // existe para impedir: R$ 59, método 'Manual' e uma próxima renovação
+        // calculada a partir do subscription_start_date (ou, sem ele, do
+        // created_date). Quem ganhou 3 dias de cortesia e nunca pagou nada lia
+        // no Perfil que tinha assinatura renovando.
+        //
+        // Então a marca decide a ENTRADA, e o prazo decide o RAMO.
         const fimCortesia = user.trial_ends_at ? new Date(user.trial_ends_at) : null;
-        if (
-            fimCortesia && !isNaN(fimCortesia.getTime()) &&
-            fimCortesia > new Date() &&
-            user.subscription_type === 'premium'
-        ) {
+        const temMarcaDeCortesia =
+            !!fimCortesia && !isNaN(fimCortesia.getTime()) && user.subscription_type === 'premium';
+
+        // Vencida: o acesso acabou, mesmo que a varredura ainda não tenha
+        // rebaixado a conta. `hasSubscription: false` é a resposta honesta — a
+        // mesma que a tela vai receber assim que o getMyAccount encerrar a
+        // cortesia no próximo boot.
+        if (temMarcaDeCortesia && fimCortesia <= new Date()) {
+            console.log('⏳ Cortesia vencida (varredura pendente) para', email, '— sem assinatura');
+
+            return Response.json({
+                success: true,
+                hasSubscription: false
+            });
+        }
+
+        if (temMarcaDeCortesia) {
             console.log('⏳ Acesso de cortesia para', email, 'até', user.trial_ends_at);
 
             return Response.json({
