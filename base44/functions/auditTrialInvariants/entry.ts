@@ -282,26 +282,32 @@ Deno.serve(async (req) => {
       // ── INFO: expiração pendente ──────────────────────────────────────────
       //
       // Esperado, mas NÃO inofensivo — e a versão anterior deste texto dizia
-      // que era ("é só o registro"). Enquanto a conta segue marcada 'premium':
+      // que era ("O acesso já acabou; é só o registro"). Enquanto a conta segue
+      // marcada 'premium':
       //
-      //   - ela conta como cortesia vencida na listagem, não como conversão
-      //     (desde que o adminListTrials separe os dois — ele separa);
-      //   - a pessoa não pode receber nova cortesia nem entrar em promoção
-      //     automática enquanto a marca não sair;
-      //   - e o acesso só termina de fato quando o app volta ao servidor: no
-      //     próximo boot, ou quando o app nativo volta ao primeiro plano (ver a
-      //     revalidação no AuthContext). Sessão nativa aberta atravessando o
-      //     vencimento seguia premium até o processo morrer.
+      //   - o acesso NÃO acabou ainda. Ele termina quando o app volta a falar
+      //     com o servidor: no próximo boot, ou quando o app nativo volta ao
+      //     primeiro plano (ver a revalidação no AuthContext). Sessão nativa
+      //     aberta atravessando o vencimento seguia premium até o processo
+      //     morrer;
+      //   - qualquer leitura crua de subscription_type continua vendo premium —
+      //     a tela de usuários, por exemplo. Quem já sabe separar é o
+      //     adminListTrials, que classifica isto como 'vencido_pendente' e o
+      //     mantém fora da conta de conversão.
       //
-      // "Encerrar vencidos" resolve os três de uma vez.
+      // O que NÃO é mais consequência: receber nova cortesia. O
+      // avaliarElegibilidade trata marca vencida como free desde 08/09/2026 —
+      // antes disso ela recusava, e recusava dizendo que a conta era pagante.
+      //
+      // "Encerrar vencidos" resolve os dois de uma vez.
       if (fim && fim <= agora) {
         registrar(
           'info',
           'expiracao_pendente',
           conta,
-          'Cortesia vencida ainda marcada. Enquanto a marca não sair, esta conta não pode receber ' +
-          'nova cortesia nem promoção, e o acesso só termina quando o app voltar ao servidor. ' +
-          'Rodar "Encerrar vencidos" resolve.'
+          'Cortesia vencida ainda marcada. O acesso termina quando o app voltar a falar com o ' +
+          'servidor (boot ou volta ao primeiro plano); até a marca sair, qualquer leitura crua de ' +
+          'subscription_type continua vendo premium. Rodar "Encerrar vencidos" resolve.'
         );
       }
     }
