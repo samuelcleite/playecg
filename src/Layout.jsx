@@ -101,6 +101,26 @@ export default function Layout({ children, currentPageName }) {
     loadUser();
   }, []);
 
+  // A altura da barra de navegação do mobile, publicada em --app-nav-altura.
+  // As telas do redesenho têm um rodapé de ação que GRUDA no fim da tela
+  // (BarraDeAcao); como a navegação é fixa, com bottom:0 ele ficaria atrás
+  // dela. Medido em vez de chutado porque a barra soma o inset de baixo do
+  // aparelho (paddingBottom na safe-area). No desktop a barra está dentro de um
+  // bloco `md:hidden`, mede 0 e a variável vira 0px — o observador acompanha a
+  // troca quando a janela cruza o breakpoint.
+  const navRef = React.useRef(null);
+  React.useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const publicar = () =>
+      document.documentElement.style.setProperty('--app-nav-altura', `${el.offsetHeight}px`);
+    publicar();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(publicar);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [currentPageName]);
+
   const loadUser = async () => {
     try {
       const userData = await getCurrentUser();
@@ -404,7 +424,7 @@ export default function Layout({ children, currentPageName }) {
           {children}
         </main>
 
-        <nav className="select-none" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, backgroundColor: '#FFFFFF', borderTop: '1px solid #E0E0E0', boxShadow: '0 -2px 12px rgba(0,0,0,0.08)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+        <nav ref={navRef} className="select-none" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, backgroundColor: '#FFFFFF', borderTop: '1px solid #E0E0E0', boxShadow: '0 -2px 12px rgba(0,0,0,0.08)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           <div className="flex items-center justify-around px-2 py-3">
             {navigationItems.map((item) => {
               const isActive = location.pathname === item.url;

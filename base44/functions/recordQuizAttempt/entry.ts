@@ -364,9 +364,10 @@ Deno.serve(async (req) => {
 
     // Pontos. Só acerto pontua; o nível é sempre derivado, nunca somado à parte,
     // para não existir estado em que pontos e nível discordem.
+    let pontosGanhos = 0;
     if (isCorrect) {
-      const ganho = isFirstForCase ? PONTOS_ACERTO_PRIMEIRA : PONTOS_ACERTO_REVISAO;
-      updates.points = (account.points || 0) + ganho;
+      pontosGanhos = isFirstForCase ? PONTOS_ACERTO_PRIMEIRA : PONTOS_ACERTO_REVISAO;
+      updates.points = (account.points || 0) + pontosGanhos;
       updates.level = nivelPara(updates.points);
     }
 
@@ -385,7 +386,19 @@ Deno.serve(async (req) => {
     // `limite_diario` é null para quem é premium — a tela já não pergunta nada
     // nesse caso. Para o gratuito ele substitui a chamada extra ao
     // getMyQuizAttempts que a tela fazia a cada resposta só para recontar.
-    return Response.json({ success: true, data: attempt, limite_diario: limiteDiario });
+    //
+    // `pontos_ganhos` e `sequencia` alimentam a tela de resultado (XP ganho e
+    // dias de ofensiva). Saem daqui porque é aqui que os dois são decididos: a
+    // tela não tem como saber se esta foi a primeira tentativa no caso, que é o
+    // que separa 10 pontos de 3. `sequencia` é o mesmo current_streak que o
+    // getUserStats devolve como streakDays, então o número bate com o Dashboard.
+    return Response.json({
+      success: true,
+      data: attempt,
+      limite_diario: limiteDiario,
+      pontos_ganhos: pontosGanhos,
+      sequencia: updates.current_streak ?? account.current_streak ?? 0
+    });
   } catch (error) {
     console.error('Error in recordQuizAttempt:', error);
     return Response.json({ error: error.message }, { status: 500 });
