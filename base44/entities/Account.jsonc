@@ -4,15 +4,15 @@
   "properties": {
     "email": {
       "type": "string",
-      "description": "minúsculo, sem espaços — identidade única"
+      "description": "min\u00fasculo, sem espa\u00e7os \u2014 identidade \u00fanica"
     },
     "full_name": {
       "type": "string",
-      "description": "Nome completo do usuário"
+      "description": "Nome completo do usu\u00e1rio"
     },
     "password_hash": {
       "type": "string",
-      "description": "PBKDF2 salt:hash, vazio para contas só-Google"
+      "description": "PBKDF2 salt:hash, vazio para contas s\u00f3-Google"
     },
     "google_id": {
       "type": "string",
@@ -36,7 +36,7 @@
         "admin"
       ],
       "default": "user",
-      "description": "Papel do usuário no app"
+      "description": "Papel do usu\u00e1rio no app"
     },
     "subscription_type": {
       "type": "string",
@@ -45,83 +45,83 @@
         "premium"
       ],
       "default": "free",
-      "description": "Tipo de assinatura do usuário"
+      "description": "Tipo de assinatura do usu\u00e1rio"
     },
     "subscription_start_date": {
       "type": "string",
       "format": "date-time",
-      "description": "Data de início da assinatura premium"
+      "description": "Data de in\u00edcio da assinatura premium"
     },
     "lifetime_access": {
       "type": "boolean",
       "default": false,
-      "description": "Comprou o plano vitalício (pagamento único, Stripe/web). NÃO concede acesso: quem concede é subscription_type. Serve para impedir que os caminhos de expiração rebaixem o comprador para 'free'. Ver INVARIANTE lifetime_access."
+      "description": "Comprou o plano vital\u00edcio (pagamento \u00fanico, Stripe/web). N\u00c3O concede acesso: quem concede \u00e9 subscription_type. Serve para impedir que os caminhos de expira\u00e7\u00e3o rebaixem o comprador para 'free'. Ver INVARIANTE lifetime_access."
     },
     "trial_ends_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Fim do acesso de cortesia. Preenchido = o premium desta conta é cortesia e vence nesta data. Ausente (null) = o premium, se houver, é pago e não vence por este caminho. Como o lifetime_access, ele não concede acesso sozinho: quem concede continua sendo subscription_type. Ver INVARIANTE trial_ends_at."
+      "description": "Fim do acesso de cortesia. Preenchido = o premium desta conta \u00e9 cortesia e vence nesta data. Ausente (null) = o premium, se houver, \u00e9 pago e n\u00e3o vence por este caminho. Como o lifetime_access, ele n\u00e3o concede acesso sozinho: quem concede continua sendo subscription_type. Ver INVARIANTE trial_ends_at."
     },
     "trial_started_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Início da cortesia em curso. Existe só para os caminhos de expiração compararem com subscription_start_date: data de assinatura mais recente que esta significa que a pessoa pagou depois de ganhar a cortesia, e então o vencimento do trial não pode rebaixá-la. Sai junto com trial_ends_at."
+      "description": "In\u00edcio da cortesia em curso. Existe s\u00f3 para os caminhos de expira\u00e7\u00e3o compararem com subscription_start_date: data de assinatura mais recente que esta significa que a pessoa pagou depois de ganhar a cortesia, e ent\u00e3o o vencimento do trial n\u00e3o pode rebaix\u00e1-la. Sai junto com trial_ends_at."
     },
     "store_expires_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Fim do ciclo pago da assinatura de loja (App Store / Google Play), como o RevenueCat informou. Preenchido = o premium desta conta vem da loja e tem data. Ausente (null) = o premium, se houver, vem de outro lugar (Stripe, cortesia, vitalício, concessão manual) e NÃO vence por este caminho. Como o trial_ends_at e o lifetime_access, ele não concede acesso nenhum: quem concede continua sendo subscription_type. A data sozinha também não REBAIXA — ela só autoriza o getMyAccount a perguntar ao RevenueCat, que é quem decide. Ver INVARIANTE store_expires_at."
+      "description": "Fim do ciclo pago da assinatura de loja (App Store / Google Play), como o RevenueCat informou. Preenchido = o premium desta conta vem da loja e tem data. Ausente (null) = o premium, se houver, vem de outro lugar (Stripe, cortesia, vital\u00edcio, concess\u00e3o manual) e N\u00c3O vence por este caminho. Como o trial_ends_at e o lifetime_access, ele n\u00e3o concede acesso nenhum: quem concede continua sendo subscription_type. A data sozinha tamb\u00e9m n\u00e3o REBAIXA \u2014 ela s\u00f3 autoriza o getMyAccount a perguntar ao RevenueCat, que \u00e9 quem decide. Ver INVARIANTE store_expires_at."
     },
     "pending_referral_coupon_id": {
       "type": "string",
-      "description": "Id do Coupon de parceria que o usuário digitou e que AINDA NÃO virou atribuição. Intenção, não atribuição: quem digita e nunca compra nunca aparece no relatório de nenhum parceiro. O webhook de pagamento promove estes três campos para os referred_by_* e limpa os pendentes."
+      "description": "Id do Coupon de parceria que o usu\u00e1rio digitou e que AINDA N\u00c3O virou atribui\u00e7\u00e3o. Inten\u00e7\u00e3o, n\u00e3o atribui\u00e7\u00e3o: quem digita e nunca compra nunca aparece no relat\u00f3rio de nenhum parceiro. O webhook de pagamento promove estes tr\u00eas campos para os referred_by_* e limpa os pendentes."
     },
     "pending_referral_code": {
       "type": "string",
-      "description": "O código digitado, aguardando a compra confirmar. Sobrescrito livremente a cada novo código digitado — vale o que estiver aqui no momento do pagamento."
+      "description": "O c\u00f3digo digitado, aguardando a compra confirmar. Sobrescrito livremente a cada novo c\u00f3digo digitado \u2014 vale o que estiver aqui no momento do pagamento."
     },
     "pending_referral_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Quando o código pendente foi digitado. Não existe janela de conversão: pendência não expira. Serve para investigar uma pendência antiga que nunca converteu, e para medir o intervalo entre digitar e assinar."
+      "description": "Quando o c\u00f3digo pendente foi digitado. N\u00e3o existe janela de convers\u00e3o: pend\u00eancia n\u00e3o expira. Serve para investigar uma pend\u00eancia antiga que nunca converteu, e para medir o intervalo entre digitar e assinar."
     },
     "referred_by_coupon_id": {
       "type": "string",
-      "description": "Id do Coupon de parceria que trouxe este usuário. É a CHAVE DO RELATÓRIO: a receita por parceiro sai de Payment -> Account -> este campo -> Coupon.partner_name, então o nome do parceiro nunca é copiado para cá e corrigir o nome no cupom corrige o relatório inteiro. Vazio = ninguém indicou."
+      "description": "Id do Coupon de parceria que trouxe este usu\u00e1rio. \u00c9 a CHAVE DO RELAT\u00d3RIO: a receita por parceiro sai de Payment -> Account -> este campo -> Coupon.partner_name, ent\u00e3o o nome do parceiro nunca \u00e9 copiado para c\u00e1 e corrigir o nome no cupom corrige o relat\u00f3rio inteiro. Vazio = ningu\u00e9m indicou."
     },
     "referred_by_code": {
       "type": "string",
-      "description": "O código como estava no momento da atribuição (ex: FULANO20). Redundante com o Coupon apontado acima, e de propósito: se o cupom for excluído, o id vira ponteiro morto e só este campo resta para saber o que aconteceu."
+      "description": "O c\u00f3digo como estava no momento da atribui\u00e7\u00e3o (ex: FULANO20). Redundante com o Coupon apontado acima, e de prop\u00f3sito: se o cupom for exclu\u00eddo, o id vira ponteiro morto e s\u00f3 este campo resta para saber o que aconteceu."
     },
     "referred_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Quando a atribuição foi gravada. Base para qualquer regra de janela — de conversão ou de comissão — que venha a ser adotada; a regra em si NÃO vive aqui."
+      "description": "Quando a atribui\u00e7\u00e3o foi gravada. Base para qualquer regra de janela \u2014 de convers\u00e3o ou de comiss\u00e3o \u2014 que venha a ser adotada; a regra em si N\u00c3O vive aqui."
     },
     "revenuecat_user_id": {
       "type": "string",
-      "description": "App User ID com que o RevenueCat conhece o aparelho desta pessoa, quando ele NÃO é o Account.id. Existe por causa do iOS: o offer code é resgatado fora do app, a assinatura nasce colada num id anônimo ($RCAnonymousID:...), e sem este mapa o revenuecatWebhook não encontra a conta e descarta o evento. O app descobre o valor no getpurchasehistory:// (campo externalUserId) e grava pelo linkRevenueCatUser. Vazio = o aparelho já se identifica com o Account.id, que é o caso do Android e de quem comprou pelo app."
+      "description": "App User ID com que o RevenueCat conhece o aparelho desta pessoa, quando ele N\u00c3O \u00e9 o Account.id. Existe por causa do iOS: o offer code \u00e9 resgatado fora do app, a assinatura nasce colada num id an\u00f4nimo ($RCAnonymousID:...), e sem este mapa o revenuecatWebhook n\u00e3o encontra a conta e descarta o evento. O app descobre o valor no getpurchasehistory:// (campo externalUserId) e grava pelo linkRevenueCatUser. Vazio = o aparelho j\u00e1 se identifica com o Account.id, que \u00e9 o caso do Android e de quem comprou pelo app."
     },
     "specialty": {
       "type": "string",
-      "description": "Especialidade médica do usuário"
+      "description": "Especialidade m\u00e9dica do usu\u00e1rio"
     },
     "country": {
       "type": "string",
-      "description": "País onde o usuário atua"
+      "description": "Pa\u00eds onde o usu\u00e1rio atua"
     },
     "state": {
       "type": "string",
-      "description": "Estado onde o usuário atua"
+      "description": "Estado onde o usu\u00e1rio atua"
     },
     "city": {
       "type": "string",
-      "description": "Cidade onde o usuário atua"
+      "description": "Cidade onde o usu\u00e1rio atua"
     },
     "profile_completed": {
       "type": "boolean",
       "default": false,
-      "description": "Se o usuário completou o perfil inicial"
+      "description": "Se o usu\u00e1rio completou o perfil inicial"
     },
     "total_attempts": {
       "type": "number",
@@ -131,7 +131,7 @@
     "total_first_attempts": {
       "type": "number",
       "default": 0,
-      "description": "Número de casos distintos já tentados"
+      "description": "N\u00famero de casos distintos j\u00e1 tentados"
     },
     "correct_first_attempts": {
       "type": "number",
@@ -141,21 +141,29 @@
     "module_first_attempts": {
       "type": "number",
       "default": 0,
-      "description": "Primeiras tentativas em casos de módulo"
+      "description": "Primeiras tentativas em casos de m\u00f3dulo"
     },
     "module_correct_first_attempts": {
       "type": "number",
       "default": 0,
-      "description": "Primeiras tentativas corretas em casos de módulo"
+      "description": "Primeiras tentativas corretas em casos de m\u00f3dulo"
+    },
+    "attempted_case_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "IDs dos casos que esta pessoa j\u00e1 tentou (tentativa gravada = acertou ou esgotou as 3), de qualquer quiz_type. Mantido pelo recordQuizAttempt, mesma sem\u00e2ntica que a tela de Quiz aleat\u00f3rio extra\u00eda antes baixando TODO o hist\u00f3rico de tentativas a cada carregamento \u2014 a leitura mais cara do app e uma das que estouravam o limite de leituras (os 500 do getMyAccount). Somente leitura de apoio \u00e0 sele\u00e7\u00e3o de casos; quem decide cota, pontos e progresso continua sendo a QuizAttempt."
     },
     "current_streak": {
       "type": "number",
       "default": 0,
-      "description": "Sequência atual de dias praticados"
+      "description": "Sequ\u00eancia atual de dias praticados"
     },
     "last_practice_date": {
       "type": "string",
-      "description": "Última data de prática (YYYY-MM-DD)"
+      "description": "\u00daltima data de pr\u00e1tica (YYYY-MM-DD)"
     },
     "last_login_at": {
       "type": "string",

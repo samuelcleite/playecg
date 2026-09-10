@@ -1,72 +1,46 @@
-import { base44 } from "@/api/base44Client";
+import { getCurrentUser } from '@/lib/currentUser';
+
+// Data YYYY-MM-DD no fuso de Brasília — o mesmo do recordQuizAttempt, que é quem
+// mantém last_practice_date e current_streak na conta. Qualquer fuso diferente
+// aqui faria a conta julgar "vencida" uma sequência que o servidor considera
+// viva (ou o contrário).
+const diaBrasilia = (d) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(d);
 
 /**
- * Calcula a sequência de dias consecutivos de prática do usuário
- * baseado nas tentativas de quiz (QuizAttempt)
+ * Calcula a sequência de dias consecutivos de prática do usuário.
+ *
+ * Antes baixava TODO o histórico de tentativas (getMyQuizAttempts sem limite) a
+ * cada chamada — para quem pratica muito, centenas de leituras em toda tela que
+ * mostra a sequência — só para recalcular o que o recordQuizAttempt já mantém
+ * pronto na Account: current_streak e last_practice_date. Era uma das leituras
+ * que estouravam o limite de volume do Base44 (os 500 do getMyAccount).
+ *
+ * A conta vem do cache do carregamento (getCurrentUser): nenhuma ida extra ao
+ * banco. `userEmail` é ignorado de propósito — o dono vem da identidade no
+ * servidor; manter o parâmetro evita mexer nos chamadores.
  */
 export async function calculateStreakDays(userEmail) {
   try {
-    // userEmail é ignorado de propósito: o dono vem da identidade autenticada,
-    // no servidor. Manter o parâmetro evita mexer nos ~4 chamadores.
-    const res = await base44.functions.invoke('getMyQuizAttempts', { sort: '-created_date' });
-    const attempts = res?.data?.attempts || [];
+    const account = await getCurrentUser();
+    if (!account?.last_practice_date) return 0;
 
-    if (attempts.length === 0) {
-      return 0;
+    const hoje = diaBrasilia(new Date());
+    const ontem = diaBrasilia(new Date(Date.now() - 24 * 60 * 60 * 1000));
+
+    // Só é sequência vigente se a última prática foi hoje ou ontem. Depois
+    // disso o número guardado pertence a uma sequência quebrada — mostrar 0,
+    // exatamente como o cálculo antigo fazia ao não achar hoje/ontem no
+    // histórico.
+    if (account.last_practice_date === hoje || account.last_practice_date === ontem) {
+      return account.current_streak || 0;
     }
-
-    // Formata data no fuso local (evita bug UTC vs. fuso local)
-    const toLocalDateStr = (date) => {
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, '0');
-      const d = String(date.getDate()).padStart(2, '0');
-      return `${y}-${m}-${d}`;
-    };
-
-    // Extrair datas únicas (apenas a parte da data, sem hora, no fuso local)
-    const uniqueDates = [...new Set(
-      attempts.map(attempt => toLocalDateStr(new Date(attempt.created_date)))
-    )].sort().reverse(); // Ordenar do mais recente para o mais antigo
-
-    if (uniqueDates.length === 0) {
-      return 0;
-    }
-
-    // Verificar se praticou hoje ou ontem
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = toLocalDateStr(today);
-    
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = toLocalDateStr(yesterday);
-
-    const lastPracticeDate = uniqueDates[0];
-
-    // Se não praticou hoje nem ontem, streak é 0
-    if (lastPracticeDate !== todayStr && lastPracticeDate !== yesterdayStr) {
-      return 0;
-    }
-
-    // Contar dias consecutivos retrocedendo a partir do dia mais recente praticado
-    let streak = 1;
-    // Começa pelo dia mais recente (hoje ou ontem)
-    let expectedDate = new Date(lastPracticeDate + 'T00:00:00');
-
-    for (let i = 1; i < uniqueDates.length; i++) {
-      const prevExpected = new Date(expectedDate);
-      prevExpected.setDate(prevExpected.getDate() - 1);
-      const prevExpectedStr = toLocalDateStr(prevExpected);
-
-      if (uniqueDates[i] === prevExpectedStr) {
-        streak++;
-        expectedDate = prevExpected;
-      } else {
-        break;
-      }
-    }
-
-    return streak;
+    return 0;
   } catch (error) {
     console.error('Error calculating streak:', error);
     return 0;
@@ -74,18 +48,14 @@ export async function calculateStreakDays(userEmail) {
 }
 
 /**
- * Obtém a última data de prática do usuário
+ * Última data de prática do usuário (meia-noite do dia registrado), direto da
+ * Account — sem ler tentativas.
  */
 export async function getLastPracticeDate(userEmail) {
   try {
-    const res = await base44.functions.invoke('getMyQuizAttempts', { sort: '-created_date', limit: 1 });
-    const attempts = res?.data?.attempts || [];
-
-    if (attempts.length === 0) {
-      return null;
-    }
-
-    return new Date(attempts[0].created_date);
+    const account = await getCurrentUser();
+    if (!account?.last_practice_date) return null;
+    return new Date(account.last_practice_date + 'T00:00:00');
   } catch (error) {
     console.error('Error getting last practice date:', error);
     return null;
