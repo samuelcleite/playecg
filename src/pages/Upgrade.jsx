@@ -566,7 +566,16 @@ export default function Upgrade() {
         escolhido={selectedPlan}
         onEscolher={handlePlanChange}
         beneficios={premiumFeatures}
-        onVoltar={() => navigate(-1)}
+        // Mesmo padrão de Privacidade/Termos: só volta se houver para onde
+        // voltar DENTRO do app. Quem chega pelo link promocional cai direto
+        // aqui, sem histórico, e o navigate(-1) não faria nada.
+        onVoltar={() => {
+          if (window.history.state && window.history.state.idx > 0) {
+            navigate(-1);
+          } else {
+            navigate(createPageUrl("Dashboard"));
+          }
+        }}
         // Preço com cupom. Só aparece quando há o que dizer: desconto de
         // verdade (web e iOS) ou cupom com prazo.
         preco={(discountAmount > 0 || avisoDeDuracao) && (
