@@ -32,6 +32,7 @@ import TelaDeAviso, { QuadroAviso } from "@/components/caso/TelaDeAviso";
 import { BotaoPrincipal, BotaoSecundario } from "@/components/BarraDeAcao";
 import { MAX_TENTATIVAS, respostasCorretas, acertou, alternar, alternativasDe, marcarRespostas } from "@/lib/caso";
 import { useRolarAoTopo } from "@/lib/rolagem";
+import { registrarTentativa } from "@/lib/registrarTentativa";
 
 const FREE_DAILY_LIMIT = 5;
 const FREE_HOURLY_LIMIT = 1; // 1 questão por hora após esgotar as 5 diárias
@@ -324,7 +325,7 @@ export default function Quiz() {
       setRegistro({ pendente: true });
 
       try {
-        const resRegistro = await base44.functions.invoke('recordQuizAttempt', {
+        const resRegistro = await registrarTentativa({
           case_id: currentCase.id,
           module_id: currentCase.module_id,
           phase_id: currentCase.phase_id,

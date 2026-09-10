@@ -4,12 +4,13 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { getCurrentUser } from '@/lib/currentUser';
-// calculateStreakDays removed - using local version to avoid extra API call
+import { calculateStreakDays } from "@/components/StreakCalculator";
 import { loadUserAchievements } from "@/components/AchievementChecker";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import StatsPanel from "@/components/home/StatsPanel";
 import DashboardMobile from "@/components/home/DashboardMobile";
 import { montarTrilha, proximaFase } from "@/lib/trilha";
+import { carregarCatalogoTrilha } from "@/lib/catalogoTrilha";
 import { inicioDoDiaBrasilia } from "@/lib/diaBrasilia";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -56,7 +57,7 @@ export default function Dashboard() {
   const [streakDays, setStreakDays] = useState(0);
   const [achievements, setAchievements] = useState([]);
   // O estado `stats` saiu junto com o painel de estatísticas: ninguém lia mais
-  // total/correct/accuracy. De getUserStats sobrou só o streakDays.
+  // total/correct/accuracy. O streakDays agora vem da Account (ver init).
   const [casosHoje, setCasosHoje] = useState(null); // null = ainda não chegou
   const [continuar, setContinuar] = useState(null); // ver DashboardMobile
   const containerRef = useRef(null);
@@ -84,10 +85,11 @@ export default function Dashboard() {
       // Antes estes dois awaits vinham em sequência e a tela inteira ficava
       // atrás deles: dois round-trips para escrever a sequência de dias num
       // canto e os troféus num painel que só existe no desktop.
-      base44.functions
-        .invoke("getUserStats", {})
-        .then((statsRes) => setStreakDays(statsRes?.data?.streakDays ?? 0))
-        .catch((err) => console.error("getUserStats:", err));
+      // A sequência sai da Account em cache (current_streak/last_practice_date,
+      // mantidos pelo recordQuizAttempt), a mesma fonte de Troféus e Perfil —
+      // antes era um getUserStats a cada visita. A prática feita na sessão
+      // entra no cache pelo registrarTentativa, então o número não fica velho.
+      calculateStreakDays(userData.email).then(setStreakDays);
 
       loadUserAchievements(userData)
         .then(setAchievements)
@@ -96,22 +98,30 @@ export default function Dashboard() {
       // Meta do dia: casos DISTINTOS desde a meia-noite de Brasília, de
       // qualquer tipo — a mesma contagem que o recordQuizAttempt faz para o
       // limite do gratuito. Repetir um caso não conta duas vezes.
+      //
+      // Com `limit` e SEM `since`, de propósito. O `since` sem limite faz a
+      // function ler um lote de 500 tentativas e só então descartar as de
+      // outros dias — 500 leituras a cada visita à tela mais visitada, o
+      // mesmo tipo de leitura que derrubava o app com 429. A meta só precisa
+      // achar até 5 casos de hoje; as 20 tentativas mais recentes bastam, e o
+      // corte do dia é feito aqui. (Com limit, a function ignora o since.)
       base44.functions
-        .invoke("getMyQuizAttempts", { since: inicioDoDiaBrasilia().toISOString() })
+        .invoke("getMyQuizAttempts", { limit: 20 })
         .then((res) => {
-          const tentativas = res?.data?.attempts || [];
-          setCasosHoje(new Set(tentativas.map((t) => t.case_id)).size);
+          const inicio = inicioDoDiaBrasilia();
+          const deHoje = (res?.data?.attempts || []).filter((t) => new Date(t.created_date) >= inicio);
+          setCasosHoje(Math.min(new Set(deHoje.map((t) => t.case_id)).size, META_DIARIA));
         })
         .catch((err) => console.error("getMyQuizAttempts (meta do dia):", err));
 
       // Card CONTINUAR: a próxima fase da trilha, pela mesma regra que a
-      // LearningTrail usa para destacar o nó (src/lib/trilha.js).
+      // LearningTrail usa para destacar o nó (src/lib/trilha.js). O catálogo
+      // (módulos e fases) vem em cache; o progresso é lido a cada visita.
       Promise.all([
-        base44.entities.Module.list("order"),
-        base44.entities.Phase.list("order"),
+        carregarCatalogoTrilha(),
         base44.functions.invoke("getUserProgress", {}),
       ])
-        .then(([modulos, fases, progressoRes]) => {
+        .then(([[modulos, fases], progressoRes]) => {
           const progresso = Array.isArray(progressoRes?.data?.data) ? progressoRes.data.data : [];
           const prox = proximaFase(montarTrilha(modulos, fases, progresso));
           if (!prox) {

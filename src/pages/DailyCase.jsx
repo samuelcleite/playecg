@@ -10,6 +10,8 @@ import EcgZoomDialog from "@/components/caso/EcgZoomDialog";
 import TelaDeAviso from "@/components/caso/TelaDeAviso";
 import { BotaoPrincipal } from "@/components/BarraDeAcao";
 import { respostasCorretas, acertou, alternar, alternativasDe, marcarRespostas } from "@/lib/caso";
+import { registrarTentativa } from "@/lib/registrarTentativa";
+import { calculateStreakDays } from "@/components/StreakCalculator";
 
 // Pontos de um acerto de primeira no recordQuizAttempt (PONTOS_ACERTO_PRIMEIRA).
 // Só para ANUNCIAR na abertura quanto o caso vale; o número que a pessoa vê no
@@ -44,11 +46,9 @@ export default function DailyCase() {
 
   useEffect(() => {
     loadDailyCase();
-    // A ofensiva é enfeite da abertura: não segura a tela.
-    base44.functions
-      .invoke("getUserStats", {})
-      .then((res) => setOfensiva(res?.data?.streakDays ?? 0))
-      .catch((err) => console.error("getUserStats:", err));
+    // A ofensiva é enfeite da abertura: não segura a tela. Sai da Account em
+    // cache (calculateStreakDays), sem ida ao servidor.
+    calculateStreakDays().then(setOfensiva);
   }, []);
 
   const loadDailyCase = async () => {
@@ -99,7 +99,7 @@ export default function DailyCase() {
     // recordQuizAttempt é o caminho canônico (o create direto na entidade
     // falhava sob JWT). Efeito desejável: o caso do dia conta nos agregados.
     try {
-      const res = await base44.functions.invoke("recordQuizAttempt", {
+      const res = await registrarTentativa({
         case_id: ecgCase.id,
         module_id: ecgCase.module_id,
         phase_id: ecgCase.phase_id,
