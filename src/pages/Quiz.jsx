@@ -178,29 +178,31 @@ export default function Quiz() {
     }
     setUser(userData);
 
-    // Buscar tentativas e casos em paralelo (os casos não dependem das tentativas)
-    const [attempts, allCases] = await Promise.all([
-      comTimeout(
-        base44.functions.invoke('getMyQuizAttempts', {}),
-        undefined,
-        'suas tentativas'
-      ).then(r => r?.data?.attempts || []),
+    // Casos, e — só para o gratuito — as tentativas de HOJE para o contador.
+    //
+    // O histórico inteiro não entra mais: os casos já tentados vêm da própria
+    // Account (attempted_case_ids, mantidos pelo recordQuizAttempt), e baixar
+    // tudo a cada carregamento era a leitura mais cara do app para quem
+    // pratica muito — uma das que estouravam o limite de volume do Base44.
+    //
+    // A conta do dia é só para EXIBIR o contador e abrir a tela de limite sem
+    // uma ida a mais ao servidor. Quem recusa de verdade é o recordQuizAttempt
+    // — por isso o recorte usa o mesmo fuso que ele usa.
+    const [allCases, resHoje] = await Promise.all([
       comTimeout(ECGCase.list(), undefined, 'casos de ECG'),
+      userData.subscription_type !== "premium"
+        ? comTimeout(
+            base44.functions.invoke('getMyQuizAttempts', {
+              since: inicioDoDiaBrasilia().toISOString()
+            }),
+            undefined,
+            'suas tentativas'
+          )
+        : null,
     ]);
 
-    // Verificar limite para usuários gratuitos (reutiliza 'attempts')
-    //
-    // Esta conta é só para EXIBIR o contador e abrir a tela de limite sem uma
-    // ida a mais ao servidor. Quem recusa de verdade é o recordQuizAttempt —
-    // por isso o recorte do dia aqui usa o mesmo fuso que ele usa.
     if (userData.subscription_type !== "premium") {
-      const hojeBR = diaBrasilia(new Date());
-
-      const todayAttempts = attempts.filter(attempt => {
-        const quando = new Date(attempt.created_date);
-        return !isNaN(quando.getTime()) && diaBrasilia(quando) === hojeBR;
-      });
-
+      const todayAttempts = resHoje?.data?.attempts || [];
       const result = checkFreeLimit(todayAttempts);
       setDailyQuizCount(result.count);
 
@@ -214,7 +216,9 @@ export default function Quiz() {
       }
     }
 
-    const attemptedIds = attempts.map(attempt => attempt.case_id);
+    const attemptedIds = Array.isArray(userData.attempted_case_ids)
+      ? userData.attempted_case_ids
+      : [];
     setAttemptedCaseIds(attemptedIds);
 
     // Se veio da página de conteúdo com um case_id específico, carregar esse caso

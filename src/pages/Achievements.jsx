@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import { base44 } from "@/api/base44Client";
 import { getCurrentUser } from '@/lib/currentUser';
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { loadUserAchievements } from "@/components/AchievementChecker";
+import { calculateStreakDays } from "@/components/StreakCalculator";
 import AchievementsMobile from "@/components/conquistas/AchievementsMobile";
 
 import FaleConoscoButton from "@/components/FaleConoscoButton";
@@ -27,31 +27,16 @@ export default function Achievements() {
 
     // As duas chamadas não dependem uma da outra — em sequência, a tela
     // esperava dois round-trips antes de mostrar qualquer troféu.
-    const [resAttempts, userAchievements] = await Promise.all([
-      base44.functions.invoke('getMyQuizAttempts', { sort: '-created_date', limit: 500 }),
+    //
+    // O streak agora sai da própria Account (current_streak/last_practice_date,
+    // mantidos pelo recordQuizAttempt) via calculateStreakDays: antes esta tela
+    // baixava até 500 tentativas só para recalcular o que a conta já guarda —
+    // leitura cara no caminho do limite de volume do Base44.
+    const [streakDays, userAchievements] = await Promise.all([
+      calculateStreakDays(userData.email),
       loadUserAchievements(userData),
     ]);
-    const attempts = resAttempts?.data?.attempts || [];
-
-    // Calcular streak localmente, sem chamada extra
-    const uniqueDates = [...new Set(attempts.map(a => new Date(a.created_date).toISOString().split('T')[0]))].sort().reverse();
-    const today = new Date(); today.setHours(0,0,0,0);
-    const todayStr = today.toISOString().split('T')[0];
-    const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    let streakDays = 0;
-    if (uniqueDates.length > 0 && (uniqueDates[0] === todayStr || uniqueDates[0] === yesterdayStr)) {
-      let cur = new Date(today);
-      for (const d of uniqueDates) {
-        const diff = Math.floor((cur - new Date(d + 'T00:00:00')) / 86400000);
-        if (diff === 0 || diff === 1) { streakDays++; cur = new Date(d + 'T00:00:00'); } else break;
-      }
-    }
     setStreak(streakDays);
-
-    // O cálculo de statsData saiu com o painel de estatísticas: nada na tela
-    // lia esses números. O getMyQuizAttempts acima segue necessário — é dele
-    // que sai o streak.
 
     setAchievements(userAchievements);
     setLoading(false);

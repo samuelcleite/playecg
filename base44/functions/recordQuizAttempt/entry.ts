@@ -371,6 +371,20 @@ Deno.serve(async (req) => {
       updates.level = nivelPara(updates.points);
     }
 
+    // Casos já tentados — espelho da QuizAttempt para o Quiz aleatório.
+    //
+    // A tela de Quiz precisava saber quais casos a pessoa já tinha tentado para
+    // não repeti-los, e descobria isso baixando o histórico INTEIRO de
+    // tentativas a cada carregamento — para quem pratica muito, a leitura mais
+    // cara do app, e uma das que estouravam o limite de volume (os 500 do
+    // getMyAccount). A lista mantém a mesma semântica de antes: um caso entra
+    // quando uma tentativa DELE é gravada (acertou ou esgotou as 3), de
+    // qualquer quiz_type — e só na primeira vez.
+    const jaTentados = Array.isArray(account.attempted_case_ids) ? account.attempted_case_ids : [];
+    if (case_id && !jaTentados.includes(case_id)) {
+      updates.attempted_case_ids = [...jaTentados, case_id];
+    }
+
     // Streak
     if (account.last_practice_date === todayStr) {
       // mantém current_streak
