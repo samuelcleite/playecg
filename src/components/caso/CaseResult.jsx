@@ -1,6 +1,7 @@
 import React from "react";
 import { Check, X, Maximize2 } from "lucide-react";
 import BarraDeAcao, { BotaoPrincipal, BotaoSecundario } from "@/components/BarraDeAcao";
+import { useCorDaFaixa, FAIXA_CINZA } from "@/lib/faixaTopo";
 
 /* Resultado do caso (1d), ampliado para as três telas de caso.
 
@@ -35,6 +36,7 @@ export default function CaseResult({
   rotuloSecundario,
   onSecundario,
 }) {
+  useCorDaFaixa(FAIXA_CINZA);
   const cor = acertou ? "#39FF6A" : "#FF6B6B";
   const Icon = acertou ? Check : X;
   const corretas = (Array.isArray(respostaCorreta) ? respostaCorreta : [respostaCorreta]).filter(Boolean);

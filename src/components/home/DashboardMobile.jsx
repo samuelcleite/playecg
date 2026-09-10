@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Flame, Zap, ListOrdered, Shuffle, BookOpen, ChevronRight, Lock, Trophy } from "lucide-react";
+import { useCorDaFaixa, FAIXA_BRANCA } from "@/lib/faixaTopo";
 
 /* Bloco mobile do Dashboard no padrão do redesenho (1b).
    A barra inferior e a safe-area continuam no Layout.jsx — este componente
@@ -24,6 +25,7 @@ export default function DashboardMobile({
   isPremium = false,
   aviso = null,
 }) {
+  useCorDaFaixa(FAIXA_BRANCA);
   const feitos = metaFeitos ?? 0;
   const faltam = Math.max(0, metaTotal - feitos);
   const pct = metaTotal ? Math.min(100, Math.round((feitos / metaTotal) * 100)) : 0;

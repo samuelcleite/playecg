@@ -381,7 +381,11 @@ export default function Layout({ children, currentPageName }) {
             dele gruda encostado na faixa, e ali qualquer costura aparece.
             Medido no aparelho em 27/08/2026: com a faixa branca em toda tela,
             Modulos, Trofeus, Aprenda ECG e Perfil ficaram com uma tarja branca
-            sobre fundo cinza. */}
+            sobre fundo cinza.
+            As telas do redesenho declaram a propria cor em --app-faixa-cor
+            (src/lib/faixaTopo.js), porque a mesma pagina troca de topo -- o
+            Quiz tem topo branco na pergunta e fundo cinza no resultado. A
+            regra por pagina fica como padrao para quem nao declara. */}
         <div
           aria-hidden="true"
           style={{
@@ -390,7 +394,7 @@ export default function Layout({ children, currentPageName }) {
             left: 0,
             right: 0,
             height: 'var(--app-safe-top, 0px)',
-            backgroundColor: currentPageName === 'Dashboard' ? '#FFFFFF' : '#F2F2F2',
+            backgroundColor: `var(--app-faixa-cor, ${currentPageName === 'Dashboard' ? '#FFFFFF' : '#F2F2F2'})`,
             zIndex: 10000,
             pointerEvents: 'none'
           }}

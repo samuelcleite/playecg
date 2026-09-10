@@ -1,4 +1,5 @@
 import React from "react";
+import { useCorDaFaixa, FAIXA_CINZA } from "@/lib/faixaTopo";
 
 /* Tela cheia de estado, no visual do redesenho: tudo o que não é pergunta nem
    resultado nas telas de caso — erro de carga, limite diário, fim dos casos,
@@ -18,6 +19,7 @@ const TONS = {
 };
 
 export default function TelaDeAviso({ Icone, tom = "azul", sobretitulo, titulo, texto, children, acoes, rodape }) {
+  useCorDaFaixa(FAIXA_CINZA);
   const cor = TONS[tom] || TONS.azul;
   return (
     <div className="font-nunito flex min-h-full items-center justify-center bg-[#F4F6F8] px-4 py-10">

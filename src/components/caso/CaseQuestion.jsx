@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { X, Check, Maximize2, AlertTriangle } from "lucide-react";
 import BarraDeAcao, { BotaoPrincipal } from "@/components/BarraDeAcao";
+import { useCorDaFaixa, FAIXA_BRANCA } from "@/lib/faixaTopo";
 
 /* Caso em andamento (1c), ampliado para cobrir as três telas de caso — Quiz,
    ModuleDetail e DailyCase.
@@ -49,6 +50,7 @@ export default function CaseQuestion({
   botaoDesabilitado,
   ocupado = false,
 }) {
+  useCorDaFaixa(FAIXA_BRANCA);
   const comProgresso = total > 0;
   const pct = comProgresso ? Math.min(100, Math.round((passo / total) * 100)) : 0;
   const desabilitado = botaoDesabilitado ?? (!aviso && selecionadas.length === 0);

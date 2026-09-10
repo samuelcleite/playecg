@@ -1,6 +1,7 @@
 import React from "react";
 import { Flame } from "lucide-react";
 import BarraDeAcao, { BotaoPrincipal } from "@/components/BarraDeAcao";
+import { useCorDaFaixa, FAIXA_BRANCA } from "@/lib/faixaTopo";
 
 /* Caso do dia (1i) — a tela de abertura, antes da pergunta.
 
@@ -22,6 +23,7 @@ export default function DailyCaseMobile({
   rotuloBotao = "RESOLVER AGORA",
   onResolver,
 }) {
+  useCorDaFaixa(FAIXA_BRANCA);
   const visiveis = indicadores.filter((s) => s.v != null);
 
   return (
