@@ -114,6 +114,11 @@ Deno.serve(async (req) => {
 
         return Response.json({ achievements });
     } catch (error) {
+        // Sem isto o 500 chega sem detalhe em lugar nenhum — a resposta com a
+        // mensagem não aparece no explorador de Logs, e o erro fica impossível
+        // de diagnosticar (como no episódio de 11/09, em que a tela de Troféus
+        // 500ava sem rastro).
+        console.error('Erro em getUserAchievements:', error);
         return Response.json({ error: error.message }, { status: 500 });
     }
 });
