@@ -96,6 +96,63 @@ do banco. Não confunda os dois.
 retorna `{ success, count, data: [...] }`, o array real está em
 `res.data.data`. Já causou um bug silencioso de progresso não aparecendo.
 
+### Interface: o redesenho (11/09/2026)
+
+As telas de usuário seguem o redesenho feito no Claude Design (PR #87). Os
+arquivos do design foram **ponto de partida, não contrato**: vários pontos foram
+mudados de propósito, e copiar o design de novo desfaz as correções abaixo.
+
+| Onde | O quê |
+|---|---|
+| `src/components/caso/` | `CaseQuestion`, `CaseResult`, `DailyCaseMobile`, `TelaDeAviso`, `EcgZoomDialog`, `ReportarErroDialog` — Quiz, ModuleDetail e DailyCase usam os mesmos |
+| [BarraDeAcao.jsx](src/components/BarraDeAcao.jsx) | rodapé de ação que gruda acima da navegação, e o botão verde com relevo |
+| [caso.js](src/lib/caso.js) | correção do caso (`acertou`, `respostasCorretas`, `MAX_TENTATIVAS`) — antes copiada nas três telas |
+| [trilha.js](src/lib/trilha.js) | regra de progressão da trilha — a `LearningTrail` e o card CONTINUAR do Dashboard pedem a mesma resposta |
+| [faixaTopo.js](src/lib/faixaTopo.js) | cor da faixa do entalhe declarada por tela (§6) |
+| `src/components/home/DashboardMobile.jsx`, `perfil/`, `conquistas/`, `upgrade/`, `aprenda/` | o corpo das demais telas; a busca de dados continua na página |
+
+Visual: fundo `#F4F6F8`, `font-nunito`, paleta `ecg.*` do Tailwind. Telas de
+caso, Troféus, Perfil, Upgrade e Aprenda ECG usam **o mesmo layout em qualquer
+largura** (centralizado no desktop); só o Dashboard mantém um bloco desktop
+separado.
+
+**Desvios do design que são decisão, não esquecimento:**
+
+- **ECG nunca em `object-cover`.** O design cortava o traçado num quadro de
+  altura fixa; num ECG de 12 derivações isso some com V5, V6 e o ritmo longo. A
+  imagem vai inteira, na proporção dela, com toque para ampliar.
+- **Sem "casos" e "acerto" no Perfil, sem "tempo médio" e "taxa de acerto" no
+  Caso do dia.** Os dois primeiros saíram do app antes do redesenho por não
+  fecharem com a realidade; os dois últimos não existem nos dados. Tela não
+  inventa número (§9, o fallback do vitalício).
+- **Troféus mostram o emoji cadastrado** (`Achievement.icon`), não ícone do
+  lucide: o cadastro do admin é emoji.
+- **Sem "✓ lido" no Aprenda ECG:** o app não guarda o que a pessoa leu.
+- **O rodapé da trilha não promete "troféu do módulo":** troféus de
+  especialização são cadastrados à mão, e nem todo módulo tem um.
+- **A resposta certa só aparece no fim** (acertou, ou esgotou as 3 tentativas).
+  Depois de um erro com tentativa sobrando, o rodapé fica laranja e as
+  alternativas travam até "TENTAR DE NOVO" — nada é revelado antes.
+- **No Quiz do gratuito, a explicação do caso continua sendo do Premium.**
+- **Responder o 5º caso do dia mostra o resultado antes da tela de limite.**
+  Antes a tela de limite entrava na hora e a pessoa nunca via se tinha
+  acertado. No 403 do servidor (resposta não gravada) vai direto ao limite.
+
+**Armadilhas:**
+
+- **O `NotificationBanner` monta uma vez só.** Ele resgata a promoção de push ao
+  montar. O Dashboard tem bloco mobile e desktop, e uma segunda cópia escondida
+  por CSS resgataria em dobro. Por isso a tela escolhe com `matchMedia`
+  **síncrono** qual bloco recebe o banner — o `useIsMobile` começa em `false` e,
+  no celular, montaria o banner no bloco desktop para depois remontá-lo.
+- **No Upgrade só o visual mudou.** Termos e privacidade moram **dentro** da
+  barra do botão (Apple 3.1.2(c)); em app nativo o texto de pagamento nomeia a
+  loja, nunca o Stripe (política do Google e da Apple). Os textos de cupom por
+  loja são regra de pagamento (§5), não texto de interface.
+
+*Como se sabe:* decisões tomadas e revisadas no PR #87 (11/09/2026), lidas no
+código.
+
 ---
 
 ## 3. Ambiente local
@@ -231,6 +288,12 @@ Desde 09/08/2026 a cobrança acontece **na fase, não na listagem**:
   abrir), mas nenhum caso de ECG chega ao navegador de quem não assinou. Subir
   ou descer essa checagem quebra uma das duas coisas.
 - **`ConteudoECG` tem gate próprio**, independente deste.
+- **`AprendaECG` mostra o índice a todo mundo (11/09/2026).** O gratuito vê os
+  módulos com cadeado Premium e vai para o `Upgrade` ao tocar — a mesma vitrine
+  da trilha. Antes via só um card de bloqueio. É seguro porque o índice busca
+  **só** `id`/`module_id`/`phase_id` (`CAMPOS_DO_INDICE`), nunca o corpo; quem
+  entrega o corpo é o `ConteudoECG`, que cobra. **Não passe a carregar o
+  conteúdo nesse índice.**
 - **`LearningTrail` não sabe o que é plano.** O único cadeado dela é o de
   progressão (módulo anterior completo, fase anterior concluída). Não devolva a
   prop `isPremium`: com ela todos os módulos ficam `isLocked`, nenhum nó recebe
@@ -264,6 +327,10 @@ Decisões dessa regra que não são óbvias e já estão tomadas:
   o número, `avaliarLimiteDiario` no `recordQuizAttempt` decide. **Mudar uma sem
   a outra faz a tela prometer cota que o servidor recusa.** Não há check
   automático ligando as duas — o `check-invariantes` não cobre este par.
+- Desde 11/09/2026 um terceiro número depende dela: a **meta do dia** do
+  Dashboard (`META_DIARIA` = 5) coincide de propósito com o `FREE_DAILY_LIMIT`,
+  para "meta concluída" e "cota esgotada" serem a mesma coisa no gratuito.
+  Mudar o limite sem a meta faz o Dashboard pedir casos que o servidor recusa.
 
 ⚠️ **A regra de plano estava duplicada em três lugares, e mudar a tela não
 bastou.** O item "Módulos" do menu (`Layout.jsx`) e o card de Módulos do
@@ -272,6 +339,11 @@ gratuito ia parar nos planos sem nunca chegar à trilha, e a tela recém-liberad
 parecia não ter funcionado. **Ao mover qualquer paywall, varra os pontos de
 entrada, não só a página.** É o mesmo formato da armadilha de RLS da §4 — a
 barreira que sobra é a que ninguém lembrou que existia.
+
+Pontos de entrada da fase depois do redesenho (11/09/2026): o item Módulos do
+menu, os nós da trilha e o **CONTINUAR do Dashboard mobile**, que vai direto à
+próxima fase — no gratuito, cai na tela de bloqueio do `ModuleDetail`. O card de
+Módulos do Dashboard citado acima não existe mais.
 
 ### Plano vitalício
 
@@ -515,18 +587,30 @@ navegador, senão `0px`. *Como se sabe:* documentação do Despia
 | [index.css](src/index.css) | define as três variáveis; sobrescreve `min-h-screen` |
 | [safeArea.js](src/utils/safeArea.js) | mede e escreve as duas variáveis medidas |
 | [main.jsx](src/main.jsx) | chama a medição antes do primeiro render |
-| [Layout.jsx](src/Layout.jsx) | a faixa fixa, o `paddingTop` do `<main>`, as alturas |
-| [Dashboard.jsx](src/pages/Dashboard.jsx) | único header `sticky` do app |
+| [Layout.jsx](src/Layout.jsx) | a faixa fixa, o `paddingTop` do `<main>`, as alturas; mede a `<nav>` e publica `--app-nav-altura` |
+| [faixaTopo.js](src/lib/faixaTopo.js) | `useCorDaFaixa`: cada tela declara a cor da faixa em `--app-faixa-cor` |
+| [DashboardMobile.jsx](src/components/home/DashboardMobile.jsx), [CaseQuestion.jsx](src/components/caso/CaseQuestion.jsx) | os headers `sticky` do app (topo em `--app-safe-top`) |
+| [BarraDeAcao.jsx](src/components/BarraDeAcao.jsx) | o rodapé de ação `sticky`, em `bottom: var(--app-nav-altura)` |
 
 **A reserva em fluxo mora no `<main>` do Layout e em mais nenhum lugar** das
 telas que passam por ele. Tela que reserva de novo soma, e o conteúdo desce para
 o meio (era o caso de AprendaECG e ConteudoECG). Exceção: nas telas de admin,
 quem reserva é a barra de "Voltar" — o `<main>` fica com `0`.
 
-**A faixa fixa acompanha na cor o que está abaixo dela.** Padrão é o cinza do
-wrapper (`#F2F2F2`); o Dashboard é a exceção, porque o header branco dele encosta
-nela. Faixa de cor diferente vira tarja no alto e faz o conteúdo que passa por
-baixo parecer cortado.
+**A faixa fixa acompanha na cor o que está abaixo dela.** Faixa de cor diferente
+vira tarja no alto e faz o conteúdo que passa por baixo parecer cortado.
+
+Desde 11/09/2026 **quem declara a cor é a tela**, com `useCorDaFaixa`
+([faixaTopo.js](src/lib/faixaTopo.js)), que escreve `--app-faixa-cor`; o Layout
+só lê a variável. A regra teve que sair do Layout porque a mesma página troca de
+topo: o Quiz tem topo branco na pergunta e fundo cinza no resultado. Tela que
+não declara cai na regra antiga (branco no Dashboard, `#F2F2F2` no resto).
+
+**Exceção deliberada:** Perfil e Upgrade têm topo azul-escuro e faixa
+**branca**. A cor do texto da barra de status no app do iPhone é do wrapper, não
+do site, e relógio escuro sobre azul sumiria. *Deduzido, não conferido no
+aparelho* — trocar é mudar a constante no `ProfileMobile`/`UpgradeMobile` depois
+de ver o relógio.
 
 **`100vh` não sabe da margem do wrapper.** São 69 usos de `min-h-screen` no app,
 e cada um pede a tela inteira dentro de um espaço que já perdeu parte dela —
@@ -542,6 +626,12 @@ o Layout injeta) e o `minHeight` do wrapper mobile descontam o mesmo.
   `<nav>`, botão flutuante e Home usam `env(safe-area-inset-bottom)`, que dentro
   do Despia resolve `0px` **de propósito**. Topo e rodapé não têm o mesmo dono —
   a simetria é a armadilha.
+- **Não grude rodapé de ação em `bottom: 0`.** A navegação do mobile é fixa, e o
+  que gruda em 0 fica atrás dela. A `BarraDeAcao` gruda em
+  `var(--app-nav-altura)`: o Layout mede a `<nav>` (a medida já inclui o inset de
+  baixo, que a própria nav soma) e publica o número; no desktop a nav não existe
+  e a variável vale `0px`. Isso **não** é reservar o rodapé pelo app — a regra de
+  cima continua valendo. (11/09/2026, lido no código.)
 - **Não proteja o topo com padding em algo que rola.** No primeiro gesto o
   padding sobe junto e o texto reaparece debaixo do relógio. É por isto que este
   defeito *volta* depois de corrigido. Quem cobre o entalhe tem que ser fixo.
@@ -755,6 +845,12 @@ rebaseada antes de qualquer merge** — senão o merge deleta `/termos`,
   para não acusar as concessões de verdade — e com isso deixa passar qualquer
   caminho novo que carimbe o campo. Fechar exige a concessão permanente deixar
   registro próprio. (Lido no código, 08/09/2026.)
+- **Texto de venda escrito à mão nas telas do redesenho.** "Libere os 8
+  módulos" (Dashboard mobile e Upgrade) e "R$59/mês" (card de upsell do
+  Dashboard) não vêm de dado nenhum — e os preços do seletor de planos do
+  Upgrade (59/499) também não saem de `base44/shared/plans.ts`. Criar ou tirar
+  módulo, ou mudar preço, exige editar essas telas à mão. (11/09/2026, lido no
+  código.)
 - `adminListTrials` também carrega a tabela `Payment` inteira (`listAll`), pelo
   mesmo motivo do `getUserSubscriptionInfo` acima — é o que separa quem comprou
   de quem só continua marcado premium. Aceito por ora: a tela é de admin e roda
