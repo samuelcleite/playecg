@@ -179,30 +179,26 @@ export default function Quiz() {
     }
     setUser(userData);
 
-    // Casos, e — só para o gratuito — as tentativas de HOJE para o contador.
+    // Só para o gratuito: as tentativas de HOJE para o contador do plano.
     //
-    // O histórico inteiro não entra mais: os casos já tentados vêm da própria
-    // Account (attempted_case_ids, mantidos pelo recordQuizAttempt), e baixar
-    // tudo a cada carregamento era a leitura mais cara do app para quem
-    // pratica muito — uma das que estouravam o limite de volume do Base44.
+    // Nem o histórico de tentativas nem a lista de casos entram mais no
+    // carregamento: os casos já tentados vêm da própria Account
+    // (attempted_case_ids, mantidos pelo recordQuizAttempt) e o caso aleatório
+    // agora é SORTEADO NO SERVIDOR (getRandomCase) — baixar os mais de mil
+    // casos a cada carga de tela era a leitura mais pesada que restava no app,
+    // e uma das que estouravam o limite de volume de leituras do Base44.
     //
     // A conta do dia é só para EXIBIR o contador e abrir a tela de limite sem
     // uma ida a mais ao servidor. Quem recusa de verdade é o recordQuizAttempt
     // — por isso o recorte usa o mesmo fuso que ele usa.
-    const [allCases, resHoje] = await Promise.all([
-      comTimeout(ECGCase.list(), undefined, 'casos de ECG'),
-      userData.subscription_type !== "premium"
-        ? comTimeout(
-            base44.functions.invoke('getMyQuizAttempts', {
-              since: inicioDoDiaBrasilia().toISOString()
-            }),
-            undefined,
-            'suas tentativas'
-          )
-        : null,
-    ]);
-
     if (userData.subscription_type !== "premium") {
+      const resHoje = await comTimeout(
+        base44.functions.invoke('getMyQuizAttempts', {
+          since: inicioDoDiaBrasilia().toISOString()
+        }),
+        undefined,
+        'suas tentativas'
+      );
       const todayAttempts = resHoje?.data?.attempts || [];
       const result = checkFreeLimit(todayAttempts);
       setDailyQuizCount(result.count);
@@ -222,12 +218,17 @@ export default function Quiz() {
       : [];
     setAttemptedCaseIds(attemptedIds);
 
-    // Se veio da página de conteúdo com um case_id específico, carregar esse caso
+    // Se veio da página de conteúdo com um case_id específico, carregar esse
+    // caso direto pelo id (1 leitura) — sem baixar a lista inteira para achá-lo.
     const urlParams = new URLSearchParams(window.location.search);
     const returnCaseId = urlParams.get('case_id');
     if (returnCaseId) {
-      const targetCase = allCases.find(c => c.id === returnCaseId);
-      if (targetCase) {
+      try {
+        const targetCase = await comTimeout(
+          base44.entities.ECGCase.get(returnCaseId),
+          undefined,
+          'caso de ECG'
+        );
         setCurrentCase(targetCase);
         setStartTime(Date.now());
         if (targetCase.module_id && targetCase.phase_id) {
@@ -239,20 +240,21 @@ export default function Quiz() {
         }
         setLoading(false);
         return;
+      } catch (_e) {
+        // Caso do link não existe mais: segue para o sorteio normal.
       }
     }
 
-    // Reaproveitar os casos já carregados para evitar um segundo ECGCase.list()
-    await loadNextCase(attemptedIds, allCases);
+    await loadNextCase();
   };
 
   // Casca própria porque os botões de "próxima questão" chamam isto direto, sem
   // await e sem catch: uma falha aqui escapava como rejeição não tratada com o
   // setLoading(true) da primeira linha já aplicado — spinner eterno de novo.
-  const loadNextCase = async (attemptedIds = attemptedCaseIds, prefetchedCases = null) => {
+  const loadNextCase = async (reiniciar = false) => {
     try {
       setLoadError(null);
-      await carregarProximoCaso(attemptedIds, prefetchedCases);
+      await carregarProximoCaso(reiniciar);
     } catch (error) {
       console.error('Quiz: falha ao carregar o próximo caso', error);
       setLoadError(error);
@@ -260,7 +262,7 @@ export default function Quiz() {
     }
   };
 
-  const carregarProximoCaso = async (attemptedIds, prefetchedCases) => {
+  const carregarProximoCaso = async (reiniciar) => {
     setLoading(true);
     setSelectedAnswers([]);
     setShowResult(false);
@@ -270,29 +272,35 @@ export default function Quiz() {
     setCaseContent(null);
     setRegistro(null);
 
-    const allCases = prefetchedCases || await comTimeout(ECGCase.list(), undefined, 'casos de ECG');
-    const unansweredCases = allCases.filter(c => !attemptedIds.includes(c.id));
+    // O caso vem SORTEADO DO SERVIDOR (getRandomCase): quem sabe quais casos a
+    // pessoa já tentou é a própria Account, e a lista completa — mais de mil
+    // registros — não precisa mais atravessar a rede a cada pergunta.
+    const res = await comTimeout(
+      base44.functions.invoke('getRandomCase', { reiniciar }),
+      undefined,
+      'caso de ECG'
+    );
+    const proximoCaso = res?.data?.case || null;
 
-    if (unansweredCases.length > 0) {
-      const randomCase = unansweredCases[Math.floor(Math.random() * unansweredCases.length)];
-      setCurrentCase(randomCase);
+    if (proximoCaso) {
+      setCurrentCase(proximoCaso);
       setStartTime(Date.now());
-      
+
       // Buscar conteúdo se o caso tiver módulo e fase
-      if (randomCase.module_id && randomCase.phase_id) {
+      if (proximoCaso.module_id && proximoCaso.phase_id) {
         const contents = await base44.entities.Content.filter({
-          module_id: randomCase.module_id,
-          phase_id: randomCase.phase_id
+          module_id: proximoCaso.module_id,
+          phase_id: proximoCaso.phase_id
         });
         setCaseContent(contents?.[0] || null);
       }
-    } else if (allCases.length > 0) {
+    } else if (res?.data?.completed) {
       setAllCasesCompleted(true);
       setCurrentCase(null);
     } else {
       setCurrentCase(null);
     }
-    
+
     setLoading(false);
   };
 
@@ -439,7 +447,9 @@ export default function Quiz() {
     setLoading(true);
     setAllCasesCompleted(false);
     setAttemptedCaseIds([]);
-    await loadNextCase([]);
+    // `reiniciar`: sorteia entre TODOS os casos, ignorando os já tentados —
+    // é o botão "Recomeçar Quiz" da tela de casos completos.
+    await loadNextCase(true);
   };
 
   const isPremium = user?.subscription_type === "premium";

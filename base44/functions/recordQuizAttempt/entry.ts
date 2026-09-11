@@ -366,6 +366,9 @@ Deno.serve(async (req) => {
     // para não existir estado em que pontos e nível discordem.
     let pontosGanhos = 0;
     if (isCorrect) {
+      // Total de acertos de qualquer tipo — é daqui que o checkNewAchievements
+      // tira a acurácia sem baixar o histórico (ver Account.total_correct_attempts).
+      updates.total_correct_attempts = (account.total_correct_attempts || 0) + 1;
       pontosGanhos = isFirstForCase ? PONTOS_ACERTO_PRIMEIRA : PONTOS_ACERTO_REVISAO;
       updates.points = (account.points || 0) + pontosGanhos;
       updates.level = nivelPara(updates.points);

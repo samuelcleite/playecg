@@ -98,6 +98,17 @@ async function resolveIdentity(req, base44) {
   return null;
 }
 
+// Data YYYY-MM-DD no timezone do Brasil (America/Sao_Paulo) — o mesmo fuso do
+// recordQuizAttempt, que é quem mantém last_practice_date na Account.
+function getBrasiliaDateStr(date) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
+}
+
 function checkAchievementSync(achievement, user, stats, streakDays, userProgress, phases) {
   if (achievement.achievement_type === "intensity") {
     switch (achievement.requirement_type) {
@@ -182,34 +193,30 @@ Deno.serve(async (req) => {
     // IDs de troféus já conquistados
     const alreadyEarnedIds = new Set(existingUserAchievements.map(ua => ua.achievement_id));
 
-    // Calcular streak
-    const allAttemptsDates = (await base44.asServiceRole.entities.QuizAttempt.filter({ user_email: email }))
-      .map(a => new Date(a.created_date).toISOString().split('T')[0]);
-    const uniqueDates = [...new Set(allAttemptsDates)].sort().reverse();
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
-    const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    let streakDays = 0;
-    if (uniqueDates.length > 0 && (uniqueDates[0] === todayStr || uniqueDates[0] === yesterdayStr)) {
-      let cur = new Date(today);
-      for (const d of uniqueDates) {
-        const diff = Math.floor((cur - new Date(d + 'T00:00:00')) / 86400000);
-        if (diff === 0 || diff === 1) { streakDays++; cur = new Date(d + 'T00:00:00'); } else break;
-      }
-    }
+    // Streak e stats vêm dos AGREGADOS da Account (user, aqui, é a Account),
+    // mantidos pelo recordQuizAttempt — não do histórico de tentativas.
+    //
+    // O código antigo baixava TODAS as QuizAttempt do usuário DUAS vezes a cada
+    // verificação, e esta function roda a cada resposta de quiz: para quem
+    // pratica muito, centenas de leituras por resposta. Era isso que consumia a
+    // cota de volume de leituras do app e derrubava o getMyAccount de todo
+    // mundo com 500. Mesma regra de sempre, mesma conta — só que lida da conta.
+    const hojeStr = getBrasiliaDateStr(new Date());
+    const ontemStr = getBrasiliaDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    const streakDays = (user.last_practice_date === hojeStr || user.last_practice_date === ontemStr)
+      ? (user.current_streak || 0)
+      : 0;
 
-    // Calcular stats
-    const allAttempts = await base44.asServiceRole.entities.QuizAttempt.filter({ user_email: email });
-    const correctCount = allAttempts.filter(a => a.correct).length;
+    const totalAttempts = user.total_attempts || 0;
+    const correctCount = user.total_correct_attempts || 0;
 
     // Calcular fases completadas (para completedModules) usando UserProgress
     const completedPhasesCount = userProgress.filter(up => up.status === 'completed').length;
 
     const stats = {
-      totalAttempts: allAttempts.length,
+      totalAttempts,
       correctAnswers: correctCount,
-      accuracy: allAttempts.length > 0 ? Math.round((correctCount / allAttempts.length) * 100) : 0,
+      accuracy: totalAttempts > 0 ? Math.round((correctCount / totalAttempts) * 100) : 0,
       totalPoints: user.points || 0,
       completedModules: completedPhasesCount,
     };
