@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { ECGCase } from "@/entities/ECGCase";
 import { getCurrentUser, clearCurrentUserCache } from '@/lib/currentUser';
 import { comTimeout, descreverErro, detalheTecnico } from '@/lib/carregamento';
 import { Button } from "@/components/ui/button";
