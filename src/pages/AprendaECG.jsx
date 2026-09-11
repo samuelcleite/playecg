@@ -1,28 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { getCurrentUser } from '@/lib/currentUser';
-import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  BookOpen,
-  Loader2,
-  Sparkles,
-  FolderOpen,
-  Layers,
-  ChevronRight,
-  Crown,
-  Lock
-} from "lucide-react";
-import { motion } from "framer-motion";
+import AprendaECGMobile from "@/components/aprenda/AprendaECGMobile";
+import { Loader2 } from "lucide-react";
 
 // Esta tela é um índice: ela nunca mostra o corpo de um conteúdo. Usa os
 // registros só para saber se o conteúdo existe (o `&&` no card, o `.length`, o
@@ -49,7 +30,6 @@ async function listarIndiceDeConteudos() {
 }
 
 export default function AprendaECG() {
-  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [introContent, setIntroContent] = useState(null);
@@ -100,22 +80,12 @@ export default function AprendaECG() {
     setLoading(false);
   };
 
-  const getModuleName = (moduleId) => {
-    const module = modules.find(m => m.id === moduleId);
-    return module?.name || "Módulo";
-  };
-
-  const getPhaseName = (phaseId) => {
-    const phase = phases.find(p => p.id === phaseId);
-    return phase?.name || "Fase";
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="font-nunito flex min-h-full items-center justify-center bg-[#F4F6F8] py-24">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-[#1976D2] mx-auto mb-4" />
-          <p className="text-gray-600">Carregando conteúdos...</p>
+          <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin text-ecg-midnight-2" />
+          <p className="text-sm font-bold text-[#6B7785]">Carregando conteúdos...</p>
         </div>
       </div>
     );
@@ -123,226 +93,61 @@ export default function AprendaECG() {
 
   const isPremium = user?.subscription_type === "premium";
 
-  if (!isPremium) {
-    return (
-      <div className="min-h-screen p-6 flex items-center justify-center">
-        <Card className="max-w-lg border-2 border-amber-200 shadow-xl">
-          <CardContent className="p-8 text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <Lock className="w-10 h-10 text-white" />
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Conteúdo Premium
-            </h2>
-            <p className="text-gray-600 mb-6 text-lg">
-              Esta seção de conteúdo educacional é exclusiva para usuários Premium.
-            </p>
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-6 mb-6">
-              <h3 className="font-bold text-gray-900 mb-3 flex items-center justify-center gap-2">
-                <Crown className="w-5 h-5 text-amber-600" />
-                Com Premium você tem acesso a:
-              </h3>
-              <ul className="text-left space-y-2 text-gray-700">
-                <li className="flex items-start gap-2">
-                  <span className="text-amber-600 font-bold">✓</span>
-                  <span>Conteúdo educacional completo sobre ECG</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-amber-600 font-bold">✓</span>
-                  <span>Módulos estruturados por tema</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-amber-600 font-bold">✓</span>
-                  <span>Acesso à teoria antes de cada fase</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-amber-600 font-bold">✓</span>
-                  <span>Do básico ao avançado, em ordem</span>
-                </li>
-              </ul>
-            </div>
-            <div className="flex flex-col gap-3">
-              <Link to={createPageUrl("Upgrade")} className="w-full">
-                <Button className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-lg py-6 gap-2">
-                  <Crown className="w-5 h-5" />
-                  Assinar Premium
-                </Button>
-              </Link>
-              <Button variant="outline" onClick={() => navigate(createPageUrl("Dashboard"))}>
-                Voltar ao Dashboard
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Antes, quem não assinava via só um card "Conteúdo Premium" e nada do que
+  // existia aqui dentro. Agora vê o índice com cadeados — a mesma lógica da
+  // trilha em Modules: mostrar o que a assinatura vende. É seguro porque este
+  // índice nunca carrega o corpo de conteúdo nenhum (ver CAMPOS_DO_INDICE lá em
+  // cima) e o ConteudoECG, que carrega, tem gate próprio.
+  //
+  // Mesmas regras de antes para o que entra na lista: módulo sem conteúdo
+  // nenhum não aparece; fase só aparece se tiver conteúdo próprio.
+  const modulos = modules
+    .filter((module) => moduleContents[module.id])
+    .map((module) => {
+      const moduleData = moduleContents[module.id];
+      const fases = phases
+        .filter((p) => p.module_id === module.id)
+        .sort((a, b) => a.order - b.order)
+        .filter((p) => moduleData.phaseContents.some((pc) => pc.phase_id === p.id));
+
+      const conteudos = [
+        ...(moduleData.moduleContent
+          ? [{
+              id: `modulo-${module.id}`,
+              titulo: "Conteúdo do módulo",
+              legenda: "Visão geral e fundamentos",
+              to: `${createPageUrl("ConteudoECG")}?type=module&module_id=${module.id}`,
+            }]
+          : []),
+        ...fases.map((phase) => ({
+          id: phase.id,
+          titulo: phase.name,
+          legenda: `Fase ${phase.order}`,
+          to: `${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`,
+        })),
+      ];
+
+      return {
+        id: module.id,
+        n: module.order,
+        nome: module.name,
+        legenda: `${conteudos.length} ${conteudos.length === 1 ? "conteúdo" : "conteúdos"}`,
+        conteudos,
+      };
+    });
 
   // Sem reserva de safe-area propria: esta tela passa pelo Layout, e o <main>
-  // de la ja reservou o topo. O fallback de 20px que ficava aqui ainda somava
-  // um respiro extra no desktop, onde entalhe nenhum existe.
+  // de la ja reservou o topo.
   return (
-    <div className="min-h-screen p-6 md:p-8 pb-28 md:pb-8">
-      <div className="max-w-5xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Aprenda ECG
-          </h1>
-          <p className="text-gray-600 text-lg">
-            Todo o conteúdo educacional organizado para você
-          </p>
-        </div>
-
-        {/* Introdução ao ECG */}
-        {introContent && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Link to={`${createPageUrl("ConteudoECG")}?type=intro`}>
-              <Card className="border-2 border-amber-300 shadow-lg bg-gradient-to-br from-amber-50 to-orange-50 hover:shadow-xl transition-all cursor-pointer">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
-                        <Sparkles className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-gray-900">
-                          Introdução ao ECG
-                        </h3>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Fundamentos essenciais para começar
-                        </p>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-6 h-6 text-amber-600" />
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          </motion.div>
-        )}
-
-        {/* Conteúdos por Módulo */}
-        <div className="space-y-6">
-          {modules.map((module, index) => {
-            const moduleData = moduleContents[module.id];
-            if (!moduleData) return null;
-
-            const modulePhasesOrdered = phases
-              .filter(p => p.module_id === module.id)
-              .sort((a, b) => a.order - b.order);
-
-            return (
-              <motion.div
-                key={module.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Card className="border-none shadow-lg">
-                  <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="module" className="border-none">
-                      <AccordionTrigger className="hover:no-underline px-6 py-4 bg-blue-50">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold bg-[#1976D2]">
-                            {module.order}
-                          </div>
-                          <div className="text-left">
-                            <div className="flex items-center gap-2">
-                              <FolderOpen className="w-5 h-5 text-[#1976D2]" />
-                              <h3 className="text-xl font-bold text-gray-900">{module.name}</h3>
-                            </div>
-                            {module.description && (
-                              <p className="text-sm text-gray-600 mt-1">{module.description}</p>
-                            )}
-                          </div>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="px-6 pb-6 pt-4">
-                        <div className="space-y-3">
-                          {/* Link para Conteúdo Geral do Módulo */}
-                          {moduleData.moduleContent && (
-                            <Link to={`${createPageUrl("ConteudoECG")}?type=module&module_id=${module.id}`}>
-                              <div className="p-4 border-2 border-blue-200 rounded-lg hover:bg-blue-50 transition-all cursor-pointer">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <BookOpen className="w-5 h-5 text-[#1976D2]" />
-                                    <div>
-                                      <p className="font-semibold text-gray-900">Conteúdo do Módulo</p>
-                                      <p className="text-sm text-gray-600">Visão geral e fundamentos</p>
-                                    </div>
-                                  </div>
-                                  <ChevronRight className="w-5 h-5 text-[#1976D2]" />
-                                </div>
-                              </div>
-                            </Link>
-                          )}
-
-                          {/* Links para Conteúdos por Fase */}
-                          {moduleData.phaseContents.length > 0 && (
-                            <div className="space-y-2">
-                              <h4 className="font-semibold text-gray-900 flex items-center gap-2 mt-4 mb-2">
-                                <Layers className="w-5 h-5 text-[#0D3B66]" />
-                                Fases do Módulo
-                              </h4>
-                              {modulePhasesOrdered.map(phase => {
-                                const phaseContent = moduleData.phaseContents.find(
-                                  pc => pc.phase_id === phase.id
-                                );
-                                if (!phaseContent) return null;
-
-                                return (
-                                  <Link
-                                    key={phase.id}
-                                    to={`${createPageUrl("ConteudoECG")}?type=phase&module_id=${module.id}&phase_id=${phase.id}`}
-                                  >
-                                    <div className="p-4 border-2 border-blue-200 rounded-lg hover:bg-blue-50 transition-all cursor-pointer">
-                                     <div className="flex items-center justify-between">
-                                       <div className="flex items-center gap-3">
-                                         <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-[#0D3B66] font-bold text-sm">
-                                            {phase.order}
-                                          </div>
-                                          <div>
-                                            <p className="font-semibold text-gray-900">{phase.name}</p>
-                                            <p className="text-sm text-gray-600">Conteúdo da fase</p>
-                                          </div>
-                                        </div>
-                                        <ChevronRight className="w-5 h-5 text-[#1976D2]" />
-                                      </div>
-                                    </div>
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </div>
-
-        {/* Empty State */}
-        {!introContent && modules.length === 0 && (
-          <Card className="border-none shadow-lg">
-            <CardContent className="p-12 text-center">
-              <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Nenhum conteúdo disponível
-              </h3>
-              <p className="text-gray-600">
-                Os conteúdos educacionais serão adicionados em breve!
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </div>
+    <AprendaECGMobile
+      intro={introContent && {
+        titulo: "Introdução ao ECG",
+        legenda: "Fundamentos essenciais para começar",
+        to: `${createPageUrl("ConteudoECG")}?type=intro`,
+      }}
+      modulos={modulos}
+      bloqueado={!isPremium}
+      urlBloqueado={createPageUrl("Upgrade")}
+    />
   );
 }

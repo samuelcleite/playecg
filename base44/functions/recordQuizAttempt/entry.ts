@@ -364,9 +364,10 @@ Deno.serve(async (req) => {
 
     // Pontos. Só acerto pontua; o nível é sempre derivado, nunca somado à parte,
     // para não existir estado em que pontos e nível discordem.
+    let pontosGanhos = 0;
     if (isCorrect) {
-      const ganho = isFirstForCase ? PONTOS_ACERTO_PRIMEIRA : PONTOS_ACERTO_REVISAO;
-      updates.points = (account.points || 0) + ganho;
+      pontosGanhos = isFirstForCase ? PONTOS_ACERTO_PRIMEIRA : PONTOS_ACERTO_REVISAO;
+      updates.points = (account.points || 0) + pontosGanhos;
       updates.level = nivelPara(updates.points);
     }
 
@@ -399,7 +400,33 @@ Deno.serve(async (req) => {
     // `limite_diario` é null para quem é premium — a tela já não pergunta nada
     // nesse caso. Para o gratuito ele substitui a chamada extra ao
     // getMyQuizAttempts que a tela fazia a cada resposta só para recontar.
-    return Response.json({ success: true, data: attempt, limite_diario: limiteDiario });
+    //
+    // `pontos_ganhos` e `sequencia` alimentam a tela de resultado (XP ganho e
+    // dias de ofensiva). Saem daqui porque é aqui que os dois são decididos: a
+    // tela não tem como saber se esta foi a primeira tentativa no caso, que é o
+    // que separa 10 pontos de 3. `sequencia` é o mesmo current_streak que o
+    // getUserStats devolve como streakDays, então o número bate com o Dashboard.
+    //
+    // `conta` são os agregados COMO FICARAM depois desta gravação. O front
+    // guarda a Account em cache por carregamento de página (getCurrentUser) e,
+    // desde que streak e casos já tentados passaram a sair dela em vez do
+    // histórico, um cache velho vira número errado: o Quiz reabria casos já
+    // respondidos na mesma sessão e Troféus mostrava a ofensiva de antes da
+    // prática. O front mescla isto no cache — zero leitura a mais.
+    return Response.json({
+      success: true,
+      data: attempt,
+      limite_diario: limiteDiario,
+      pontos_ganhos: pontosGanhos,
+      sequencia: updates.current_streak ?? account.current_streak ?? 0,
+      conta: {
+        points: updates.points ?? account.points ?? 0,
+        level: updates.level ?? account.level ?? nivelPara(account.points),
+        current_streak: updates.current_streak ?? account.current_streak ?? 0,
+        last_practice_date: updates.last_practice_date,
+        attempted_case_ids: updates.attempted_case_ids ?? account.attempted_case_ids ?? []
+      }
+    });
   } catch (error) {
     console.error('Error in recordQuizAttempt:', error);
     return Response.json({ error: error.message }, { status: 500 });

@@ -22,25 +22,19 @@ import {
   PURCHASE_PENDING,
 } from "@/utils/purchasesAndroid";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import UpgradeMobile from "@/components/upgrade/UpgradeMobile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  Crown,
   Check,
-  Zap,
-  Sparkles,
   Loader2,
   Tag,
   X,
-  CreditCard,
   XCircle,
   ShieldCheck,
   RotateCcw
 } from "lucide-react";
-import { motion } from "framer-motion";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -549,13 +543,6 @@ export default function Upgrade() {
     ? textoDaDuracao(appliedCoupon, selectedPlan, originalPrice)
     : null;
 
-  const freeFeatures = [
-    "Acesso a quizzes aleatórios",
-    "Casos básicos de ECG",
-    "Pontuação básica",
-    "Acesso limitado a conteúdo"
-  ];
-
   const premiumFeatures = [
     "Aprenda do básico ao avançado em módulos estruturados",
     "Acesso à teoria antes de cada fase",
@@ -564,352 +551,245 @@ export default function Upgrade() {
     "Suporte prioritário"
   ];
 
+  // Os mesmos dois preços que a tela sempre mostrou nos seletores. O
+  // equivalente mensal do anual é só a conta do preço exibido (499/12), não
+  // uma promessa nova.
+  const planos = [
+    { id: "monthly", nome: "Mensal", detalhe: "R$ 59/mês" },
+    { id: "annual", nome: "Anual", detalhe: "R$ 499/ano · equivale a R$ 41,58 por mês" },
+  ];
+
   return (
-    <div className="min-h-screen p-6 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", duration: 0.6 }}
-            className="w-20 h-20 bg-[#0D3B66] rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl"
-          >
-            <Crown className="w-10 h-10 text-white" />
-          </motion.div>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Desbloqueie Todo o Potencial do PlayECG
-          </h1>
-          <p className="text-xl text-gray-600">
-            Torne-se um especialista em ECG com nossa versão Premium
-          </p>
-        </div>
-
-        {/* Comparison Grid */}
-        <div className="grid md:grid-cols-2 gap-8 mb-12">
-          {/* Free Plan */}
-          <Card className="border-2 border-gray-200">
-            <CardHeader className="text-center pb-4">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Zap className="w-8 h-8 text-gray-600" />
-              </div>
-              <CardTitle className="text-2xl">Versão Gratuita</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3">
-                {freeFeatures.map((feature, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-600">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-              <Button
-                variant="outline"
-                className="w-full mt-6"
-                disabled
-              >
-                Plano Atual
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Premium Plan */}
-          <Card className="border-none shadow-2xl bg-blue-50 relative overflow-hidden">
-            <CardHeader className="text-center pb-4">
-              <div className="w-16 h-16 bg-[#0D3B66] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <Crown className="w-8 h-8 text-white" />
-              </div>
-              <CardTitle className="text-2xl flex items-center justify-center gap-2">
-                Versão Premium
-                <Sparkles className="w-5 h-5 text-amber-600" />
-              </CardTitle>
-              <div className="mt-4">
-                {discountAmount > 0 && (
-                  <span className="text-xl text-gray-400 line-through mr-2">R$ {originalPrice.toFixed(2)}</span>
-                )}
-                <span className="text-4xl font-bold text-gray-900">R$ {finalPrice.toFixed(2)}</span>
-                <span className="text-gray-600">{selectedPlan === "annual" ? "/ano" : "/mês"}</span>
-              </div>
-              {/* O "/mês" logo acima é uma afirmação sobre TODO mês. Quando o
-                  cupom tem prazo, ela deixa de ser verdade — e esta linha é a
-                  única coisa entre o cliente e uma fatura inesperada. */}
-              {avisoDeDuracao && (
-                <p className="mt-2 text-sm font-medium text-amber-700">
-                  {avisoDeDuracao}
-                </p>
+    <div className="relative min-h-full">
+      <UpgradeMobile
+        planos={planos}
+        escolhido={selectedPlan}
+        onEscolher={handlePlanChange}
+        beneficios={premiumFeatures}
+        // Mesmo padrão de Privacidade/Termos: só volta se houver para onde
+        // voltar DENTRO do app. Quem chega pelo link promocional cai direto
+        // aqui, sem histórico, e o navigate(-1) não faria nada.
+        onVoltar={() => {
+          if (window.history.state && window.history.state.idx > 0) {
+            navigate(-1);
+          } else {
+            navigate(createPageUrl("Dashboard"));
+          }
+        }}
+        // Preço com cupom. Só aparece quando há o que dizer: desconto de
+        // verdade (web e iOS) ou cupom com prazo.
+        preco={(discountAmount > 0 || avisoDeDuracao) && (
+          <section className="rounded-[20px] border border-[#CDEFD8] bg-[#F2FCF5] p-[18px]">
+            <p className="text-xs font-extrabold tracking-wider text-[#15803D]">COM O CUPOM</p>
+            <p className="mt-1">
+              {discountAmount > 0 && (
+                <span className="mr-2 text-base font-bold text-[#9AA6B2] line-through">R$ {originalPrice.toFixed(2)}</span>
               )}
-              {appliedCoupon && discountAmount > 0 && (
-                <div className="mt-4">
-                  <Badge className="bg-green-500 text-white">
-                    Desconto de R$ {discountAmount.toFixed(2)} aplicado!
-                  </Badge>
-                </div>
-              )}
-            </CardHeader>
-            <CardContent>
-              {/* Plan Selector */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <button
-                  type="button"
-                  onClick={() => handlePlanChange("monthly")}
-                  className={`rounded-lg border-2 p-4 text-center transition-all ${
-                    selectedPlan === "monthly"
-                      ? "border-[#22C55E] bg-green-50"
-                      : "border-gray-200 bg-white"
-                  }`}
-                >
-                  <p className="font-semibold text-gray-900">Mensal</p>
-                  <p className="text-sm text-gray-600">R$ 59/mês</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePlanChange("annual")}
-                  className={`rounded-lg border-2 p-4 text-center transition-all ${
-                    selectedPlan === "annual"
-                      ? "border-[#22C55E] bg-green-50"
-                      : "border-gray-200 bg-white"
-                  }`}
-                >
-                  <p className="font-semibold text-gray-900">Anual</p>
-                  <p className="text-sm text-gray-600">R$ 499/ano</p>
-                </button>
-              </div>
+              <span className="text-[26px] font-black text-ecg-midnight">R$ {finalPrice.toFixed(2)}</span>
+              <span className="text-sm font-bold text-[#6B7785]">{selectedPlan === "annual" ? "/ano" : "/mês"}</span>
+            </p>
+            {/* O "/mês" logo acima é uma afirmação sobre TODO mês. Quando o
+                cupom tem prazo, ela deixa de ser verdade — e esta linha é a
+                única coisa entre o cliente e uma fatura inesperada. */}
+            {avisoDeDuracao && (
+              <p className="mt-1.5 text-[13px] font-bold text-amber-700">{avisoDeDuracao}</p>
+            )}
+            {discountAmount > 0 && (
+              <p className="mt-1.5 text-xs font-extrabold text-[#15803D]">
+                Desconto de R$ {discountAmount.toFixed(2)} aplicado!
+              </p>
+            )}
+          </section>
+        )}
+        // Coupon Section — visível nas TRÊS plataformas.
+        // O motivo de esconder era que o desconto vinha de fora da compra da
+        // loja, o que a Apple proíbe (3.1.1) e o Google também. Isso deixou de
+        // valer: no Android o desconto é uma OFERTA do próprio Play, escolhida
+        // pela tag do cupom; no iOS é um OFFER CODE da própria App Store,
+        // resgatado dentro da loja. Em nenhum dos dois o desconto é concedido
+        // por nós — o código identifica o parceiro, e quem cobra e quem
+        // desconta é a loja.
+        //
+        // Aberto sozinho quando já há o que mostrar: cupom aplicado (inclusive
+        // pelo link promocional), erro, ou código digitado.
+        cupomAberto={Boolean(appliedCoupon || couponError || couponCode)}
+        cupom={
+          <section className="rounded-[20px] border border-[#E6EAEE] bg-white p-[18px]">
+            <div className="mb-3 flex items-center gap-2">
+              <Tag className="h-5 w-5 text-amber-600" />
+              <span className="text-[15px] font-black text-ecg-midnight">Tem um cupom de desconto?</span>
+            </div>
 
-              {/* Coupon Section — visível nas TRÊS plataformas.
-                  O motivo de esconder era que o desconto vinha de fora da compra
-                  da loja, o que a Apple proíbe (3.1.1) e o Google também. Isso
-                  deixou de valer: no Android o desconto é uma OFERTA do próprio
-                  Play, escolhida pela tag do cupom; no iOS é um OFFER CODE da
-                  própria App Store, resgatado dentro da loja. Em nenhum dos dois
-                  o desconto é concedido por nós — o código identifica o
-                  parceiro, e quem cobra e quem desconta é a loja. */}
-              {(
-                <div className="mb-6 p-4 bg-white rounded-lg border-2 border-blue-200">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Tag className="w-5 h-5 text-amber-600" />
-                    <span className="font-semibold text-gray-900">Tem um cupom de desconto?</span>
-                  </div>
-
-                  {appliedCoupon ? (
-                    <Alert className="bg-green-50 border-green-200">
-                      <Check className="w-4 h-4 text-green-600" />
-                      <AlertDescription className="flex items-center justify-between">
-                        <div>
-                          <span className="font-bold text-green-900">
-                            Cupom {appliedCoupon.coupon.code} aplicado!
-                          </span>
-                          <p className="text-sm text-green-700 mt-1">
-                            {appliedCoupon.coupon.description}
-                          </p>
-                          {/* No Android o preço com desconto é do Google, não
-                              nosso — a tela não promete valor nenhum, só diz
-                              onde ele vai aparecer. E cupom sem tier não tem
-                              oferta correspondente no Play: avisar aqui evita
-                              a pessoa seguir até a folha de pagamento para
-                              descobrir que não havia desconto. */}
-                          {isAndroid && (
-                            <p className="text-sm mt-2 font-medium text-green-800">
-                              {appliedCoupon.coupon.tier
-                                ? 'O valor com desconto aparece na tela de pagamento do Google Play.'
-                                : 'Atenção: este código só vale no site. Aqui no app a assinatura sai pelo preço normal.'}
+            {appliedCoupon ? (
+              <Alert className="bg-green-50 border-green-200">
+                <Check className="w-4 h-4 text-green-600" />
+                <AlertDescription className="flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-green-900">
+                      Cupom {appliedCoupon.coupon.code} aplicado!
+                    </span>
+                    <p className="text-sm text-green-700 mt-1">
+                      {appliedCoupon.coupon.description}
+                    </p>
+                    {/* No Android o preço com desconto é do Google, não
+                        nosso — a tela não promete valor nenhum, só diz
+                        onde ele vai aparecer. E cupom sem tier não tem
+                        oferta correspondente no Play: avisar aqui evita
+                        a pessoa seguir até a folha de pagamento para
+                        descobrir que não havia desconto. */}
+                    {isAndroid && (
+                      <p className="text-sm mt-2 font-medium text-green-800">
+                        {appliedCoupon.coupon.tier
+                          ? 'O valor com desconto aparece na tela de pagamento do Google Play.'
+                          : 'Atenção: este código só vale no site. Aqui no app a assinatura sai pelo preço normal.'}
+                      </p>
+                    )}
+                    {/* iOS: o desconto NÃO sai pelo botão de assinar —
+                        ele sai do resgate na App Store, que acontece fora
+                        do app. Por isso o rótulo é "Resgatar código na App
+                        Store" e nunca "Aplicar cupom": o que este botão
+                        faz é abrir a loja, não conceder desconto. */}
+                    {isIOS && (
+                      <div className="mt-2 space-y-2">
+                        {codigoDeOfertaIOS(appliedCoupon.coupon.tier, selectedPlan) ? (
+                          <>
+                            <p className="text-sm font-medium text-green-800">
+                              No iPhone o desconto é aplicado pela própria App Store.
+                              Toque abaixo para resgatar; depois volte e use
+                              <strong> Restaurar Compras</strong>.
                             </p>
-                          )}
-                          {/* iOS: o desconto NÃO sai por "Adquirir Premium" —
-                              ele sai do resgate na App Store, que acontece fora
-                              do app. Por isso o rótulo é "Resgatar código na App
-                              Store" e nunca "Aplicar cupom": o que este botão
-                              faz é abrir a loja, não conceder desconto. */}
-                          {isIOS && (
-                            <div className="mt-2 space-y-2">
-                              {codigoDeOfertaIOS(appliedCoupon.coupon.tier, selectedPlan) ? (
-                                <>
-                                  <p className="text-sm font-medium text-green-800">
-                                    No iPhone o desconto é aplicado pela própria App Store.
-                                    Toque abaixo para resgatar; depois volte e use
-                                    <strong> Restaurar Compras</strong>.
-                                  </p>
-                                  <Button
-                                    variant="outline"
-                                    className="w-full border-[#1976D2] text-[#1976D2]"
-                                    onClick={() => abrirResgateIOS(appliedCoupon.coupon.tier, selectedPlan)}
-                                  >
-                                    Resgatar código na App Store
-                                  </Button>
-                                  {/* O botão principal continua comprando pelo
-                                      preço cheio — no iOS não há como aplicar a
-                                      oferta na compra direta. Dizer isso evita
-                                      que a pessoa pague o normal achando que o
-                                      cupom valeu. */}
-                                  <p className="text-xs text-green-700">
-                                    O botão "Adquirir Premium" cobra o preço normal.
-                                  </p>
-                                </>
-                              ) : (
-                                <p className="text-sm font-medium text-green-800">
-                                  Atenção: este código só vale no site. Aqui no app a
-                                  assinatura sai pelo preço normal.
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={handleRemoveCoupon}
-                          className="text-green-700 hover:text-green-900"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </AlertDescription>
-                    </Alert>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <Input
-                          value={couponCode}
-                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                          placeholder="Digite o código"
-                          className="font-mono"
-                          maxLength={20}
-                          disabled={validatingCoupon}
-                        />
-                        <Button
-                          onClick={handleValidateCoupon}
-                          disabled={validatingCoupon || !couponCode.trim()}
-                          variant="outline"
-                          className="border-[#1976D2]"
-                        >
-                          {validatingCoupon ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            "Aplicar"
-                          )}
-                        </Button>
+                            <Button
+                              variant="outline"
+                              className="w-full border-[#1976D2] text-[#1976D2]"
+                              onClick={() => abrirResgateIOS(appliedCoupon.coupon.tier, selectedPlan)}
+                            >
+                              Resgatar código na App Store
+                            </Button>
+                            {/* O botão principal continua comprando pelo
+                                preço cheio — no iOS não há como aplicar a
+                                oferta na compra direta. Dizer isso evita
+                                que a pessoa pague o normal achando que o
+                                cupom valeu. */}
+                            <p className="text-xs text-green-700">
+                              O botão "Assinar" lá embaixo cobra o preço normal.
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-sm font-medium text-green-800">
+                            Atenção: este código só vale no site. Aqui no app a
+                            assinatura sai pelo preço normal.
+                          </p>
+                        )}
                       </div>
-                      {couponError && (
-                        <p className="text-sm text-red-600">{couponError}</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <ul className="space-y-3 mb-6">
-                {premiumFeatures.map((feature, index) => (
-                  <motion.li
-                    key={index}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="flex items-start gap-3"
-                  >
-                    <Check className="w-5 h-5 text-[#22C55E] flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700 font-medium">{feature}</span>
-                  </motion.li>
-                ))}
-              </ul>
-
-              {/* Payment Info */}
-              <Alert className="bg-blue-50 border-blue-200 mb-6">
-                <ShieldCheck className="w-5 h-5 text-blue-600" />
-                <AlertDescription className="text-blue-900">
-                  <div className="space-y-2">
-                    <p className="font-semibold flex items-center gap-2">
-                      <CreditCard className="w-4 h-4" />
-                      {loja
-                        ? `Pagamento Seguro pela ${loja}`
-                        : "Pagamento Seguro com Stripe"}
-                    </p>
-                    <p className="text-sm">
-                      {loja
-                        ? `A compra será processada com segurança pela ${loja}.`
-                        : "Você será redirecionado para a página segura do Stripe. Aceita os principais cartões de crédito e débito."}
-                    </p>
-                    {/* Terceira linha removida: repetia o título do próprio
-                        bloco, duas linhas acima. As duas que sobraram já usam
-                        o nome da loja certa (App Store / Google Play). */}
+                    )}
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Remover cupom"
+                    onClick={handleRemoveCoupon}
+                    className="text-green-700 hover:text-green-900"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
                 </AlertDescription>
               </Alert>
-
-              <Button
-                className="w-full bg-[#22C55E] hover:bg-green-600 text-white font-semibold py-6 text-lg shadow-lg"
-                onClick={handleUpgrade}
-                disabled={processing}
-              >
-                {processing ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Processando...
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="w-5 h-5 mr-2" />
-                    Adquirir Premium
-                  </>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    placeholder="Digite o código"
+                    className="font-mono"
+                    maxLength={20}
+                    disabled={validatingCoupon}
+                  />
+                  <Button
+                    onClick={handleValidateCoupon}
+                    disabled={validatingCoupon || !couponCode.trim()}
+                    variant="outline"
+                    className="border-ecg-midnight-2 font-extrabold text-ecg-midnight-2"
+                  >
+                    {validatingCoupon ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Aplicar"
+                    )}
+                  </Button>
+                </div>
+                {couponError && (
+                  <p className="text-sm font-semibold text-red-600">{couponError}</p>
                 )}
-              </Button>
-              {/* Aviso de pagamento seguro removido daqui: o bloco azul logo
-                  acima do botão já diz a mesma coisa. */}
+              </div>
+            )}
+          </section>
+        }
+        detalhes={
+          <>
+            {/* Payment Info. Em app nativo o texto nomeia a LOJA, nunca o
+                Stripe: a política de pagamentos do Google proíbe indicar
+                pagamento externo para bens digitais, e a da Apple também. */}
+            <section className="flex items-start gap-3 rounded-[20px] border border-[#E6EAEE] bg-white p-4">
+              <ShieldCheck className="mt-0.5 h-5 w-5 flex-none text-ecg-midnight-2" />
+              <div className="min-w-0">
+                <p className="text-[13px] font-black text-ecg-midnight">
+                  {loja
+                    ? `Pagamento Seguro pela ${loja}`
+                    : "Pagamento Seguro com Stripe"}
+                </p>
+                <p className="mt-0.5 text-xs font-semibold leading-relaxed text-[#6B7785]">
+                  {loja
+                    ? `A compra será processada com segurança pela ${loja}.`
+                    : "Você será redirecionado para a página segura do Stripe. Aceita os principais cartões de crédito e débito."}
+                </p>
+              </div>
+            </section>
 
-              {/* Restaurar Compras — apps nativos. Exigência da Apple no iOS;
-                  no Android a compra também é do RevenueCat e precisa do restore. */}
-              {(isIOSNativeApp() || isAndroidNativeApp()) && (
-                <Button
-                  variant="outline"
-                  className="w-full mt-4 border-[#1976D2] text-[#0D3B66] font-semibold"
-                  onClick={handleRestore}
-                  disabled={processing}
-                >
-                  {processing ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Processando...
-                    </>
-                  ) : (
-                    <>
-                      <RotateCcw className="w-5 h-5 mr-2" />
-                      Restaurar Compras
-                    </>
-                  )}
-                </Button>
-              )}
-
-              {/* Links legais exigidos pela Apple (Guideline 3.1.2(c)) —
-                  visíveis em todas as plataformas, próximos ao botão de assinatura */}
-              <p className="text-center text-xs text-gray-500 mt-6">
-                Ao assinar, você concorda com nossos{" "}
-                <a
-                  href="https://playecg.app/termos"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-gray-700"
-                >
-                  Termos de Uso
-                </a>{" "}
-                e nossa{" "}
-                <a
-                  href="https://playecg.app/privacidade"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-gray-700"
-                >
-                  Política de Privacidade
-                </a>
-                .
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Cards de benefício e FAQ removidos de vez — app e web. De
-            "Aprendizado Estruturado" para baixo a página virava peça de site:
-            três cards institucionais e um FAQ inteiro depois do botão de
-            compra. */}
-
-      </div>
+            {/* Restaurar Compras — apps nativos. Exigência da Apple no iOS;
+                no Android a compra também é do RevenueCat e precisa do restore. */}
+            {(isIOS || isAndroid) && (
+              <button
+                type="button"
+                onClick={handleRestore}
+                disabled={processing}
+                className="flex items-center justify-center gap-1.5 rounded-[14px] border-2 border-[#E6EAEE] bg-white py-3 text-[13px] font-extrabold text-ecg-midnight-2 disabled:opacity-60"
+              >
+                {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+                Restaurar Compras
+              </button>
+            )}
+          </>
+        }
+        rotuloBotao={selectedPlan === "annual" ? "ASSINAR O PLANO ANUAL" : "ASSINAR O PLANO MENSAL"}
+        onAssinar={handleUpgrade}
+        processando={processing}
+        // Links legais exigidos pela Apple (Guideline 3.1.2(c)) — visíveis em
+        // todas as plataformas, próximos ao botão de assinatura.
+        legal={
+          <p className="mt-1 text-center text-[11px] font-semibold text-[#9AA6B2]">
+            Ao assinar, você concorda com nossos{" "}
+            <a
+              href="https://playecg.app/termos"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-[#6B7785]"
+            >
+              Termos de Uso
+            </a>{" "}
+            e nossa{" "}
+            <a
+              href="https://playecg.app/privacidade"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-[#6B7785]"
+            >
+              Política de Privacidade
+            </a>
+            .
+          </p>
+        }
+      />
 
       {/* Error Dialog */}
       {/* Oferta do parceiro ausente no aparelho. Perguntar antes é o que

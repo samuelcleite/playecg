@@ -80,6 +80,18 @@ export function primeCurrentUser(account) {
   if (account) cache = account
 }
 
+// Mescla na Account em cache campos que uma escrita do servidor acabou de
+// devolver. Existe para os agregados do recordQuizAttempt (pontos, ofensiva,
+// casos já tentados): desde que Quiz e Troféus leem esses campos da Account em
+// vez do histórico de tentativas, o cache por carregamento deixava de ver a
+// prática feita na própria sessão. Buscar a Account de novo a cada resposta
+// seria trocar uma leitura por outra — o servidor já manda os valores prontos.
+//
+// Sem cache, não faz nada: a próxima leitura vem do servidor, já atualizada.
+export function mesclarNaContaEmCache(parcial) {
+  if (cache && parcial) cache = { ...cache, ...parcial }
+}
+
 // Invalida o cache e busca de novo. Usar depois de qualquer escrita no perfil
 // ou na assinatura.
 export async function refreshCurrentUser() {

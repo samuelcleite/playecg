@@ -101,6 +101,26 @@ export default function Layout({ children, currentPageName }) {
     loadUser();
   }, []);
 
+  // A altura da barra de navegação do mobile, publicada em --app-nav-altura.
+  // As telas do redesenho têm um rodapé de ação que GRUDA no fim da tela
+  // (BarraDeAcao); como a navegação é fixa, com bottom:0 ele ficaria atrás
+  // dela. Medido em vez de chutado porque a barra soma o inset de baixo do
+  // aparelho (paddingBottom na safe-area). No desktop a barra está dentro de um
+  // bloco `md:hidden`, mede 0 e a variável vira 0px — o observador acompanha a
+  // troca quando a janela cruza o breakpoint.
+  const navRef = React.useRef(null);
+  React.useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const publicar = () =>
+      document.documentElement.style.setProperty('--app-nav-altura', `${el.offsetHeight}px`);
+    publicar();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(publicar);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [currentPageName]);
+
   const loadUser = async () => {
     try {
       const userData = await getCurrentUser();
@@ -361,7 +381,11 @@ export default function Layout({ children, currentPageName }) {
             dele gruda encostado na faixa, e ali qualquer costura aparece.
             Medido no aparelho em 27/08/2026: com a faixa branca em toda tela,
             Modulos, Trofeus, Aprenda ECG e Perfil ficaram com uma tarja branca
-            sobre fundo cinza. */}
+            sobre fundo cinza.
+            As telas do redesenho declaram a propria cor em --app-faixa-cor
+            (src/lib/faixaTopo.js), porque a mesma pagina troca de topo -- o
+            Quiz tem topo branco na pergunta e fundo cinza no resultado. A
+            regra por pagina fica como padrao para quem nao declara. */}
         <div
           aria-hidden="true"
           style={{
@@ -370,7 +394,7 @@ export default function Layout({ children, currentPageName }) {
             left: 0,
             right: 0,
             height: 'var(--app-safe-top, 0px)',
-            backgroundColor: currentPageName === 'Dashboard' ? '#FFFFFF' : '#F2F2F2',
+            backgroundColor: `var(--app-faixa-cor, ${currentPageName === 'Dashboard' ? '#FFFFFF' : '#F2F2F2'})`,
             zIndex: 10000,
             pointerEvents: 'none'
           }}
@@ -404,7 +428,7 @@ export default function Layout({ children, currentPageName }) {
           {children}
         </main>
 
-        <nav className="select-none" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, backgroundColor: '#FFFFFF', borderTop: '1px solid #E0E0E0', boxShadow: '0 -2px 12px rgba(0,0,0,0.08)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+        <nav ref={navRef} className="select-none" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, backgroundColor: '#FFFFFF', borderTop: '1px solid #E0E0E0', boxShadow: '0 -2px 12px rgba(0,0,0,0.08)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           <div className="flex items-center justify-around px-2 py-3">
             {navigationItems.map((item) => {
               const isActive = location.pathname === item.url;

@@ -8,9 +8,7 @@ import { calculateStreakDays } from "@/components/StreakCalculator";
 import { loadUserAchievements } from "@/components/AchievementChecker";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import EnableNotifications from "@/components/EnableNotifications";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import ProfileMobile, { SecaoPerfil } from "@/components/perfil/ProfileMobile";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -25,13 +23,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { 
-  Trophy, 
-  Target, 
-  Zap, 
-  Award, 
-  TrendingUp,
-  Calendar,
+import {
+  Award,
   Crown,
   CreditCard,
   AlertCircle,
@@ -40,10 +33,11 @@ import {
   XCircle,
   Trash2,
   Bell,
-  LogOut,
-  Clock
+  Clock,
+  LifeBuoy,
+  Shield,
+  FileText
 } from "lucide-react";
-import { motion } from "framer-motion";
 import { clearToken } from "@/lib/customAuth";
 
 // Instrução de cancelamento por loja. `store` ausente => texto neutro: acontece
@@ -376,90 +370,128 @@ export default function Profile() {
   // data de expiração, e é justamente isso que a tela precisa dizer.
   const assinaturaCancelada = subscriptionInfo?.willRenew === false && !assinaturaEncerrada;
 
-  const nextLevelPoints = (user?.level || 1) * 100;
-  const currentLevelProgress = ((user?.points || 0) % 100);
+  // Nível: a mesma regra do recordQuizAttempt (PONTOS_POR_NIVEL = 100, nível =
+  // 1 + pontos/100). Derivado dos pontos aqui, em vez de ler `level`, para a
+  // barra e o número nunca discordarem.
+  const pontos = user?.points || 0;
+  const nivel = 1 + Math.floor(pontos / 100);
+  const progressoNivel = pontos % 100;
+  const conquistados = achievements.filter(b => b.earned).length;
+  const subtitulo = [
+    user?.specialty,
+    user?.city && user?.state ? `${user.city}, ${user.state}` : null,
+  ].filter(Boolean).join(" · ");
 
   return (
-    <div ref={containerRef} className="min-h-screen p-6 md:p-8 relative">
+    <div ref={containerRef} className="relative min-h-full">
       {isRefreshing && (
         <div className="flex justify-center py-3 absolute top-0 left-0 right-0 z-50">
           <Loader2 className="animate-spin text-gray-400 w-6 h-6" />
         </div>
       )}
-      <div className="max-w-6xl mx-auto space-y-8">
-        {/* Cancel Success Alert */}
-        {cancelSuccess && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
+      <ProfileMobile
+        nome={user?.full_name || 'Usuário'}
+        iniciais={user?.full_name?.[0]?.toUpperCase() || 'U'}
+        subtitulo={subtitulo}
+        email={user?.email}
+        premium={isPremium}
+        nivel={nivel}
+        xp={pontos}
+        xpFaltando={100 - progressoNivel}
+        progressoNivel={progressoNivel}
+        indicadores={[
+          { v: streakDays, l: streakDays === 1 ? "dia de ofensiva" : "dias de ofensiva", c: "#C2410C" },
+          { v: `${conquistados}/${achievements.length}`, l: "troféus", c: "#15803D" },
+        ]}
+        onEditar={() => setIsEditing(e => !e)}
+        aviso={cancelSuccess && (
+          <Alert className="bg-green-50 border-green-200">
+            <CheckCircle2 className="w-5 h-5 text-green-600" />
+            <AlertDescription className="text-green-900 ml-2">
+              <strong>Assinatura cancelada com sucesso!</strong>
+              <p className="text-sm mt-1">Você foi retornado ao plano gratuito. Você ainda pode acessar os quizzes aleatórios.</p>
+            </AlertDescription>
+          </Alert>
+        )}
+        opcoes={[
+          { id: "trofeus", nome: "Troféus", Icon: Award, to: createPageUrl("Achievements"), detalhe: `${conquistados} de ${achievements.length} conquistados` },
+          { id: "suporte", nome: "Suporte", Icon: LifeBuoy, to: "/suporte" },
+          { id: "privacidade", nome: "Política de Privacidade", Icon: Shield, to: "/privacidade" },
+          { id: "termos", nome: "Termos de Uso", Icon: FileText, to: "/termos" },
+          // Excluir mora na lista, e não num card de "zona de perigo" aberto:
+          // o diálogo de confirmação é quem explica o que se perde (e o que
+          // acontece com a assinatura de loja), igual a antes.
+          { id: "excluir", nome: "Excluir minha conta", Icon: Trash2, tom: "perigo", detalhe: "Ação permanente, não pode ser desfeita", onClick: () => setShowDeleteDialog(true) },
+        ]}
+        onSair={() => { clearToken(); base44.auth.logout("/"); }}
+      >
+        {/* O lápis do topo abre a edição. Fora dela, nome, especialidade e
+            cidade já estão no topo — repetir num card seria a mesma coisa duas
+            vezes. */}
+        {isEditing && (
+          <SecaoPerfil
+            titulo="Editar perfil"
           >
-            <Alert className="bg-green-50 border-green-200">
-              <CheckCircle2 className="w-5 h-5 text-green-600" />
-              <AlertDescription className="text-green-900 ml-2">
-                <strong>Assinatura cancelada com sucesso!</strong>
-                <p className="text-sm mt-1">Você foi retornado ao plano gratuito. Você ainda pode acessar os quizzes aleatórios.</p>
-              </AlertDescription>
-            </Alert>
-          </motion.div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="full_name">Nome Completo</Label>
+                <Input
+                  id="full_name"
+                  value={formData.full_name}
+                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="specialty">Especialidade</Label>
+                <Input
+                  id="specialty"
+                  value={formData.specialty}
+                  onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="state">Estado</Label>
+                <Input
+                  id="state"
+                  value={formData.state}
+                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="city">Cidade</Label>
+                <Input
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button onClick={() => setIsEditing(false)} variant="outline">
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveProfile} className="bg-ecg-midnight hover:bg-ecg-midnight-2">
+                Salvar
+              </Button>
+            </div>
+          </SecaoPerfil>
         )}
 
-        {/* Header */}
-        <div className="text-center">
-          <div className="w-24 h-24 bg-[#0D3B66] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <span className="text-white text-4xl font-bold">
-              {user?.full_name?.[0]?.toUpperCase() || 'U'}
-            </span>
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {user?.full_name || 'Usuário'}
-          </h1>
-          <p className="text-gray-600">{user?.email}</p>
-          {user?.specialty && (
-            <p className="text-blue-600 font-medium mt-1">{user.specialty}</p>
-          )}
-          {user?.city && user?.state && (
-            <p className="text-gray-500 text-sm mt-1">
-              {user.city}, {user.state}
-            </p>
-          )}
-          <Badge className={`mt-3 ${isPremium ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-gray-500'}`}>
-            {isPremium ? (
-              <span className="flex items-center gap-1">
-                <Crown className="w-3 h-3" />
-                Premium
-              </span>
-            ) : 'Gratuito'}
-          </Badge>
-          <div className="mt-5">
-            <Button
-              variant="outline"
-              onClick={() => { clearToken(); base44.auth.logout("/"); }}
-              className="gap-2 border-gray-300 text-gray-700 hover:bg-gray-100"
-            >
-              <LogOut className="w-4 h-4" />
-              Sair da Conta
-            </Button>
-          </div>
-
-        </div>
-
         {/* Subscription Info - Only for Premium Users */}
-        {isPremium && (
-          <Card className="border-none shadow-lg bg-gradient-to-br from-amber-50 to-orange-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="w-6 h-6 text-amber-600" />
-                {/* "Assinatura" está errado para quem comprou o vitalício e
-                    para quem está em cortesia: nenhum dos dois tem assinatura
-                    nenhuma no registro. */}
-                {subscriptionInfo?.lifetime
-                  ? 'Informações do Plano'
-                  : subscriptionInfo?.trial
-                    ? 'Seu Acesso de Cortesia'
-                    : 'Informações da Assinatura'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+        {isPremium ? (
+          <SecaoPerfil
+            Icone={CreditCard}
+            titulo={
+              /* "Assinatura" está errado para quem comprou o vitalício e
+                 para quem está em cortesia: nenhum dos dois tem assinatura
+                 nenhuma no registro. */
+              subscriptionInfo?.lifetime
+                ? 'Informações do Plano'
+                : subscriptionInfo?.trial
+                  ? 'Seu Acesso de Cortesia'
+                  : 'Informações da Assinatura'
+            }
+          >
               {subscriptionInfo ? (subscriptionInfo.lifetime ? (
                 /* ACESSO VITALÍCIO — layout próprio.
                    Não dá para reaproveitar o bloco de assinatura abaixo
@@ -694,222 +726,40 @@ export default function Profile() {
                   <p className="text-gray-600">Carregando informações da assinatura...</p>
                 </div>
               )}
-            </CardContent>
-          </Card>
+          </SecaoPerfil>
+        ) : (
+          <section className="flex items-center gap-3.5 rounded-[20px] bg-ecg-midnight p-[18px]">
+            <span className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-[13px] bg-[#FFF6E0]">
+              <Crown className="h-[21px] w-[21px] text-[#946200]" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-black text-ecg-green">Plano gratuito</p>
+              <p className="mb-2 mt-0.5 text-xs font-semibold leading-relaxed text-white/75">
+                Libere a trilha completa, a teoria de cada fase e casos sem limite diário.
+              </p>
+              <Link
+                to={createPageUrl("Upgrade")}
+                className="inline-block rounded-[11px] bg-ecg-green px-4 py-2.5 text-[13px] font-black text-ecg-midnight shadow-[0_3px_0_#16a34a] transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#16a34a]"
+              >
+                VER PLANOS
+              </Link>
+            </div>
+          </section>
         )}
 
-        {/* Edit Profile Section */}
-        <Card className="border-none shadow-lg">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Informações do Perfil</CardTitle>
-              {!isEditing ? (
-                <Button onClick={() => setIsEditing(true)} variant="outline">
-                  Editar Perfil
-                </Button>
-              ) : (
-                <div className="flex gap-2">
-                  <Button onClick={() => setIsEditing(false)} variant="outline">
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleSaveProfile} className="bg-[#1976D2] hover:bg-[#0D3B66]">
-                    Salvar
-                  </Button>
-                </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isEditing ? (
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="full_name">Nome Completo</Label>
-                  <Input
-                    id="full_name"
-                    value={formData.full_name}
-                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="specialty">Especialidade</Label>
-                  <Input
-                    id="specialty"
-                    value={formData.specialty}
-                    onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state">Estado</Label>
-                  <Input
-                    id="state"
-                    value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="city">Cidade</Label>
-                  <Input
-                    id="city"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Nome Completo</p>
-                  <p className="text-lg font-medium text-gray-900">{user?.full_name || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Especialidade</p>
-                  <p className="text-lg font-medium text-gray-900">{user?.specialty || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Estado</p>
-                  <p className="text-lg font-medium text-gray-900">{user?.state || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Cidade</p>
-                  <p className="text-lg font-medium text-gray-900">{user?.city || '-'}</p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-
-
-        {/* Badges */}
-        <Card className="border-none shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Award className="w-6 h-6 text-blue-600" />
-              Conquistas ({achievements.filter(b => b.earned).length}/{achievements.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {achievements.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {achievements.map((achievement, index) => (
-                  <motion.div
-                    key={achievement.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.05 }}
-                    className={`p-4 rounded-xl text-center transition-all duration-300 ${
-                      achievement.earned 
-                        ? 'bg-blue-50 border-2 border-blue-200 shadow-md' 
-                        : 'bg-gray-100 opacity-50'
-                    }`}
-                  >
-                    <div className="text-4xl mb-2">{achievement.icon}</div>
-                    <p className={`text-sm font-semibold mb-1 ${achievement.earned ? 'text-gray-900' : 'text-gray-500'}`}>
-                      {achievement.name}
-                    </p>
-                    <p className="text-xs text-gray-600">{achievement.description}</p>
-                  </motion.div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                Nenhuma conquista cadastrada ainda
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Notificações */}
-        <Card className="border-none shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="w-6 h-6 text-blue-600" />
-              Notificações Push
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-600 mb-4">
-              Receba lembretes e novidades diretamente no seu celular ou computador.
-            </p>
-            <EnableNotifications />
-          </CardContent>
-        </Card>
-
-        {/* Streak */}
-        <Card className="border-none shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-6 h-6 text-blue-600" />
-              Sequência de Dias
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center">
-              <div className="text-6xl mb-4">🔥</div>
-              <p className="text-4xl font-bold text-gray-900 mb-2">
-                {streakDays} dias
-              </p>
-              <p className="text-gray-600">
-                Continue praticando para manter sua sequência!
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <SecaoPerfil Icone={Bell} titulo="Notificações push">
+          <p className="mb-4 text-[13px] font-semibold text-[#6B7785]">
+            Receba lembretes e novidades diretamente no seu celular ou computador.
+          </p>
+          <EnableNotifications />
+        </SecaoPerfil>
 
         {/* "Estatísticas Detalhadas" removido junto com os demais blocos de
             estatística do app: os números não fecham com a realidade e a
-            correção não é prioridade agora. */}
-
-        {/* Danger Zone */}
-        <Card className="border-red-200 bg-red-50/30 shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-red-600">Zona de Perigo</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-gray-700 mb-3">
-                  Deletar sua conta é uma ação permanente e não pode ser desfeita. 
-                  Todos os seus dados, progresso e conquistas serão perdidos.
-                </p>
-                <Button
-                  variant="outline"
-                  className="w-full border-red-300 text-red-600 hover:bg-red-100 hover:text-red-700"
-                  onClick={() => setShowDeleteDialog(true)}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Deletar Minha Conta
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="text-center pt-2">
-          <div className="flex items-center justify-center gap-2 text-sm">
-            <Link
-              to="/suporte"
-              className="inline-flex items-center gap-1.5 text-gray-500 hover:text-ecg-midnight transition-colors"
-            >
-              Suporte
-            </Link>
-            <span className="text-gray-300">•</span>
-            <Link
-              to="/privacidade"
-              className="inline-flex items-center gap-1.5 text-gray-500 hover:text-ecg-midnight transition-colors"
-            >
-              Política de Privacidade
-            </Link>
-            <span className="text-gray-300">•</span>
-            <Link
-              to="/termos"
-              className="inline-flex items-center gap-1.5 text-gray-500 hover:text-ecg-midnight transition-colors"
-            >
-              Termos de Uso
-            </Link>
-          </div>
-        </div>
-      </div>
+            correção não é prioridade agora. A grade de conquistas saiu porque
+            a tela de Troféus mostra o mesmo, e a opção abaixo leva até ela. */}
+      </ProfileMobile>
 
       {/* Cancel Subscription Dialog */}
       <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
