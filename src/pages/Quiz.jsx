@@ -367,10 +367,17 @@ export default function Quiz() {
 
       // Verificar se o usuário errou 5 questões da mesma fase
       if (!correct && currentCase.module_id && currentCase.phase_id) {
+        // Sem o `limit`, esta chamada baixava TODAS as tentativas erradas da
+        // fase — sem data de corte, desde a primeira vez que a pessoa errou —
+        // a CADA resposta errada, só para contar casos únicos. Para quem erra
+        // muito numa fase, era a leitura sem fim que tomava 429 no Quiz. As 50
+        // mais recentes bastam: a sugestão de estudo só precisa saber se há 5
+        // casos únicos com erro na fase.
         const resIncorretas = await base44.functions.invoke('getMyQuizAttempts', {
           module_id: currentCase.module_id,
           phase_id: currentCase.phase_id,
-          correct: false
+          correct: false,
+          limit: 50
         });
         const incorrectAttemptsInPhase = resIncorretas?.data?.attempts || [];
 

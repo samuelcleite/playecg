@@ -234,7 +234,7 @@ export default function ModuleDetail() {
     const [combinedCasesRaw, phaseContentData] = await Promise.all([
       // Selecionar e combinar casos (80% fase atual + 20% fases anteriores)
       comTimeout(
-        selectAndCombineCases(moduleId, phaseId, foundPhase, phaseData, completedCaseIds, review),
+        selectAndCombineCases(moduleId, phaseId, review),
         undefined,
         'casos da fase'
       ),
@@ -290,62 +290,19 @@ export default function ModuleDetail() {
     setLoading(false);
   };
 
-  // Tira até `n` casos do pool priorizando os que o usuário ainda não fez.
-  // Quando não há inéditos suficientes, completa com os já feitos — mas só se
-  // `allowSeen`. É essa condição que separa os dois modos: numa fase em
-  // andamento repetir caso falsearia o progresso; numa fase já concluída,
-  // repetir é exatamente o que o usuário veio fazer.
-  const takePreferringUnseen = (pool, completedIds, n, allowSeen) => {
-    const unseen = shuffleArray(pool.filter(c => !completedIds.includes(c.id)));
-    if (unseen.length >= n || !allowSeen) return unseen.slice(0, n);
-    const seen = shuffleArray(pool.filter(c => completedIds.includes(c.id)));
-    return [...unseen, ...seen.slice(0, n - unseen.length)];
-  };
-
-  const selectAndCombineCases = async (moduleId, phaseId, currentPhase, allPhases, completedCaseIds, allowRepeats = false) => {
-    // Identificar fases anteriores
-    const modulePhasesOrdered = allPhases
-      .filter(p => p.module_id === moduleId)
-      .sort((a, b) => a.order - b.order);
-    
-    const previousPhases = modulePhasesOrdered.filter(p => p.order < currentPhase.order);
-
-    // Buscar casos da fase atual e das fases anteriores em paralelo
-    const [currentPhaseCases, ...previousResults] = await Promise.all([
-      base44.entities.ECGCase.filter({
-        module_id: moduleId,
-        phase_id: phaseId
-      }),
-      ...previousPhases.map(prevPhase =>
-        base44.entities.ECGCase.filter({
-          module_id: moduleId,
-          phase_id: prevPhase.id
-        })
-      ),
-    ]);
-
-    const previousPhasesCases = previousResults.flat();
-
-    // Até 8 da fase atual e até 2 de fases anteriores, inéditos na frente.
-    const selectedCurrentCases = takePreferringUnseen(
-      currentPhaseCases, completedCaseIds, 8, allowRepeats
-    ).map(c => ({ ...c, caseSource: 'current_phase' }));
-
-    const selectedPreviousCases = takePreferringUnseen(
-      previousPhasesCases, completedCaseIds, 2, allowRepeats
-    ).map(c => ({ ...c, caseSource: 'previous_phase' }));
-
-    // Combinar e embaralhar
-    return shuffleArray([...selectedCurrentCases, ...selectedPreviousCases]);
-  };
-
-  const shuffleArray = (array) => {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
+  // O baralho agora é montado NO SERVIDOR (getPhaseCases), no mesmo padrão do
+  // getRandomCase do Quiz. Baixar TODOS os casos da fase e das fases anteriores
+  // — módulos chegam a 170 casos — para escolher 10 aqui no cliente era a
+  // leitura mais pesada desta tela, e uma das que estouravam a cota de volume
+  // de leituras do Base44 (o 429 que a pessoa via ao abrir a fase). O servidor
+  // lê um pool pequeno com o $nin dentro do banco e devolve no máximo 10 casos.
+  const selectAndCombineCases = async (moduleId, phaseId, revisao = false) => {
+    const res = await base44.functions.invoke('getPhaseCases', {
+      module_id: moduleId,
+      phase_id: phaseId,
+      revisao
+    });
+    return res?.data?.cases || [];
   };
 
   const currentCase = cases[currentCaseIndex];
