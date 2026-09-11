@@ -1,102 +1,21 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { resolveIdentity } from '../../shared/auth.ts';
 
-function b64urlToBytes(input) {
-  let s = input.replace(/-/g, '+').replace(/_/g, '/');
-  while (s.length % 4) s += '=';
-  const bin = atob(s);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
-}
-
-function b64urlToStr(input) {
-  let s = input.replace(/-/g, '+').replace(/_/g, '/');
-  while (s.length % 4) s += '=';
-  return atob(s);
-}
-
-// Verifica um JWT HS256 assinado com a mesma JWT_SECRET e os mesmos parâmetros
-// (crypto.subtle nativo, sem dependência externa) que googleSignIn/appleSignIn
-// usam para assinar. Qualquer falha (base64 inválido, assinatura, exp) => null,
-// para cair de volta no fluxo de sessão Base44 em vez de derrubar a função.
-async function verifyJwtHS256(token, secret) {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const [headerB64, payloadB64, sigB64] = parts;
-    const header = JSON.parse(b64urlToStr(headerB64));
-    if (header.alg !== 'HS256') return null;
-    const payload = JSON.parse(b64urlToStr(payloadB64));
-
-    const key = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['verify']
-    );
-
-    const valid = await crypto.subtle.verify(
-      'HMAC',
-      key,
-      b64urlToBytes(sigB64),
-      new TextEncoder().encode(`${headerB64}.${payloadB64}`)
-    );
-    if (!valid) return null;
-
-    if (typeof payload.exp !== 'number' || payload.exp < Math.floor(Date.now() / 1000)) {
-      return null;
-    }
-
-    return payload;
-  } catch (_e) {
-    return null;
-  }
-}
-
-// Aceita tanto o JWT próprio (googleSignIn/appleSignIn) quanto a sessão Base44.
-// JWT NUNCA concede admin: role é sempre 'user' nesse caminho, por decisão de
-// arquitetura — mesmo que o payload assinado carregue um campo role.
+// checkNewAchievements — avalia e grava troféus recém-conquistados.
+// -----------------------------------------------------------------------------
+// Roda a CADA resposta de quiz (Quiz e ModuleDetail chamam logo depois do
+// recordQuizAttempt), então cada leitura aqui é multiplicada pelo número de
+// respostas do dia inteiro. Por isso a function lê em duas rodadas:
 //
-// Além de { email, role, source }, devolve `record`: o registro do usuário de
-// onde ler campos extras (subscription_type, points, full_name, city...).
-//   source 'base44' → record = retorno de base44.auth.me() (o User inteiro).
-//   source 'jwt'    → record = a Account daquele email (via asServiceRole).
-// LER de qualquer um dos dois é seguro durante a transição, porque ninguém
-// escreve na Account — ela nunca diverge do User. Toda ESCRITA continua indo
-// para o User. role nunca vem do record: é sempre 'user' no caminho JWT.
-// JWT válido sem Account correspondente → null (sem fallback para sessão).
-async function resolveIdentity(req, base44) {
-  const authHeader = req.headers.get('authorization');
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const secret = Deno.env.get('JWT_SECRET');
-    if (secret) {
-      const token = authHeader.slice('Bearer '.length).trim();
-      const payload = await verifyJwtHS256(token, secret);
-      if (payload && payload.email) {
-        const accounts = await base44.asServiceRole.entities.Account.filter({ email: payload.email });
-        const record = accounts && accounts.length > 0 ? accounts[0] : null;
-        if (!record) return null;
-        return { email: payload.email, role: 'user', source: 'jwt', record };
-      }
-    }
-  }
-
-  // base44.auth.me() LANÇA (não retorna null) quando o Authorization traz um
-  // Bearer que não é JWT próprio válido nem sessão Base44 — tratamos a exceção
-  // como não autenticado: null, o contrato já esperado por quem chama (=> 401).
-  let user;
-  try {
-    user = await base44.auth.me();
-  } catch (_e) {
-    return null;
-  }
-  if (user) {
-    return { email: user.email, role: user.role, source: 'base44', record: user };
-  }
-
-  return null;
-}
+//   1. Account, Achievement e UserAchievement — o mínimo para saber se sobrou
+//      algum troféu por conquistar. Quem já tem todos sai aqui, com 3 leituras.
+//   2. UserProgress e Phase, SÓ se algum troféu pendente depende deles: o
+//      progresso alimenta `completed_modules` e a especialização; as fases só
+//      importam para especialização por módulo, e só as dos módulos citados
+//      (antes era Phase.list() — todas as fases do app, a cada resposta).
+//
+// O resolveIdentity compartilhado não lê a Account; a cópia local que vivia
+// aqui lia, e o corpo lia DE NOVO — duas leituras da mesma conta por resposta.
 
 // Data YYYY-MM-DD no timezone do Brasil (America/Sao_Paulo) — o mesmo fuso do
 // recordQuizAttempt, que é quem mantém last_practice_date na Account.
@@ -149,6 +68,9 @@ function checkAchievementSync(achievement, user, stats, streakDays, userProgress
     if (moduleIds.length > 0) {
       for (const moduleId of moduleIds) {
         const modulePhases = phases.filter(p => p.module_id === moduleId);
+        // Sem fase conhecida do módulo não há como afirmar que ele foi
+        // concluído — `every` sobre lista vazia diria que sim.
+        if (modulePhases.length === 0) return false;
         if (!modulePhases.every(p => isPhaseCompleted(p.id))) return false;
       }
     }
@@ -157,6 +79,13 @@ function checkAchievementSync(achievement, user, stats, streakDays, userProgress
   }
 
   return false;
+}
+
+// Um troféu pendente precisa do UserProgress se for de especialização ou de
+// "módulos concluídos".
+function dependeDoProgresso(a) {
+  return a.achievement_type === 'specialization' ||
+    (a.achievement_type === 'intensity' && a.requirement_type === 'completed_modules');
 }
 
 Deno.serve(async (req) => {
@@ -168,39 +97,47 @@ Deno.serve(async (req) => {
     }
     const email = (identity.email || '').trim().toLowerCase();
 
-    // Os pontos vêm da ACCOUNT, sempre — não de identity.record.
-    // O `record` é o User quando a sessão é hospedada, e o User está CONGELADO
-    // desde o corte: usá-lo aqui faria as conquistas de pontos serem avaliadas
-    // contra um valor que ninguém mais atualiza, e o resultado dependeria de por
-    // onde a pessoa entrou no app.
-    const contas = await base44.asServiceRole.entities.Account.filter({ email });
-    const user = contas && contas.length > 0 ? contas[0] : {};
-
-    // SERVICE ROLE nas entidades per-user. Elas passaram a exigir
-    // __service_only__ no RLS, então o cliente user-scoped devolve lista VAZIA
-    // aqui — sem erro. Efeito: nenhuma conquista desbloquearia, e nada indicaria
-    // o porquê. Achievement e Phase são conteúdo, com RLS aberto, e seguem no
-    // cliente comum.
+    // --- 1ª rodada: o mínimo para saber se há o que avaliar ---
     //
-    // O dono vem de identity.email, nunca do corpo.
-    const [allAchievements, userProgress, phases, existingUserAchievements] = await Promise.all([
+    // Os pontos, o streak e as contagens vêm da ACCOUNT (agregados mantidos
+    // pelo recordQuizAttempt), nunca do histórico de tentativas nem do User
+    // hospedado, que está congelado desde o corte para a Account.
+    //
+    // SERVICE ROLE nas entidades per-user: elas exigem __service_only__ no RLS
+    // e o cliente user-scoped devolveria lista VAZIA, sem erro — nenhuma
+    // conquista desbloquearia e nada indicaria o porquê. Achievement e Phase
+    // são conteúdo, com RLS aberto, e seguem no cliente comum.
+    const [contas, allAchievements, existingUserAchievements] = await Promise.all([
+      base44.asServiceRole.entities.Account.filter({ email }),
       base44.entities.Achievement.filter({ active: true }),
-      base44.asServiceRole.entities.UserProgress.filter({ user_email: email }),
-      base44.entities.Phase.list(),
       base44.asServiceRole.entities.UserAchievement.filter({ user_email: email }),
     ]);
+    const user = contas && contas.length > 0 ? contas[0] : {};
 
-    // IDs de troféus já conquistados
     const alreadyEarnedIds = new Set(existingUserAchievements.map(ua => ua.achievement_id));
+    const pendentes = allAchievements.filter(a => !alreadyEarnedIds.has(a.id));
 
-    // Streak e stats vêm dos AGREGADOS da Account (user, aqui, é a Account),
-    // mantidos pelo recordQuizAttempt — não do histórico de tentativas.
-    //
-    // O código antigo baixava TODAS as QuizAttempt do usuário DUAS vezes a cada
-    // verificação, e esta function roda a cada resposta de quiz: para quem
-    // pratica muito, centenas de leituras por resposta. Era isso que consumia a
-    // cota de volume de leituras do app e derrubava o getMyAccount de todo
-    // mundo com 500. Mesma regra de sempre, mesma conta — só que lida da conta.
+    if (pendentes.length === 0) {
+      return Response.json({ success: true, new_achievements: [] });
+    }
+
+    // --- 2ª rodada: só o que os pendentes exigem ---
+    const precisaProgresso = pendentes.some(dependeDoProgresso);
+    const modulosCitados = [...new Set(
+      pendentes
+        .filter(a => a.achievement_type === 'specialization')
+        .flatMap(a => Array.isArray(a.module_ids) ? a.module_ids : [])
+    )];
+
+    const [userProgress, phases] = await Promise.all([
+      precisaProgresso
+        ? base44.asServiceRole.entities.UserProgress.filter({ user_email: email })
+        : Promise.resolve([]),
+      modulosCitados.length > 0
+        ? base44.entities.Phase.filter({ module_id: { $in: modulosCitados } })
+        : Promise.resolve([]),
+    ]);
+
     const hojeStr = getBrasiliaDateStr(new Date());
     const ontemStr = getBrasiliaDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
     const streakDays = (user.last_practice_date === hojeStr || user.last_practice_date === ontemStr)
@@ -209,8 +146,6 @@ Deno.serve(async (req) => {
 
     const totalAttempts = user.total_attempts || 0;
     const correctCount = user.total_correct_attempts || 0;
-
-    // Calcular fases completadas (para completedModules) usando UserProgress
     const completedPhasesCount = userProgress.filter(up => up.status === 'completed').length;
 
     const stats = {
@@ -221,33 +156,32 @@ Deno.serve(async (req) => {
       completedModules: completedPhasesCount,
     };
 
-    // Verificar quais troféus ainda não foram conquistados mas agora são elegíveis
     const newlyEarned = [];
     const now = new Date().toISOString();
 
-    for (const achievement of allAchievements) {
-      if (alreadyEarnedIds.has(achievement.id)) continue;
-
+    for (const achievement of pendentes) {
       const earned = checkAchievementSync(achievement, user, stats, streakDays, userProgress, phases);
-      if (earned) {
-        // Re-verificar logo antes de criar para evitar duplicatas por chamadas concorrentes
-        const existing = await base44.asServiceRole.entities.UserAchievement.filter({
-          user_email: email,
-          achievement_id: achievement.id,
-        });
-        if (existing.length > 0) continue;
+      if (!earned) continue;
 
-        await base44.asServiceRole.entities.UserAchievement.create({
-          user_email: email,
-          achievement_id: achievement.id,
-          earned_at: now,
-        });
-        newlyEarned.push({ id: achievement.id, name: achievement.name, icon: achievement.icon });
-      }
+      // Re-verificar logo antes de criar para evitar duplicatas por chamadas
+      // concorrentes. Custa uma leitura, mas só quando um troféu é conquistado.
+      const existing = await base44.asServiceRole.entities.UserAchievement.filter({
+        user_email: email,
+        achievement_id: achievement.id,
+      });
+      if (existing.length > 0) continue;
+
+      await base44.asServiceRole.entities.UserAchievement.create({
+        user_email: email,
+        achievement_id: achievement.id,
+        earned_at: now,
+      });
+      newlyEarned.push({ id: achievement.id, name: achievement.name, icon: achievement.icon });
     }
 
     return Response.json({ success: true, new_achievements: newlyEarned });
   } catch (error) {
+    console.error('Erro em checkNewAchievements:', error);
     return Response.json({ error: error.message }, { status: 500 });
   }
 });

@@ -78,21 +78,22 @@ export default function AdminUsers() {
     const paymentsData = resPag?.data?.records || [];
     setPayments(paymentsData);
 
-    // Carregar estatísticas de tentativas por usuário
-    const resAtt = await base44.functions.invoke('adminListRecords', { entity: 'QuizAttempt' });
-    const allAttempts = resAtt?.data?.records || [];
+    // Estatísticas de tentativas por usuário: dos AGREGADOS da Account
+    // (total_attempts e total_correct_attempts, mantidos pelo
+    // recordQuizAttempt). Antes esta tela baixava TODAS as QuizAttempt do app
+    // (milhares de registros, em páginas de 500) só para contar por e-mail —
+    // uma única visita do admin consumia sozinha a cota de leituras do Base44
+    // e derrubava com 429 os usuários que estavam praticando naquele minuto.
+    //
+    // `total_correct_attempts` nasceu depois de `total_attempts` e contas que
+    // não praticaram desde então podem não ter o campo: aí o valor é
+    // desconhecido (null), não zero, e a tela mostra "—" em vez de 0%.
     const attemptsMap = {};
-    allAttempts.forEach(attempt => {
-      if (!attemptsMap[attempt.user_email]) {
-        attemptsMap[attempt.user_email] = {
-          total: 0,
-          correct: 0
-        };
-      }
-      attemptsMap[attempt.user_email].total++;
-      if (attempt.correct) {
-        attemptsMap[attempt.user_email].correct++;
-      }
+    usersData.forEach(conta => {
+      attemptsMap[conta.email] = {
+        total: conta.total_attempts || 0,
+        correct: typeof conta.total_correct_attempts === 'number' ? conta.total_correct_attempts : null
+      };
     });
     setAttempts(attemptsMap);
 
@@ -152,10 +153,13 @@ export default function AdminUsers() {
 
   const getUserStats = (userEmail) => {
     const userAttempts = attempts[userEmail] || { total: 0, correct: 0 };
+    const semAcertos = userAttempts.correct === null;
     return {
       totalAttempts: userAttempts.total,
-      correctAnswers: userAttempts.correct,
-      accuracy: userAttempts.total > 0 ? Math.round((userAttempts.correct / userAttempts.total) * 100) : 0
+      correctAnswers: semAcertos ? '—' : userAttempts.correct,
+      accuracy: semAcertos
+        ? '—'
+        : userAttempts.total > 0 ? Math.round((userAttempts.correct / userAttempts.total) * 100) : 0
     };
   };
 
@@ -439,7 +443,7 @@ export default function AdminUsers() {
                             <Target className="w-4 h-4 text-green-600" />
                             <p className="text-xs text-gray-500">Precisão</p>
                           </div>
-                          <p className="text-xl font-bold text-gray-900">{userStats.accuracy}%</p>
+                          <p className="text-xl font-bold text-gray-900">{userStats.accuracy === '—' ? '—' : `${userStats.accuracy}%`}</p>
                         </div>
                         <div>
                           <div className="flex items-center justify-center gap-1 mb-1">

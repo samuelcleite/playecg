@@ -153,7 +153,14 @@ Deno.serve(async (req) => {
       // frontend não passavam limite e o SDK tem teto por página — parar na
       // primeira página truncaria a contagem de quem tem muitas tentativas, e
       // truncar aqui vira limite de plano aplicado errado.
-      const batchSize = 500;
+      //
+      // Página menor quando há corte de data: o `since` do contador diário
+      // pedia um lote de 500 e descartava quase tudo no filtro abaixo — 500
+      // registros lidos (e cobrados na cota de volume do Base44) para achar as
+      // poucas tentativas de hoje. A parada antecipada continua garantindo a
+      // contagem completa: quem fez mais de 50 tentativas hoje só paga uma
+      // segunda página.
+      const batchSize = corte ? 50 : 500;
       let skip = 0;
 
       // A parada antecipada só é válida se a ordem for do mais novo para o mais

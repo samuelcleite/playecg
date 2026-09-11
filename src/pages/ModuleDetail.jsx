@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { getCurrentUser, clearCurrentUserCache } from '@/lib/currentUser';
 import { comTimeout, descreverErro, detalheTecnico } from '@/lib/carregamento';
+import { moduloEFases, conteudoDaFase } from '@/lib/catalogoTrilha';
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { triggerAchievementCheck } from "@/components/AchievementChecker";
@@ -91,13 +92,10 @@ export default function ModuleDetail() {
   }, [showPhaseCompletion, isReview, completedCasesCount, totalPhaseCases, module, phase]);
 
   const findNextPhase = async () => {
-    // filter e não list: só as fases DESTE módulo interessam, e a linha de
-    // baixo já as filtrava em memória depois de baixar as de todos.
-    const phasesData = await base44.entities.Phase.filter({ module_id: module.id });
-    const modulePhasesOrdered = phasesData
-      .filter(p => p.module_id === module.id)
-      .sort((a, b) => a.order - b.order);
-    
+    // Do catálogo em cache: as fases deste módulo já foram lidas ao abrir a
+    // fase (executarCarga), e uma leitura a mais aqui só gastaria cota.
+    const { fases: modulePhasesOrdered } = await moduloEFases(module.id);
+
     const currentPhaseIndex = modulePhasesOrdered.findIndex(p => p.id === phase.id);
     if (currentPhaseIndex !== -1 && currentPhaseIndex < modulePhasesOrdered.length - 1) {
       setNextPhase(modulePhasesOrdered[currentPhaseIndex + 1]);
@@ -144,14 +142,14 @@ export default function ModuleDetail() {
     setUser(userData);
 
     // --- CRÍTICO: tudo que só depende de moduleId/phaseId/email roda em paralelo ---
-    const [moduleData, phaseData, progressResp, allUserAttempts] = await Promise.all([
-      // Estas duas eram `.list()` e traziam TODOS os módulos e TODAS as fases do
-      // app para escolher um de cada por `.find`. É leitura de entidade que
-      // conta na cota do Base44 — e foi um estouro dessa cota
-      // ("App entity read traffic volume limit exceeded") que apareceu nos logs.
-      // O `.find`/`.filter` logo abaixo continua correto sobre o conjunto menor.
-      comTimeout(base44.entities.Module.filter({ id: moduleId }), undefined, 'lista de módulos'),
-      comTimeout(base44.entities.Phase.filter({ module_id: moduleId }), undefined, 'lista de fases'),
+    const [catalogo, progressResp, allUserAttempts] = await Promise.all([
+      // Módulo e fases do catálogo em cache (catalogoTrilha.js). Esta tela já
+      // fez `.list()` de tudo e depois `.filter()` por módulo — duas leituras
+      // de entidade por abertura de fase, contando na cota do Base44 (foi um
+      // estouro dela, "App entity read traffic volume limit exceeded", que
+      // apareceu nos logs). A trilha que trouxe a pessoa até aqui acabou de
+      // ler o mesmo catálogo; agora ele é reaproveitado.
+      comTimeout(moduloEFases(moduleId), undefined, 'catálogo da trilha'),
       // getUserProgress via service role (evita problema de RLS no modo "agindo como")
       comTimeout(
         base44.functions.invoke('getUserProgress', { user_email: userData.email }),
@@ -187,14 +185,14 @@ export default function ModuleDetail() {
         }),
     ]);
 
-    const foundModule = moduleData.find(m => m.id === moduleId);
+    const foundModule = catalogo.modulo;
     if (!foundModule) {
       navigate(createPageUrl("Modules"));
       return;
     }
     setModule(foundModule);
 
-    const foundPhase = phaseData.find(p => p.id === phaseId);
+    const foundPhase = catalogo.fases.find(p => p.id === phaseId);
     if (!foundPhase) {
       navigate(createPageUrl("Modules"));
       return;
@@ -239,14 +237,15 @@ export default function ModuleDetail() {
         'casos da fase'
       ),
       // Conteúdo teórico: como as tentativas, só alimenta o desvio para a
-      // teoria. Falhar aqui não pode custar a fase — sem conteúdo, segue direto
+      // teoria e o botão "Tem dúvidas?" — a tela nunca mostra o corpo, então
+      // basta a entrada do ÍNDICE em cache (id, module_id, phase_id), sem ler
+      // o HTML. Falhar aqui não pode custar a fase — sem conteúdo, segue direto
       // para os casos, que é o mesmo que acontece nas fases que não têm teoria.
       comTimeout(
-        base44.entities.Content.filter({ module_id: moduleId, phase_id: phaseId }),
+        conteudoDaFase(moduleId, phaseId),
         undefined,
         'conteúdo da fase'
       )
-        .then(r => r?.[0] || null)
         .catch(err => {
           console.warn('Failed to load phase content:', err.message);
           return null;
