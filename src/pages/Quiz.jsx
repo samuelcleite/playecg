@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { getCurrentUser, clearCurrentUserCache } from '@/lib/currentUser';
 import { comTimeout, descreverErro, detalheTecnico } from '@/lib/carregamento';
+import { conteudoDaFase } from '@/lib/catalogoTrilha';
 import { Button } from "@/components/ui/button";
 import {
   Loader2,
@@ -231,11 +232,7 @@ export default function Quiz() {
         setCurrentCase(targetCase);
         setStartTime(Date.now());
         if (targetCase.module_id && targetCase.phase_id) {
-          const contents = await base44.entities.Content.filter({
-            module_id: targetCase.module_id,
-            phase_id: targetCase.phase_id
-          });
-          setCaseContent(contents?.[0] || null);
+          setCaseContent(await conteudoDaFase(targetCase.module_id, targetCase.phase_id));
         }
         setLoading(false);
         return;
@@ -285,13 +282,13 @@ export default function Quiz() {
       setCurrentCase(proximoCaso);
       setStartTime(Date.now());
 
-      // Buscar conteúdo se o caso tiver módulo e fase
+      // O conteúdo da fase só decide se o botão "Tem dúvidas?" aparece — a
+      // tela nunca mostra o corpo. Antes isto era um Content.filter POR
+      // PERGUNTA, trazendo o HTML inteiro da fase a cada caso sorteado; agora
+      // é uma consulta ao índice em cache (catalogoTrilha.js), sem ida ao
+      // servidor.
       if (proximoCaso.module_id && proximoCaso.phase_id) {
-        const contents = await base44.entities.Content.filter({
-          module_id: proximoCaso.module_id,
-          phase_id: proximoCaso.phase_id
-        });
-        setCaseContent(contents?.[0] || null);
+        setCaseContent(await conteudoDaFase(proximoCaso.module_id, proximoCaso.phase_id));
       }
     } else if (res?.data?.completed) {
       setAllCasesCompleted(true);

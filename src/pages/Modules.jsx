@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { getCurrentUser } from '@/lib/currentUser';
+import {
+  carregarCatalogoTrilha,
+  carregarIndiceDeConteudos,
+  buscarConteudo,
+  invalidarCatalogo,
+  ehIntroducao,
+} from "@/lib/catalogoTrilha";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import LearningTrail from "@/components/home/LearningTrail";
@@ -33,7 +40,13 @@ export default function Modules() {
   const [phases, setPhases] = useState([]);
   const [userProgress, setUserProgress] = useState([]);
   const [progress, setProgress] = useState({});
+  // A introdução chega em duas etapas: a entrada do ÍNDICE (id, sem corpo)
+  // diz se o card existe; o corpo em HTML só é lido quando a pessoa toca em
+  // "Ler Introdução". Antes esta tela baixava o corpo de TODOS os conteúdos
+  // do app, em toda visita, só para saber que a introdução existia.
+  const [introMeta, setIntroMeta] = useState(null);
   const [introContent, setIntroContent] = useState(null);
+  const [introLoading, setIntroLoading] = useState(false);
   const [showIntroDialog, setShowIntroDialog] = useState(false);
   const [isTrailLoading, setIsTrailLoading] = useState(true);
   const containerRef = useRef(null);
@@ -48,9 +61,10 @@ export default function Modules() {
       setUser(userData);
 
       // --- ESSENCIAL: só o que a trilha precisa para renderizar ---
-      const [modulesData, phasesData, progressRes] = await Promise.all([
-        base44.entities.Module.list("order"),
-        base44.entities.Phase.list("order"),
+      // Módulos e fases vêm do catálogo em cache (ver catalogoTrilha.js); o
+      // progresso é o que muda entre visitas e continua lido a cada uma.
+      const [[modulesData, phasesData], progressRes] = await Promise.all([
+        carregarCatalogoTrilha(),
         base44.functions.invoke("getUserProgress", {}),
       ]);
 
@@ -85,23 +99,36 @@ export default function Modules() {
       // --- SECUNDÁRIO: não bloqueia a trilha, preenche os banners depois ---
       // A chamada a getUserStats saiu junto com o banner de estatísticas: era
       // o único consumidor dela nesta tela.
-      base44.entities.Content.list()
-        .then((contentsData) => {
-          const intro = contentsData.find((c) => !c.module_id && !c.phase_id);
-          setIntroContent(intro);
-        })
-        .catch((err) => console.error("Content.list:", err));
+      carregarIndiceDeConteudos()
+        .then((indice) => setIntroMeta(indice.find(ehIntroducao) || null))
+        .catch((err) => console.error("índice de conteúdos:", err));
     } catch (error) {
       console.error("Error loading data:", error);
       setIsTrailLoading(false);
     }
   };
 
-  const isRefreshing = usePullToRefresh(loadData, containerRef);
+  // Puxar para atualizar é o gesto de "quero ver o que mudou": derruba o
+  // catálogo em cache antes de recarregar, para uma edição do admin aparecer
+  // na hora em vez de esperar o TTL.
+  const recarregar = async () => {
+    invalidarCatalogo();
+    await loadData();
+  };
 
-  const handleOpenIntro = () => {
-    if (introContent) {
-      setShowIntroDialog(true);
+  const isRefreshing = usePullToRefresh(recarregar, containerRef);
+
+  const handleOpenIntro = async () => {
+    if (!introMeta) return;
+    setShowIntroDialog(true);
+    if (introContent) return;
+    setIntroLoading(true);
+    try {
+      setIntroContent(await buscarConteudo(introMeta.id));
+    } catch (err) {
+      console.error("introdução:", err);
+    } finally {
+      setIntroLoading(false);
     }
   };
 
@@ -127,7 +154,7 @@ export default function Modules() {
             Acerto): mesmo motivo dos outros blocos de estatística. */}
 
         {/* Introduction Section */}
-        {introContent && (
+        {introMeta && (
           <Card className="border-2 border-blue-200 shadow-xl bg-blue-50">
             <CardContent className="p-6 flex flex-col md:flex-row gap-4 items-center justify-between">
               <div className="flex items-center gap-4">
@@ -195,10 +222,17 @@ export default function Modules() {
               <div className="flex items-start gap-3 mb-4">
                 <Lightbulb className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
                 <div className="flex-1">
-                  <div
-                    className="text-gray-700 leading-relaxed prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: introContent?.content || "" }}
-                  />
+                  {introLoading ? (
+                    <div className="flex items-center gap-2 text-gray-500 text-sm">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Carregando introdução...
+                    </div>
+                  ) : (
+                    <div
+                      className="text-gray-700 leading-relaxed prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{ __html: introContent?.content || "" }}
+                    />
+                  )}
                 </div>
               </div>
             </div>

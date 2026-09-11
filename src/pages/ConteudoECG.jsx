@@ -2,6 +2,13 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { getCurrentUser, clearCurrentUserCache } from '@/lib/currentUser';
 import { comTimeout, descreverErro, detalheTecnico } from '@/lib/carregamento';
+import {
+  carregarIndiceDeConteudos,
+  buscarConteudo,
+  moduloEFases,
+  conteudoDoModulo,
+  ehIntroducao,
+} from '@/lib/catalogoTrilha';
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -64,47 +71,34 @@ export default function ConteudoECG() {
 
     setContentType(type);
 
+    // Em todos os ramos, o corpo lido é o de UM conteúdo. O índice (id,
+    // module_id, phase_id) e o catálogo de módulos/fases vêm do cache
+    // compartilhado (catalogoTrilha.js): antes o ramo `intro` baixava o corpo
+    // em HTML de TODOS os conteúdos do app para escolher um por `find`, e os
+    // outros dois reliam módulo e fases que a trilha acabara de ler.
     if (type === 'intro') {
-      // Buscar conteúdo de introdução
-      const contents = await comTimeout(base44.entities.Content.list(), undefined, 'conteúdos');
-      const introContent = contents.find(c => !c.module_id && !c.phase_id);
-      setContent(introContent);
+      const indice = await comTimeout(carregarIndiceDeConteudos(), undefined, 'conteúdos');
+      const meta = indice.find(ehIntroducao);
+      setContent(meta ? await comTimeout(buscarConteudo(meta.id), undefined, 'introdução') : null);
     } else if (type === 'module' && moduleId) {
-      // Buscar conteúdo do módulo
-      // filter em vez de list: antes vinha o corpo em HTML de TODOS os
-      // conteúdos do app para escolher um por find. Agora voltam só os deste
-      // módulo — o geral mais os das fases — e o find local separa o geral,
-      // que é justamente o que não tem phase_id.
-      const [contents, modules] = await Promise.all([
-        comTimeout(base44.entities.Content.filter({ module_id: moduleId }), undefined, 'conteúdo do módulo'),
-        comTimeout(base44.entities.Module.filter({ id: moduleId }), undefined, 'lista de módulos')
+      const [meta, { modulo }] = await Promise.all([
+        comTimeout(conteudoDoModulo(moduleId), undefined, 'conteúdo do módulo'),
+        comTimeout(moduloEFases(moduleId), undefined, 'lista de módulos')
       ]);
 
-      const moduleContent = contents.find(c => !c.phase_id);
-      const moduleData = modules.find(m => m.id === moduleId);
-      
-      setContent(moduleContent);
-      setModule(moduleData);
+      setContent(meta ? await comTimeout(buscarConteudo(meta.id), undefined, 'conteúdo do módulo') : null);
+      setModule(modulo);
     } else if (type === 'phase' && moduleId && phaseId) {
-      // Buscar conteúdo da fase
-      // Mesmo motivo do ramo acima, e aqui o filtro é exato: os dois campos
-      // são conhecidos, então volta só o conteúdo desta fase. É o mesmo
-      // Content.filter que o Quiz já usa para carregar o conteúdo de um caso.
-      const [contents, modules, phases] = await Promise.all([
+      // Aqui o filtro é exato (os dois campos são conhecidos) e volta um único
+      // registro, então uma leitura basta — não precisa passar pelo índice.
+      const [contents, { modulo, fases }] = await Promise.all([
         comTimeout(base44.entities.Content.filter({ module_id: moduleId, phase_id: phaseId }), undefined, 'conteúdo da fase'),
-        // Mesma troca do ModuleDetail: só o módulo e as fases desta trilha, em
-        // vez do catálogo inteiro para escolher um de cada por `.find`.
-        comTimeout(base44.entities.Module.filter({ id: moduleId }), undefined, 'lista de módulos'),
-        comTimeout(base44.entities.Phase.filter({ module_id: moduleId }), undefined, 'lista de fases')
+        comTimeout(moduloEFases(moduleId), undefined, 'lista de fases')
       ]);
 
-      const phaseContent = contents?.[0] || null;
-      const moduleData = modules.find(m => m.id === moduleId);
-      const phaseData = phases.find(p => p.id === phaseId);
-      
-      setContent(phaseContent);
-      setModule(moduleData);
-      setPhase(phaseData);
+      setContent(contents?.[0] || null);
+      setModule(modulo);
+      setPhase(fases.find(p => p.id === phaseId) || null);
     }
 
     setLoading(false);

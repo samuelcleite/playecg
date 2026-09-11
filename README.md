@@ -96,6 +96,48 @@ do banco. Não confunda os dois.
 retorna `{ success, count, data: [...] }`, o array real está em
 `res.data.data`. Já causou um bug silencioso de progresso não aparecendo.
 
+### Leituras e o limite de volume do Base44 — o 429 (11/09/2026)
+
+O Base44 limita o **volume de leituras de entidades do app inteiro** por janela
+curta e responde `429 "App entity read traffic volume limit exceeded"`. O
+limite não é documentado (a doc só diz "temporary rate limit"; a comunidade
+fala em ~150 operações/minuto abaixo do Enterprise), e a palavra "volume"
+indica que registros e bytes contam, não só requisições. Uma leitura recusada
+dentro de um `Promise.all` derrubava a tela inteira — para todos os usuários
+ativos naquele minuto, inclusive quando a leitura pesada era de **um admin**
+abrindo a tela de usuários.
+
+Três camadas, em vigor desde 11/09/2026:
+
+1. **Nenhuma tela lê tabela inteira.** Módulos, fases e o índice de conteúdos
+   (só `id/module_id/phase_id`) vêm de `src/lib/catalogoTrilha.js`, com cache
+   de 15 min e invalidação no puxar-para-atualizar; o corpo de um conteúdo é
+   lido um por vez (`buscarConteudo`), só quando alguém abre. Sorteio de caso
+   (`getRandomCase`) e baralho da fase (`getPhaseCases`) rodam no servidor com
+   pools **só de id** (`fields`, 5º parâmetro do `filter`) e leem inteiros
+   apenas os escolhidos. Agregados (streak, pontos, casos tentados, total de
+   acertos) vêm da `Account`, nunca do histórico de `QuizAttempt`.
+2. **Leituras repetem em 429; escritas nunca.** `src/api/base44Client.js`
+   embrulha o cliente do SDK (`comRetentativaNasLeituras`, em
+   `src/lib/retentativa.js`): `list/filter/get` e as functions
+   `get*`/`adminList*`/`ensureMyAccount` repetem até 3 vezes com espera
+   exponencial (~5 s no pior caso, abaixo do `comTimeout`). `recordQuizAttempt`
+   e demais escritas passam direto — repetir uma gravação custa mais que
+   mostrar o erro.
+3. **Toda leitura nova passa por este crivo.** Antes de escrever
+   `base44.entities.X.list()`/`filter()` no front ou
+   `asServiceRole...filter()` sem `limit` numa function, pergunte: precisa do
+   registro inteiro? precisa de todos? já está no catálogo ou na `Account`? O
+   `adminListRecords` sem `limit` pagina até esgotar (500 por página) e é o
+   jeito mais rápido de derrubar o app: `AdminActivity` ainda faz isso (até
+   5000 `QuizAttempt` por visita) — pendência conhecida, não tratada.
+
+Como se sabe: print do 429 no ModuleDetail em 11/09/2026 às 19:38, onze horas
+depois do commit do bot que criou o `getPhaseCases`; leituras contadas no
+código da `main`. O `fields` foi confirmado no SDK 0.8.31 (`entities.js`), não
+em produção — se o servidor ignorar o parâmetro, volta o registro inteiro e só
+se perde a economia; nada quebra.
+
 ### Interface: o redesenho (11/09/2026)
 
 As telas de usuário seguem o redesenho feito no Claude Design (PR #87). Os
@@ -991,6 +1033,7 @@ Só o que não coube em nenhuma seção. Mais recente no topo.
  
 | Data | O que se descobriu | Como se sabe |
 |---|---|---|
+| 11/09/2026 | **Otimizar UMA tela não resolve um limite que é do app inteiro.** O 429 de volume de leitura do Base44 soma as leituras de todos os usuários (e do admin) na mesma janela: o bot corrigiu Quiz, Troféus e a abertura da fase e o erro continuou, porque Módulos ainda baixava o corpo de todos os conteúdos, o Quiz relia o conteúdo da fase a cada pergunta, o `checkNewAchievements` lia todas as fases a cada resposta e a tela de usuários do admin baixava todas as tentativas. A pergunta certa não é "esta tela lê muito?" e sim "quantos registros o app inteiro lê por minuto, e o que acontece com a tela quando uma leitura é recusada?". Guardrails na §2. | Print do 429 às 19:38 de 11/09/2026, onze horas depois do commit do bot; leituras contadas no código da `main`. |
 | 08/09/2026 | **Comentário e código podem divergir sem nada acusar.** O `avaliarElegibilidade` dizia, em comentário, "uma data vencida não conta: o tratamento correto é o mesmo do free" — e o `if` logo abaixo recusava, respondendo "já é premium por assinatura paga" a quem nunca pagou nada. O `check-invariantes` passava: ele compara as duas **cópias** entre si, nunca o código com o que o comentário promete. Comentário bom não é prova; num arquivo com cópias sincronizadas por hash, ele é ainda menos. | Lido no código durante a investigação de 08/09/2026 — as duas cópias estavam idênticas, e as duas estavam erradas do mesmo jeito. |
 | 08/09/2026 | **Expiração preguiçosa vira mentira de relatório, não só atraso.** Cortesia que vence sem a pessoa reabrir o app deixa a conta `premium` no banco por tempo indefinido. Qualquer tela ou métrica que leia só `subscription_type` passa a contar essas pessoas como assinantes — foi assim que a taxa de conversão da promoção de push ficou otimista e que o Perfil anunciou "R$ 59, renova em 30 dias" para quem ganhou 3 dias de cortesia. Ao ler assinatura para **relatar** (não para liberar acesso), cruze sempre com `Payment`/`store_expires_at`/`lifetime_access`. | Quatro contas apareciam como "Virou premium" na tela de cortesias com "Nenhum pagamento registrado" no detalhe; confirmado no `adminListTrials`, no `getUserSubscriptionInfo` e no export de `Payment` de 08/09/2026. |
 | 09/08/2026 | **O sync com o Base44 carrega schema de entidade, não só código.** Campo novo declarado em `base44/entities/*.jsonc` aparece no painel sozinho depois do merge. Não é preciso recriar nada à mão nem por prompt. | Merge do PR do vitalício: `lifetime_access` apareceu no Schema Editor da `Account`, com a descrição inteira, sem ninguém tocar no painel. |

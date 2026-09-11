@@ -49,12 +49,17 @@ Deno.serve(async (req) => {
       ? {}
       : { id: { $nin: jaTentados } };
 
-    const pool = await base44.entities.ECGCase.filter(consulta, '-created_date', TAMANHO_POOL);
+    // Só os IDs do pool atravessam a rede (`fields`, 5º parâmetro do filter,
+    // projeta no servidor). O limite do Base44 é de VOLUME de leitura: 30 casos
+    // inteiros — cada um com explicação, achados e alternativas — por pergunta
+    // eram ~30x o que a resposta precisa. O sorteado é lido inteiro depois,
+    // uma leitura de um registro.
+    const pool = await base44.entities.ECGCase.filter(consulta, '-created_date', TAMANHO_POOL, 0, ['id']);
 
     if (pool.length === 0) {
       // Pool vazio: ou a pessoa tentou tudo (tela de "Parabéns") ou não existe
       // caso no app. Uma leitura decide qual.
-      const existeAlgum = await base44.entities.ECGCase.filter({}, '-created_date', 1);
+      const existeAlgum = await base44.entities.ECGCase.filter({}, '-created_date', 1, 0, ['id']);
       return Response.json({
         success: true,
         case: null,
@@ -62,7 +67,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const caso = pool[Math.floor(Math.random() * pool.length)];
+    const sorteado = pool[Math.floor(Math.random() * pool.length)];
+    const caso = await base44.entities.ECGCase.get(sorteado.id);
     return Response.json({ success: true, case: caso, completed: false });
   } catch (error) {
     console.error('Erro em getRandomCase:', error);

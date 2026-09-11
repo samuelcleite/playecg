@@ -9,13 +9,17 @@ import { resolveIdentity } from '../../shared/auth.ts';
 // de leituras do Base44 — quando estourava, o 429 derrubava a fase inteira.
 //
 // Mesmo padrão do getRandomCase: a leitura aqui é de POOLS pequenos com $nin
-// fazendo a exclusão dos casos já completos dentro do banco. No máximo 10 casos
-// atravessam a rede, em vez de centenas.
+// fazendo a exclusão dos casos já completos dentro do banco. Os pools trazem
+// SÓ O ID (`fields`, 5º parâmetro do filter): o limite do Base44 é de volume de
+// leitura, e 45 casos inteiros — explicação, achados, alternativas — por
+// abertura de fase eram quase cinco vezes o que o baralho usa. Os até 10
+// escolhidos são lidos inteiros no fim, numa única leitura por $in.
 
 const CASOS_DA_FASE = 8;
 const CASOS_DE_ANTERIORES = 2;
 const POOL_FASE = 30;
 const POOL_ANTERIORES = 15;
+const SO_ID = ['id'];
 
 function embaralhar(array) {
   const s = [...array];
@@ -75,7 +79,9 @@ Deno.serve(async (req) => {
     const ineditos = await base44.entities.ECGCase.filter(
       { module_id: moduleId, phase_id: phaseId, ...excluirFeitos },
       '-created_date',
-      POOL_FASE
+      POOL_FASE,
+      0,
+      SO_ID
     );
     let daFase = embaralhar(ineditos).slice(0, CASOS_DA_FASE);
 
@@ -84,7 +90,9 @@ Deno.serve(async (req) => {
       const feitos = await base44.entities.ECGCase.filter(
         { module_id: moduleId, phase_id: phaseId, id: { $in: completos } },
         '-created_date',
-        POOL_FASE
+        POOL_FASE,
+        0,
+        SO_ID
       );
       daFase = [
         ...daFase,
@@ -103,7 +111,9 @@ Deno.serve(async (req) => {
       const ineditasAnteriores = await base44.entities.ECGCase.filter(
         filtroAnteriores,
         '-created_date',
-        POOL_ANTERIORES
+        POOL_ANTERIORES,
+        0,
+        SO_ID
       );
       anteriores = embaralhar(ineditasAnteriores).slice(0, CASOS_DE_ANTERIORES);
 
@@ -111,7 +121,9 @@ Deno.serve(async (req) => {
         const feitasAnteriores = await base44.entities.ECGCase.filter(
           { module_id: moduleId, phase_id: { $in: idsAnteriores }, id: { $in: completos } },
           '-created_date',
-          POOL_ANTERIORES
+          POOL_ANTERIORES,
+          0,
+          SO_ID
         );
         anteriores = [
           ...anteriores,
@@ -123,10 +135,22 @@ Deno.serve(async (req) => {
       }
     }
 
-    const casos = embaralhar([
-      ...daFase.map((c) => ({ ...c, caseSource: 'current_phase' })),
-      ...anteriores.map((c) => ({ ...c, caseSource: 'previous_phase' })),
-    ]);
+    // Os escolhidos, agora inteiros: uma leitura por $in com os até 10 ids.
+    const escolhidos = [
+      ...daFase.map((c) => ({ id: c.id, caseSource: 'current_phase' })),
+      ...anteriores.map((c) => ({ id: c.id, caseSource: 'previous_phase' })),
+    ];
+    const ids = escolhidos.map((e) => e.id);
+    const registros = ids.length > 0
+      ? await base44.entities.ECGCase.filter({ id: { $in: ids } }, null, ids.length)
+      : [];
+    const porId = new Map(registros.map((c) => [c.id, c]));
+
+    const casos = embaralhar(
+      escolhidos
+        .filter((e) => porId.has(e.id))
+        .map((e) => ({ ...porId.get(e.id), caseSource: e.caseSource }))
+    );
 
     return Response.json({ success: true, cases: casos });
   } catch (error) {
