@@ -147,7 +147,7 @@ mudados de propósito, e copiar o design de novo desfaz as correções abaixo.
 | Onde | O quê |
 |---|---|
 | `src/components/caso/` | `CaseQuestion`, `CaseResult`, `DailyCaseMobile`, `TelaDeAviso`, `EcgZoomDialog`, `ReportarErroDialog` — Quiz, ModuleDetail e DailyCase usam os mesmos |
-| [BarraDeAcao.jsx](src/components/BarraDeAcao.jsx) | rodapé de ação que gruda acima da navegação, e o botão verde com relevo |
+| [BarraDeAcao.jsx](src/components/BarraDeAcao.jsx) | rodapé de ação que gruda acima da navegação (menos na pergunta — ver Armadilhas), e o botão verde com relevo |
 | [caso.js](src/lib/caso.js) | correção do caso (`acertou`, `respostasCorretas`, `MAX_TENTATIVAS`) — antes copiada nas três telas |
 | [trilha.js](src/lib/trilha.js) | regra de progressão da trilha — a `LearningTrail` e o card CONTINUAR do Dashboard pedem a mesma resposta |
 | [faixaTopo.js](src/lib/faixaTopo.js) | cor da faixa do entalhe declarada por tela (§6) |
@@ -182,6 +182,12 @@ separado.
 
 **Armadilhas:**
 
+- **Barra grudada nunca por cima de alternativa.** No `CaseQuestion` o rodapé
+  com o VERIFICAR fica no fluxo (`grudada={false}`), logo depois da última
+  alternativa. Grudado, ele cobria a última opção até a pessoa rolar até o fim
+  — no Quiz e no ModuleDetail isso escondia uma resposta possível de quem não
+  rolava. Resultado, abertura do Caso do dia e Upgrade continuam grudados: lá o
+  que fica por baixo é texto. (11/09/2026, visto em print das duas telas.)
 - **O `NotificationBanner` monta uma vez só.** Ele resgata a promoção de push ao
   montar. O Dashboard tem bloco mobile e desktop, e uma segunda cópia escondida
   por CSS resgataria em dobro. Por isso a tela escolhe com `matchMedia`
@@ -632,7 +638,7 @@ navegador, senão `0px`. *Como se sabe:* documentação do Despia
 | [Layout.jsx](src/Layout.jsx) | a faixa fixa, o `paddingTop` do `<main>`, as alturas; mede a `<nav>` e publica `--app-nav-altura` |
 | [faixaTopo.js](src/lib/faixaTopo.js) | `useCorDaFaixa`: cada tela declara a cor da faixa em `--app-faixa-cor` |
 | [DashboardMobile.jsx](src/components/home/DashboardMobile.jsx), [CaseQuestion.jsx](src/components/caso/CaseQuestion.jsx) | os headers `sticky` do app (topo em `--app-safe-top`) |
-| [BarraDeAcao.jsx](src/components/BarraDeAcao.jsx) | o rodapé de ação `sticky`, em `bottom: var(--app-nav-altura)` |
+| [BarraDeAcao.jsx](src/components/BarraDeAcao.jsx) | o rodapé de ação `sticky`, em `bottom: var(--app-nav-altura)` (na pergunta ele fica no fluxo — §2) |
 
 **A reserva em fluxo mora no `<main>` do Layout e em mais nenhum lugar** das
 telas que passam por ele. Tela que reserva de novo soma, e o conteúdo desce para

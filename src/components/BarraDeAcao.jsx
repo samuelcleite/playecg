@@ -5,18 +5,24 @@ import { Loader2 } from "lucide-react";
 /* Rodapé de ação das telas do redesenho (caso, resultado, caso do dia,
    upgrade) e o botão verde com relevo que mora nele.
 
-   A barra GRUDA no rodapé em vez de ficar no fim do conteúdo: com o ECG e
-   quatro ou cinco alternativas a tela passa da altura do celular, e o
-   VERIFICAR ia parar abaixo da dobra. O `bottom` é a altura da barra de
-   navegação do Layout, que ele publica em --app-nav-altura — com bottom:0 a
-   barra grudaria atrás da navegação, que é fixa. No desktop a navegação não
-   existe e a variável vale 0px. */
+   Por padrão a barra GRUDA no rodapé em vez de ficar no fim do conteúdo, para
+   o botão estar sempre à mão numa tela longa (resultado, caso do dia,
+   upgrade). O `bottom` é a altura da barra de navegação do Layout, que ele
+   publica em --app-nav-altura — com bottom:0 a barra grudaria atrás da
+   navegação, que é fixa. No desktop a navegação não existe e a variável vale
+   0px.
 
-export default function BarraDeAcao({ children }) {
+   `grudada={false}` põe a barra no fluxo, logo depois do conteúdo. É o caso
+   da PERGUNTA: grudada, ela cobria a última alternativa até a pessoa rolar
+   até o fim — e quem não rolava respondia sem ver todas as opções. Barra
+   grudada nunca pode ficar por cima de alternativa de resposta.
+   (Visto no Quiz e no ModuleDetail em 11/09/2026.) */
+
+export default function BarraDeAcao({ children, grudada = true }) {
   return (
     <div
-      className="sticky z-30 mt-auto border-t border-[#E6EAEE] bg-white px-4 pb-[18px] pt-3.5"
-      style={{ bottom: "var(--app-nav-altura, 0px)" }}
+      className={`${grudada ? "sticky z-30" : ""} mt-auto border-t border-[#E6EAEE] bg-white px-4 pb-[18px] pt-3.5`}
+      style={grudada ? { bottom: "var(--app-nav-altura, 0px)" } : undefined}
     >
       <div className="mx-auto w-full max-w-2xl">{children}</div>
     </div>

@@ -166,7 +166,10 @@ export default function CaseQuestion({
         </div>
       </div>
 
-      <BarraDeAcao>
+      {/* NÃO grudada: grudada, a barra cobria a última alternativa e quem não
+          rolava até o fim respondia sem ver todas as opções. No fluxo, o
+          VERIFICAR vem logo depois da última alternativa. */}
+      <BarraDeAcao grudada={false}>
         {aviso && (
           <div className="mb-3 flex items-start gap-2.5" role="status">
             <AlertTriangle className="mt-0.5 h-5 w-5 flex-none text-[#C2410C]" strokeWidth={2.5} />
