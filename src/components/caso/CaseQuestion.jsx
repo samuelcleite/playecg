@@ -57,11 +57,13 @@ export default function CaseQuestion({
 
   return (
     <div className="font-nunito flex min-h-full flex-col bg-[#F4F6F8]">
-      {/* `top` na safe-area pelo mesmo motivo do Dashboard: com top:0 o topo
-          gruda na borda física e some debaixo do relógio ao rolar. */}
+      {/* `top` no `-fluxo`, não no `--app-safe-top`: quem rola no iPhone é o
+          `<main>`, que já começa abaixo da margem do wrapper do Despia, e o
+          sticky se mede a partir dele. Mesma correção do DashboardMobile —
+          ver README §6. */}
       <header
         className="sticky z-30 border-b border-[#E6EAEE] bg-white"
-        style={{ top: "var(--app-safe-top, 0px)" }}
+        style={{ top: "var(--app-sticky-top, 0px)" }}
       >
         <div className="mx-auto flex w-full max-w-2xl items-center gap-3 px-4 pb-3.5 pt-2.5">
           <button type="button" onClick={onFechar} aria-label="Sair do caso" className="flex-none">

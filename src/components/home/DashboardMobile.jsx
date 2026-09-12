@@ -33,13 +33,16 @@ export default function DashboardMobile({
   return (
     <div className="font-nunito bg-[#F4F6F8] min-h-full">
       {/* Topo: logo + ofensiva + XP.
-          Grudento com `top` na safe-area, pelo mesmo motivo do header antigo:
-          com top:0 ele encosta na borda física e some debaixo do relógio assim
-          que a página rola. A faixa do Layout pinta essa área de branco no
-          Dashboard, então as duas peças se emendam sem costura. */}
+          Grudento, e o `top` é o `-fluxo`, NÃO o `--app-safe-top`: quem rola no
+          iPhone é o `<main>`, que já começa abaixo da margem que o wrapper do
+          Despia injeta no body, e o sticky se mede a partir dele. Com o entalhe
+          inteiro, o topo era empurrado para baixo de novo — sobrava um vão e o
+          card da meta ficava escondido atrás. No navegador e no Android a
+          margem do wrapper é zero e as duas variáveis valem o mesmo, e é por
+          isso que o defeito só aparecia no aparelho. Ver README §6. */}
       <div
         className="sticky z-40 flex items-center justify-between border-b border-[#E6EAEE] bg-white px-4 py-2.5"
-        style={{ top: "var(--app-safe-top, 0px)" }}
+        style={{ top: "var(--app-sticky-top, 0px)" }}
       >
         <img
           src="https://media.base44.com/images/public/68e28688c6f4ec5cd17e317d/88192cd50_903B5817-5009-4B34-8478-509B00A9C6B8.png"

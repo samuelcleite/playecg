@@ -362,7 +362,23 @@ export default function Layout({ children, currentPageName }) {
         // `dvh` e suportado. Num app Capacitor nao existe barra de endereco que
         // aparece e some, entao nao ha diferenca a ganhar -- e `100vh` cobre
         // WebView antiga de graca. Nao foi isto que consertou a rolagem.
-        style={rolagemDoDocumento ? { minHeight: '100vh' } : { minHeight: 'calc(100dvh - var(--app-margem-wrapper, 0px))' }}
+        // --app-sticky-top: o `top` de QUALQUER cabecalho grudento dentro do
+        // <main>. Nao e o entalhe -- depende de QUEM rola, e so o Layout sabe:
+        //
+        //   - <main> rola (iPhone, navegador): o sticky se mede a partir do
+        //     conteudo do <main>, que ja comeca abaixo do entalhe (a margem do
+        //     wrapper mais o paddingTop daqui). Qualquer valor a mais empurra o
+        //     cabecalho para baixo de novo -- era o defeito de 12/09/2026, com
+        //     o topo do Dashboard, do Quiz e do ModuleDetail cobrindo o
+        //     conteudo. Entao: 0.
+        //   - o documento rola (Android): o sticky se mede a partir da viewport,
+        //     que comeca na borda fisica. Com 0 o cabecalho passa a sumir sob o
+        //     entalhe ao rolar. Entao: o entalhe inteiro.
+        //
+        // Medido no Chrome (412x860) nos tres casos antes de escolher.
+        style={rolagemDoDocumento
+          ? { minHeight: '100vh', '--app-sticky-top': 'var(--app-safe-top, 0px)' }
+          : { minHeight: 'calc(100dvh - var(--app-margem-wrapper, 0px))', '--app-sticky-top': '0px' }}
       >
         {/* Faixa opaca sobre o entalhe/status bar.
             Ela e FIXA porque padding no topo de algo que rola nao protege nada:
