@@ -1,34 +1,30 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ChevronRight, Crown } from "lucide-react";
 
-// Chamada do Premium no rodapé da tela inicial. Vive num componente próprio
-// porque a Dashboard mobile e o StatsPanel (desktop) mostram a mesma peça — e
-// quando o texto muda, precisa mudar nos dois.
+// Chamada do Premium da tela inicial, no padrão do redesenho. Vive num
+// componente próprio porque o Dashboard mobile e o painel do desktop
+// (StatsPanel) mostram a mesma peça — quando o texto muda, muda nos dois.
 export default function PremiumUpsellCard() {
   return (
-    // `block` nao e decorativo: no mobile este card e o ultimo item de uma
-    // lista com `space-y-3`, e o espacamento do Tailwind e margin-top no
-    // irmao. Um <a> inline (o padrao do Link) ignora margin vertical, entao
-    // sem isto o bloco de upgrade encosta no card anterior. Os outros itens
-    // da mesma lista ja levam `block` pelo mesmo motivo.
-    <Link to={createPageUrl("Upgrade")} className="block">
-      <Card className="border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 cursor-pointer hover:shadow-lg transition-all">
-        <CardContent className="p-4 text-center">
-          <Crown className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-          <p className="font-bold text-amber-900 text-sm mb-1">Plano Premium</p>
-          <p className="text-xs text-amber-700 mb-3">
-            Módulos estruturados e material teórico para um aprendizado completo de ECG
-          </p>
-          <Button size="sm" className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white">
-            Assine Agora
-            <ChevronRight className="w-3 h-3 ml-1" />
-          </Button>
-        </CardContent>
-      </Card>
-    </Link>
+    <section className="flex items-center gap-3.5 rounded-[20px] bg-ecg-midnight p-[18px]">
+      <img
+        src="https://media.base44.com/images/public/68e28688c6f4ec5cd17e317d/2f88aa807_image.png"
+        alt=""
+        className="block w-16 flex-none"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-black text-ecg-green">Libere os 8 módulos</p>
+        <p className="mb-2 mt-0.5 text-xs font-semibold leading-relaxed text-white/75">
+          Trilha completa e material teórico por R$59/mês
+        </p>
+        <Link
+          to={createPageUrl("Upgrade")}
+          className="inline-block rounded-[11px] bg-ecg-green px-4 py-2.5 text-[13px] font-black text-ecg-midnight shadow-[0_3px_0_#16a34a] transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#16a34a]"
+        >
+          ASSINAR
+        </Link>
+      </div>
+    </section>
   );
 }

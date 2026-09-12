@@ -297,17 +297,21 @@ export default function Layout({ children, currentPageName }) {
 
               {!isPremium && (
                 <div className="mt-4 mx-2">
-                  <Link to={createPageUrl("Upgrade")}>
-                    <div className="bg-ecg-green rounded-2xl p-4 text-ecg-midnight shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Crown className="w-5 h-5" />
-                        <span className="font-nunito font-black text-sm">Plano Premium</span>
-                      </div>
-                      <p className="text-xs font-semibold opacity-80">
-                        Módulos estruturados e material teórico para um aprendizado completo de ECG
-                      </p>
+                  <div className="rounded-[20px] bg-white/5 p-4">
+                    <div className="mb-1 flex items-center gap-2">
+                      <Crown className="w-5 h-5 text-ecg-green" />
+                      <span className="font-nunito text-sm font-black text-ecg-green">Plano Premium</span>
                     </div>
-                  </Link>
+                    <p className="mb-3 text-xs font-semibold leading-relaxed text-white/75">
+                      Trilha completa e material teórico para um aprendizado completo de ECG
+                    </p>
+                    <Link
+                      to={createPageUrl("Upgrade")}
+                      className="block rounded-[11px] bg-ecg-green px-4 py-2.5 text-center text-[13px] font-black text-ecg-midnight shadow-[0_3px_0_#16a34a] transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#16a34a]"
+                    >
+                      ASSINAR
+                    </Link>
+                  </div>
                 </div>
               )}
             </SidebarContent>

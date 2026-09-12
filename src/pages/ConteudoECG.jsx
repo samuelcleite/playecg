@@ -11,24 +11,24 @@ import {
 } from '@/lib/catalogoTrilha';
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import TelaDeAviso, { QuadroAviso } from "@/components/caso/TelaDeAviso";
+import { BotaoPrincipal, BotaoSecundario } from "@/components/BarraDeAcao";
+import { IconeQuadrado } from "@/components/Cartao";
+import { useCorDaFaixa, FAIXA_BRANCA } from "@/lib/faixaTopo";
+import { ESTILO_HTML } from "@/lib/estiloHtml";
 import {
   ArrowLeft,
   AlertTriangle,
-  RefreshCw,
   Loader2,
   Sparkles,
   BookOpen,
   FolderOpen,
   Layers,
-  Crown,
   Lock
 } from "lucide-react";
-import { Link } from "react-router-dom";
 
 export default function ConteudoECG() {
+  useCorDaFaixa(FAIXA_BRANCA);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [user, setUser] = useState(null);
@@ -106,10 +106,10 @@ export default function ConteudoECG() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="font-nunito flex min-h-full items-center justify-center bg-[#F4F6F8] py-24">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
-          <p className="text-gray-600">Carregando conteúdo...</p>
+          <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin text-ecg-midnight-2" />
+          <p className="text-sm font-bold text-[#6B7785]">Carregando conteúdo...</p>
         </div>
       </div>
     );
@@ -117,45 +117,29 @@ export default function ConteudoECG() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <Card className="w-full max-w-md border-2 border-amber-200 shadow-xl">
-          <CardContent className="p-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-5">
-              <AlertTriangle className="w-8 h-8 text-amber-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">
-              Não foi possível abrir este conteúdo
-            </h2>
-            <p className="text-gray-600 mb-6">{descreverErro(loadError)}</p>
-            <div className="space-y-3">
-              <Button
-                onClick={() => {
-                  // Mesmo motivo do ModuleDetail: sem limpar, o retry reusa a
-                  // promessa pendurada do getCurrentUser.
-                  clearCurrentUserCache();
-                  setLoading(true);
-                  loadContent();
-                }}
-                className="w-full bg-[#0D3B66] hover:bg-[#1976D2] text-white gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Tentar novamente
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => navigate(createPageUrl("Modules"))}
-                className="w-full gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Voltar à trilha
-              </Button>
-            </div>
-            <p className="mt-6 text-xs text-gray-400 break-words">
-              {detalheTecnico(loadError)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <TelaDeAviso
+        Icone={AlertTriangle}
+        tom="ambar"
+        titulo="Não foi possível abrir este conteúdo"
+        texto={descreverErro(loadError)}
+        acoes={
+          <>
+            <BotaoPrincipal
+              onClick={() => {
+                // Mesmo motivo do ModuleDetail: sem limpar, o retry reusa a
+                // promessa pendurada do getCurrentUser.
+                clearCurrentUserCache();
+                setLoading(true);
+                loadContent();
+              }}
+            >
+              TENTAR NOVAMENTE
+            </BotaoPrincipal>
+            <BotaoSecundario to={createPageUrl("Modules")}>Voltar à trilha</BotaoSecundario>
+          </>
+        }
+        rodape={detalheTecnico(loadError)}
+      />
     );
   }
 
@@ -163,56 +147,28 @@ export default function ConteudoECG() {
 
   if (!isPremium) {
     return (
-      <div className="min-h-screen p-6 flex items-center justify-center">
-        <Card className="max-w-lg border-2 border-amber-200 shadow-xl">
-          <CardContent className="p-8 text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <Lock className="w-10 h-10 text-white" />
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Conteúdo Premium
-            </h2>
-            <p className="text-gray-600 mb-6 text-lg">
-              Este conteúdo educacional é exclusivo para usuários Premium.
-            </p>
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-6 mb-6">
-              <h3 className="font-bold text-gray-900 mb-3 flex items-center justify-center gap-2">
-                <Crown className="w-5 h-5 text-amber-600" />
-                Com Premium você tem acesso a:
-              </h3>
-              <ul className="text-left space-y-2 text-gray-700">
-                <li className="flex items-start gap-2">
-                  <span className="text-amber-600 font-bold">✓</span>
-                  <span>Conteúdo educacional completo sobre ECG</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-amber-600 font-bold">✓</span>
-                  <span>Módulos estruturados por tema</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-amber-600 font-bold">✓</span>
-                  <span>Acesso à teoria antes de cada fase</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-amber-600 font-bold">✓</span>
-                  <span>Do básico ao avançado, em ordem</span>
-                </li>
-              </ul>
-            </div>
-            <div className="flex flex-col gap-3">
-              <Link to={createPageUrl("Upgrade")} className="w-full">
-                <Button className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-lg py-6 gap-2">
-                  <Crown className="w-5 h-5" />
-                  Assinar Premium
-                </Button>
-              </Link>
-              <Button variant="outline" onClick={() => navigate(createPageUrl("Dashboard"))}>
-                Voltar ao Dashboard
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <TelaDeAviso
+        Icone={Lock}
+        tom="escuro"
+        titulo="Conteúdo Premium"
+        texto="Este conteúdo educacional é exclusivo para usuários Premium."
+        acoes={
+          <>
+            <BotaoPrincipal to={createPageUrl("Upgrade")}>ASSINAR PREMIUM</BotaoPrincipal>
+            <BotaoSecundario to={createPageUrl("Dashboard")}>Voltar ao início</BotaoSecundario>
+          </>
+        }
+      >
+        <QuadroAviso tom="ambar">
+          <p className="mb-1 font-extrabold">Com Premium você tem acesso a</p>
+          <ul className="list-disc pl-5">
+            <li>Conteúdo educacional completo sobre ECG</li>
+            <li>Módulos estruturados por tema</li>
+            <li>Acesso à teoria antes de cada fase</li>
+            <li>Do básico ao avançado, em ordem</li>
+          </ul>
+        </QuadroAviso>
+      </TelaDeAviso>
     );
   }
 
@@ -228,28 +184,21 @@ export default function ConteudoECG() {
     }
 
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <Card className="max-w-md">
-          <CardContent className="p-8 text-center">
-            <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Conteúdo não encontrado</h2>
-            <p className="text-gray-600 mb-6">
-              O conteúdo solicitado não está disponível.
-            </p>
-            <Button onClick={() => navigate(createPageUrl("AprendaECG"))}>
-              Voltar
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <TelaDeAviso
+        Icone={BookOpen}
+        tom="cinza"
+        titulo="Conteúdo não encontrado"
+        texto="O conteúdo solicitado não está disponível."
+        acoes={<BotaoPrincipal to={createPageUrl("AprendaECG")}>VOLTAR</BotaoPrincipal>}
+      />
     );
   }
 
-  const getIcon = () => {
-    if (contentType === 'intro') return <Sparkles className="w-6 h-6 text-white" />;
-    if (contentType === 'module') return <FolderOpen className="w-6 h-6 text-white" />;
-    if (contentType === 'phase') return <Layers className="w-6 h-6 text-white" />;
-    return <BookOpen className="w-6 h-6 text-white" />;
+  const getIcone = () => {
+    if (contentType === 'intro') return Sparkles;
+    if (contentType === 'module') return FolderOpen;
+    if (contentType === 'phase') return Layers;
+    return BookOpen;
   };
 
   const getTitle = () => {
@@ -266,25 +215,12 @@ export default function ConteudoECG() {
     return '';
   };
 
-  const getBgColor = () => {
-    if (contentType === 'intro') return 'from-amber-400 to-orange-500';
-    if (contentType === 'module') return 'from-indigo-500 to-purple-600';
-    if (contentType === 'phase') return 'from-purple-500 to-pink-600';
-    return 'from-blue-500 to-indigo-600';
-  };
-
-  const getBorderColor = () => {
-    if (contentType === 'intro') return 'border-amber-300';
-    if (contentType === 'module') return 'border-indigo-300';
-    if (contentType === 'phase') return 'border-purple-300';
-    return 'border-blue-300';
-  };
-
-  const getBgGradient = () => {
-    if (contentType === 'intro') return 'from-amber-50 to-orange-50';
-    if (contentType === 'module') return 'from-indigo-50 to-purple-50';
-    if (contentType === 'phase') return 'from-purple-50 to-pink-50';
-    return 'from-blue-50 to-indigo-50';
+  // Um tom por tipo de conteúdo, na paleta do redesenho (ver Cartao.jsx).
+  const getTom = () => {
+    if (contentType === 'intro') return 'roxo';
+    if (contentType === 'module') return 'escuro';
+    if (contentType === 'phase') return 'azul';
+    return 'azul';
   };
 
   const from = searchParams.get('from');
@@ -296,12 +232,12 @@ export default function ConteudoECG() {
   // Sem reserva de safe-area propria: esta tela passa pelo Layout, e o <main>
   // de la ja reservou o topo. Somar as duas dobrava o espaco.
   return (
-    <div className="min-h-screen p-6 md:p-8 pb-28 md:pb-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
+    <div className="font-nunito min-h-full bg-[#F4F6F8]">
+      <header className="sticky z-30 border-b border-[#E6EAEE] bg-white" style={{ top: 'var(--app-sticky-top, 0px)' }}>
+        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 pb-3 pt-2.5">
+          <button
+            type="button"
+            aria-label="Voltar"
             onClick={() => {
               if (isPhaseTransition) {
                 navigate(createPageUrl("Modules"));
@@ -318,68 +254,53 @@ export default function ConteudoECG() {
                 navigate(createPageUrl("AprendaECG"));
               }
             }}
-            className="gap-2"
+            className="flex flex-none items-center gap-1 text-[13px] font-extrabold text-[#6B7785]"
           >
-            <ArrowLeft className="w-4 h-4" />
-            {isPhaseTransition ? 'Ver Módulos' : 'Voltar'}
-          </Button>
+            <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={2.5} />
+            {isPhaseTransition ? 'Ver módulos' : 'Voltar'}
+          </button>
         </div>
+      </header>
 
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-3.5 px-4 pb-6 pt-3.5">
         {/* Phase Transition Banner */}
         {isPhaseTransition && (
-          <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-5 flex items-center gap-4">
-            <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-              <BookOpen className="w-6 h-6 text-white" />
+          <section className="flex items-center gap-3.5 rounded-[20px] border border-[#CDEFD8] bg-[#E6F9EC] p-4">
+            <IconeQuadrado Icone={BookOpen} tom="verde" tamanho={46} />
+            <div className="min-w-0">
+              <p className="text-[15px] font-black text-[#15803D]">Nova fase desbloqueada! 🎉</p>
+              <p className="mt-0.5 text-xs font-semibold text-[#2F7A4F]">
+                Leia o conteúdo abaixo antes de começar as questões.
+              </p>
             </div>
-            <div>
-              <p className="font-bold text-green-900 text-lg">Nova fase desbloqueada! 🎉</p>
-              <p className="text-green-700 text-sm">Leia o conteúdo abaixo antes de começar as questões.</p>
-            </div>
-          </div>
+          </section>
         )}
 
-        {/* Content Card */}
-        <Card className={`border-2 ${getBorderColor()} shadow-xl bg-gradient-to-br ${getBgGradient()}`}>
-          <CardContent className="p-8">
-            {/* Title Section */}
-            <div className="flex items-start gap-4 mb-6">
-              <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${getBgColor()} flex items-center justify-center flex-shrink-0 shadow-lg`}>
-                {getIcon()}
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                  {getTitle()}
-                </h1>
-                {getSubtitle() && (
-                  <p className="text-gray-600">
-                    {getSubtitle()}
-                  </p>
-                )}
-              </div>
+        <section className="rounded-[20px] border border-[#E6EAEE] bg-white p-[18px]">
+          <div className="mb-4 flex items-start gap-3.5">
+            <IconeQuadrado Icone={getIcone()} tom={getTom()} tamanho={46} />
+            <div className="min-w-0">
+              <h1 className="text-xl font-black leading-tight text-ecg-midnight">{getTitle()}</h1>
+              {getSubtitle() && (
+                <p className="mt-0.5 text-[13px] font-semibold text-[#6B7785]">{getSubtitle()}</p>
+              )}
             </div>
+          </div>
 
-            {/* Content Body */}
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <div 
-                className="prose prose-lg max-w-none text-gray-800"
-                dangerouslySetInnerHTML={{ __html: content.content }}
-              />
-            </div>
+          <div
+            className={`text-sm font-semibold leading-relaxed text-[#40505F] ${ESTILO_HTML}`}
+            dangerouslySetInnerHTML={{ __html: content.content }}
+          />
+        </section>
 
-            {/* CTA para iniciar a fase após ler o conteúdo */}
-            {isPhaseTransition && moduleId && phaseId && (
-              <div className="mt-8 pt-6 border-t border-gray-200">
-                <Button
-                  onClick={() => navigate(`${createPageUrl("ModuleDetail")}?module_id=${moduleId}&phase_id=${phaseId}&from=content`)}
-                  className="w-full bg-[#22C55E] hover:bg-green-600 text-white py-6 text-lg font-semibold gap-2 whitespace-normal h-auto text-center"
-                  size="lg"
-                >
-                  Começar Fase: {phase?.name}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* CTA para iniciar a fase após ler o conteúdo */}
+        {isPhaseTransition && moduleId && phaseId && (
+          <BotaoPrincipal
+            onClick={() => navigate(`${createPageUrl("ModuleDetail")}?module_id=${moduleId}&phase_id=${phaseId}&from=content`)}
+          >
+            COMEÇAR A FASE
+          </BotaoPrincipal>
+        )}
       </div>
     </div>
   );

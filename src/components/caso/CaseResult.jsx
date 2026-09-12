@@ -2,6 +2,7 @@ import React from "react";
 import { Check, X, Maximize2 } from "lucide-react";
 import BarraDeAcao, { BotaoPrincipal, BotaoSecundario } from "@/components/BarraDeAcao";
 import { useCorDaFaixa, FAIXA_CINZA } from "@/lib/faixaTopo";
+import { ESTILO_HTML } from "@/lib/estiloHtml";
 
 /* Resultado do caso (1d), ampliado para as três telas de caso.
 
@@ -16,10 +17,8 @@ import { useCorDaFaixa, FAIXA_CINZA } from "@/lib/faixaTopo";
      do plano gratuito, que não mostra explicação).
    - `onVerEcg`: link para rever o traçado ampliado. */
 
-// O HTML vem do editor do admin. Sem o plugin de tipografia do Tailwind, o
-// preflight tira marcador de lista e margem de parágrafo — aqui eles voltam.
-const ESTILO_HTML =
-  "[&_p]:mb-2.5 [&_ul]:mb-2.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mb-2.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1 [&_strong]:font-extrabold [&_strong]:text-ecg-midnight [&_h1]:font-black [&_h2]:font-black [&_h3]:font-extrabold [&_h1]:text-ecg-midnight [&_h2]:text-ecg-midnight [&_h3]:text-ecg-midnight [&_a]:underline [&_img]:my-2 [&_img]:rounded-xl";
+// O estilo do HTML do editor mora em src/lib/estiloHtml.js: o Conteúdo e a
+// introdução em Módulos usam o mesmo.
 
 export default function CaseResult({
   acertou = true,
