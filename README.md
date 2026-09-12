@@ -615,10 +615,26 @@ Definidas no `body`, em [index.css](src/index.css):
 
 | Variável | Use em | Vale quanto |
 |---|---|---|
-| `--app-safe-top` | **só** `position: fixed` / `sticky` | o entalhe real |
+| `--app-safe-top` | **só** `position: fixed` (ancorado na viewport) | o entalhe real |
 | `--app-safe-top-fluxo` | conteúdo em fluxo | o que falta reservar (medido) |
 | `--app-margem-wrapper` | alturas de tela cheia | o que o wrapper tomou (medido) |
+| `--app-sticky-top` | o `top` de cabeçalho `sticky` dentro do `<main>` | `0px`, ou o entalhe no Android (ver abaixo) |
 
+**`sticky` não se mede pela viewport — se mede pelo container que rola**, e no
+app esse container muda de acordo com a plataforma. Por isso `--app-sticky-top`
+existe e é publicado pelo [Layout.jsx](src/Layout.jsx), que é quem sabe quem
+rola:
+
+- **`<main>` rola** (iPhone e navegador): o `sticky` parte do conteúdo do
+  `<main>`, que já começa abaixo do entalhe (margem do wrapper + `paddingTop`).
+  Qualquer valor a mais **empurra o cabeçalho para baixo de novo** → `0px`.
+- **o documento rola** (Android): o `sticky` parte da viewport, que começa na
+  borda física → o entalhe inteiro.
+
+*Como se sabe:* medido no Chrome (412×860) em 12/09/2026, nos quatro casos, com
+o topo do Dashboard renderizado fora do app. Com o entalhe inteiro no iPhone o
+cabeçalho parava em 118px em vez de 59px — 59px a mais, exatamente a altura do
+entalhe.
 **Nunca `env(safe-area-inset-top)` direto.** Dentro do Despia ele não vale: o
 runtime deles não popula as variáveis de ambiente do padrão CSS, injeta as
 próprias (`--safe-area-top` / `--safe-area-bottom`) e a documentação manda usar
@@ -635,7 +651,7 @@ navegador, senão `0px`. *Como se sabe:* documentação do Despia
 | [index.css](src/index.css) | define as três variáveis; sobrescreve `min-h-screen` |
 | [safeArea.js](src/utils/safeArea.js) | mede e escreve as duas variáveis medidas |
 | [main.jsx](src/main.jsx) | chama a medição antes do primeiro render |
-| [Layout.jsx](src/Layout.jsx) | a faixa fixa, o `paddingTop` do `<main>`, as alturas; mede a `<nav>` e publica `--app-nav-altura` |
+| [Layout.jsx](src/Layout.jsx) | a faixa fixa, o `paddingTop` do `<main>`, as alturas; mede a `<nav>` e publica `--app-nav-altura`; publica `--app-sticky-top` conforme quem rola |
 | [faixaTopo.js](src/lib/faixaTopo.js) | `useCorDaFaixa`: cada tela declara a cor da faixa em `--app-faixa-cor` |
 | [DashboardMobile.jsx](src/components/home/DashboardMobile.jsx), [CaseQuestion.jsx](src/components/caso/CaseQuestion.jsx) | os headers `sticky` do app (topo em `--app-safe-top`) |
 | [BarraDeAcao.jsx](src/components/BarraDeAcao.jsx) | o rodapé de ação `sticky`, em `bottom: var(--app-nav-altura)` (na pergunta ele fica no fluxo — §2) |
@@ -683,10 +699,14 @@ o Layout injeta) e o `minHeight` do wrapper mobile descontam o mesmo.
 - **Não proteja o topo com padding em algo que rola.** No primeiro gesto o
   padding sobe junto e o texto reaparece debaixo do relógio. É por isto que este
   defeito *volta* depois de corrigido. Quem cobre o entalhe tem que ser fixo.
-- **Não gruda em `top: 0`.** Cabeçalho `sticky` gruda em
-  `top: var(--app-safe-top)`, senão encosta na borda física e some debaixo do
-  relógio ao rolar. Foi o defeito original: o header do Dashboard sumia enquanto
-  o resto da tela estava no lugar.
+- **Não gruda cabeçalho em `top: 0` nem no entalhe inteiro — use
+  `var(--app-sticky-top)`.** Com `0` no Android o cabeçalho some debaixo do
+  relógio ao rolar (o defeito original, 27/08/2026). Com o entalhe inteiro no
+  iPhone ele desce a altura do entalhe, sobra um vão e o conteúdo logo abaixo
+  fica escondido atrás dele — foi assim que Dashboard, Quiz e ModuleDetail
+  apareceram "cortados no topo" no aparelho em 12/09/2026, enquanto a web,
+  onde a margem do wrapper é zero, continuava certa. As duas pontas são a
+  mesma conta; ver a tabela de variáveis acima.
 - **Não suponha o que o wrapper faz — meça.** Ver abaixo.
 
 #### Por que é assim: as duas versões que falharam
@@ -933,6 +953,14 @@ rebaseada antes de qualquer merge** — senão o merge deleta `/termos`,
   padding no topo de algo que rola não protege nada. **E teste numa tela sem
   header grudento:** o Dashboard é imune e mascarou o defeito por uma rodada
   inteira. Ver §6.
+- **`sticky` se mede pelo container que rola, não pela viewport.** Em
+  12/09/2026 o mesmo `--app-safe-top` que mantém o cabeçalho abaixo do relógio
+  no Android empurrou o topo do Dashboard, do Quiz e do ModuleDetail para baixo
+  no iPhone, escondendo o conteúdo atrás dele — no iPhone quem rola é o
+  `<main>`, que já começa abaixo do entalhe, então a reserva entrava duas
+  vezes. **A web não mostra esse tipo de defeito**, porque lá a margem do
+  wrapper é zero e as duas contas coincidem: reproduza a geometria do aparelho
+  (margem no `body` + `<main>` rolando) antes de acreditar que está certo. Ver §6.
 - Se o `gradlew` baixar o Gradle "agora", é sinal de que o build nunca rodou
   naquela máquina — a tarefa anterior não foi executada de verdade.
 - **Sintoma que só aparece com o modo escuro do sistema não é culpa do wrapper.**
