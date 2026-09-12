@@ -1,0 +1,44 @@
+{
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 6 * * *",
+      "one_time_date": null,
+      "timezone": "America/Sao_Paulo",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "name": "Resumo Di\u00e1rio",
+  "description": "Todos os dias \u00e0s 06:00 (Bras\u00edlia), envia para o e-mail do admin o resumo das \u00faltimas 24h do PlayECG: novos cadastros, compras, acessos e usu\u00e1rios mais ativos.",
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "resumo_diario",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "gerar_e_enviar_resumo": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "resumoDiario"
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Gerar e enviar o resumo di\u00e1rio",
+            "description": "\u00daltimas 24h por e-mail"
+          }
+        }
+      }
+    ]
+  }
+}
