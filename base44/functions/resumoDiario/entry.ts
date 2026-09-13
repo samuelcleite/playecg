@@ -1,8 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-// resumoDiario — envia por e-mail o resumo das últimas 24h do PlayECG.
+// resumoDiario — envia por e-mail o resumo do dia anterior (00h–23h59 de Brasília).
 // -----------------------------------------------------------------------------
-// Disparado todos os dias às 06:00 (Brasília) pelo workflow "Resumo Diário".
+// Disparado todos os dias às 05:00 (Brasília) pelo workflow "Resumo Diário".
 // Também pode ser chamado manualmente (tela de funções / teste) — nesse caso a
 // sessão precisa ser de admin. A execução agendada chega SEM sessão: é o
 // caminho esperado e autorizado.
@@ -52,7 +52,9 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    // Janela do resumo: 24h até agora, salvo intervalo explícito para teste.
+    // Janela do resumo: o dia de ONTEM inteiro, das 00:00 às 23:59 de Brasília,
+    // salvo intervalo explícito para teste manual. Rodando às 05:00, cobre o
+    // dia de calendário que acabou de fechar — não 24h para trás.
     let corpo = {};
     try {
       corpo = await req.json();
@@ -60,10 +62,24 @@ Deno.serve(async (req) => {
       corpo = {};
     }
     const agora = new Date();
-    const inicio = corpo.inicio ? new Date(corpo.inicio) : new Date(agora.getTime() - 24 * 60 * 60 * 1000);
-    const fim = corpo.fim ? new Date(corpo.fim) : agora;
-    if (isNaN(inicio.getTime()) || isNaN(fim.getTime()) || fim <= inicio) {
-      return Response.json({ error: 'Intervalo de datas inválido' }, { status: 400 });
+    let inicio;
+    let fim;
+    if (corpo.inicio && corpo.fim) {
+      inicio = new Date(corpo.inicio);
+      fim = new Date(corpo.fim);
+      if (isNaN(inicio.getTime()) || isNaN(fim.getTime()) || fim <= inicio) {
+        return Response.json({ error: 'Intervalo de datas inválido' }, { status: 400 });
+      }
+    } else {
+      const hojeBrt = new Intl.DateTimeFormat('en-CA', {
+        timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit'
+      }).format(agora);
+      const [ano, mes, dia] = hojeBrt.split('-').map(Number);
+      const ontem = new Date(Date.UTC(ano, mes - 1, dia) - 24 * 60 * 60 * 1000);
+      const diaResumo = ontem.toISOString().slice(0, 10);
+      // Brasília é UTC-3 o ano inteiro (sem horário de verão desde 2019).
+      inicio = new Date(`${diaResumo}T00:00:00-03:00`);
+      fim = new Date(`${diaResumo}T23:59:59-03:00`);
     }
     const inicioIso = inicio.toISOString();
     const fimIso = fim.toISOString();
@@ -88,8 +104,12 @@ Deno.serve(async (req) => {
     )) || [];
     const totalPago = pagamentos.reduce((s, p) => s + (p.amount || 0), 0);
 
-    // 3) Quantos acessaram (Account com last_login_at na janela)
-    const acessaram = (await svc.entities.Account.filter(
+    // 3) Logins novos na janela (Account com last_login_at). NÃO é sozinho a
+    // métrica de "acessaram": quem já tinha a sessão aberta (JWT guardado no
+    // aparelho) responde questões sem gerar um login novo — era o caso do
+    // usuário ativo que não aparecia na contagem. O total final une os logins
+    // com quem fez questão (calculado depois das tentativas).
+    const logins = (await svc.entities.Account.filter(
       { last_login_at: { $gte: inicioIso, $lte: fimIso } },
       null,
       LIMITE
@@ -105,17 +125,31 @@ Deno.serve(async (req) => {
     for (const t of tentativas) {
       const email = (t.user_email || '').trim().toLowerCase();
       if (!email) continue;
-      contagemPorEmail[email] = (contagemPorEmail[email] || 0) + 1;
+      if (!contagemPorEmail[email]) {
+        contagemPorEmail[email] = { total: 0, quiz: 0, modulos: 0, diario: 0 };
+      }
+      const c = contagemPorEmail[email];
+      c.total++;
+      if (t.quiz_type === 'module') c.modulos++;
+      else if (t.quiz_type === 'daily') c.diario++;
+      else c.quiz++;
     }
     const topEmails = Object.entries(contagemPorEmail)
-      .sort((a, b) => b[1] - a[1])
+      .sort((a, b) => b[1].total - a[1].total)
       .slice(0, 5);
     const maisAtivos = [];
-    for (const [email, quantidade] of topEmails) {
+    for (const [email, cont] of topEmails) {
       const contas = (await svc.entities.Account.filter({ email }, null, 1)) || [];
       const nome = (contas[0] && (contas[0].full_name || contas[0].email)) || email;
-      maisAtivos.push({ nome, quantidade });
+      maisAtivos.push({ nome, ...cont });
     }
+
+    // Total de quem acessou: união dos logins novos com quem respondeu questões.
+    const emailsQueAcessaram = new Set([
+      ...logins.map((a) => (a.email || '').trim().toLowerCase()),
+      ...Object.keys(contagemPorEmail)
+    ]);
+    const totalAcessaram = emailsQueAcessaram.size;
 
     const resumo = {
       janela: { inicio: inicioIso, fim: fimIso },
@@ -123,21 +157,29 @@ Deno.serve(async (req) => {
       nomes_novos_cadastros: nomesNovos,
       compras: pagamentos.length,
       valor_total_pago: totalPago,
-      acessaram: acessaram.length,
+      acessaram: totalAcessaram,
       mais_ativos: maisAtivos,
       tentativas_no_periodo: tentativas.length
     };
 
     // Montagem do e-mail — vai mesmo com tudo zero.
     const listaNomes = nomesNovos.length
-      ? `<ul style="margin:6px 0 0 0;padding-left:20px;color:#374151;font-size:14px;">${
+      ? `<h3 style="font-size:15px;margin:20px 0 0 0;">🆕 Quem se cadastrou</h3>` +
+        `<ul style="margin:6px 0 0 0;padding-left:20px;color:#374151;font-size:14px;">${
           nomesNovos.map((n) => `<li>${escaparHtml(n)}</li>`).join('')
         }</ul>`
       : '';
     const listaAtivos = maisAtivos.length
       ? `<ol style="margin:6px 0 0 0;padding-left:20px;color:#374151;font-size:14px;">${
           maisAtivos
-            .map((a) => `<li>${escaparHtml(a.nome)} — ${a.quantidade} questão(ões)</li>`)
+            .map((a) => {
+              const onde = [
+                a.quiz ? `${a.quiz} no Quiz` : null,
+                a.modulos ? `${a.modulos} nos Módulos` : null,
+                a.diario ? `${a.diario} no Caso do Dia` : null
+              ].filter(Boolean).join(' · ');
+              return `<li>${escaparHtml(a.nome)} — ${a.total} questão(ões)${onde ? ` (${onde})` : ''}</li>`;
+            })
             .join('')
         }</ol>`
       : '<p style="margin:6px 0 0 0;color:#9CA3AF;font-size:14px;">Nenhuma atividade no período.</p>';
@@ -165,7 +207,7 @@ Deno.serve(async (req) => {
           </tr>
           <tr>
             <td style="padding:10px 0;border-bottom:1px solid #E5E7EB;">👥 Usuários que acessaram</td>
-            <td style="padding:10px 0;border-bottom:1px solid #E5E7EB;text-align:right;font-weight:bold;">${acessaram.length}</td>
+            <td style="padding:10px 0;border-bottom:1px solid #E5E7EB;text-align:right;font-weight:bold;">${totalAcessaram}</td>
           </tr>
         </table>
 
@@ -178,7 +220,7 @@ Deno.serve(async (req) => {
 
     await svc.integrations.Core.SendEmail({
       to: DESTINATARIO,
-      subject: `Resumo Diário PlayECG — ${formatarData(inicioIso).split(' ')[0]}`,
+      subject: `Resumo Diário PlayECG — ${formatarData(inicioIso).split(',')[0]}`,
       html,
       from_name: 'PlayECG'
     });

@@ -5,7 +5,7 @@
       "trigger_type": "scheduled",
       "events": [],
       "schedule_mode": "recurring",
-      "cron_expression": "0 6 * * *",
+      "cron_expression": "0 5 * * *",
       "one_time_date": null,
       "timezone": "America/Sao_Paulo",
       "interval_value": null,
@@ -16,8 +16,7 @@
       "ends_after_count": null
     }
   },
-  "name": "Resumo Di\u00e1rio",
-  "description": "Todos os dias \u00e0s 06:00 (Bras\u00edlia), envia para o e-mail do admin o resumo das \u00faltimas 24h do PlayECG: novos cadastros, compras, acessos e usu\u00e1rios mais ativos.",
+  "description": "Todos os dias \u00e0s 05:00 (Bras\u00edlia), envia para o e-mail do admin o resumo do dia anterior (00h \u00e0s 23h59): novos cadastros, compras, acessos e usu\u00e1rios mais ativos.",
   "definition": {
     "document": {
       "dsl": "1.0.0",
@@ -35,10 +34,11 @@
           "then": "end",
           "x-base44": {
             "title": "Gerar e enviar o resumo di\u00e1rio",
-            "description": "\u00daltimas 24h por e-mail"
+            "description": "Resumo do dia anterior por e-mail"
           }
         }
       }
     ]
-  }
+  },
+  "name": "Resumo Di\u00e1rio"
 }
