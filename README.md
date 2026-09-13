@@ -152,11 +152,20 @@ mudados de propósito, e copiar o design de novo desfaz as correções abaixo.
 | [trilha.js](src/lib/trilha.js) | regra de progressão da trilha — a `LearningTrail` e o card CONTINUAR do Dashboard pedem a mesma resposta |
 | [faixaTopo.js](src/lib/faixaTopo.js) | cor da faixa do entalhe declarada por tela (§6) |
 | `src/components/home/DashboardMobile.jsx`, `perfil/`, `conquistas/`, `upgrade/`, `aprenda/` | o corpo das demais telas; a busca de dados continua na página |
+| [Cartao.jsx](src/components/Cartao.jsx) | peças que se repetem: `Cartao`, `Atalho`, `IconeQuadrado`, `SeloPremium` |
+| [estiloHtml.js](src/lib/estiloHtml.js) | classes para o HTML do editor (o `prose` do Tailwind nunca valeu aqui — o projeto não tem o plugin de tipografia) |
 
 Visual: fundo `#F4F6F8`, `font-nunito`, paleta `ecg.*` do Tailwind. Telas de
 caso, Troféus, Perfil, Upgrade e Aprenda ECG usam **o mesmo layout em qualquer
 largura** (centralizado no desktop); só o Dashboard mantém um bloco desktop
 separado.
+
+Desde 12/09/2026 **a web usa a mesma paleta e as mesmas peças** — Dashboard
+(bloco desktop), Módulos, Conteúdo e o card de Premium do menu lateral saíram do
+visual antigo (azul `#1976D2`, cards com sombra). O que continua diferente no
+desktop é só o *layout* do Dashboard e o menu lateral; cor, cartão e botão são
+os mesmos do celular. A coluna das telas de caso segue estreita de propósito:
+linha de leitura curta e uma tela só para manter.
 
 **Desvios do design que são decisão, não esquecimento:**
 

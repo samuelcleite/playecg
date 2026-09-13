@@ -11,17 +11,12 @@ import {
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import LearningTrail from "@/components/home/LearningTrail";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Atalho } from "@/components/Cartao";
+import { useCorDaFaixa, FAIXA_BRANCA } from "@/lib/faixaTopo";
+import { ESTILO_HTML } from "@/lib/estiloHtml";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Sparkles,
-  BookOpen,
-  Lightbulb,
-  Loader2
-} from "lucide-react";
-import { motion } from "framer-motion";
+import { Sparkles, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -116,6 +111,7 @@ export default function Modules() {
     await loadData();
   };
 
+  useCorDaFaixa(FAIXA_BRANCA);
   const isRefreshing = usePullToRefresh(recarregar, containerRef);
 
   const handleOpenIntro = async () => {
@@ -133,62 +129,41 @@ export default function Modules() {
   };
 
   return (
-    <div ref={containerRef} className="min-h-screen p-6 md:p-8 relative">
+    <div ref={containerRef} className="font-nunito relative min-h-full bg-[#F4F6F8]">
       {isRefreshing && (
         <div className="flex justify-center py-3 absolute top-0 left-0 right-0 z-50">
           <Loader2 className="animate-spin text-gray-400 w-6 h-6" />
         </div>
       )}
-      <div className="max-w-6xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Módulos
-          </h1>
-          <p className="text-gray-600 text-lg">
+      <header className="border-b border-[#E6EAEE] bg-white">
+        <div className="mx-auto w-full max-w-3xl px-4 pb-3.5 pt-2">
+          <h1 className="text-2xl font-black text-ecg-midnight">Módulos</h1>
+          <p className="mt-0.5 text-[13px] font-semibold text-[#6B7785]">
             Progrida pelos módulos e torne-se um especialista em ECG
           </p>
         </div>
+      </header>
 
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-3.5 px-4 pb-6 pt-3.5">
         {/* Banner de estatísticas removido (Módulos Completos / Taxa de
             Acerto): mesmo motivo dos outros blocos de estatística. */}
 
-        {/* Introduction Section */}
+        {/* Introdução ao ECG */}
         {introMeta && (
-          <Card className="border-2 border-blue-200 shadow-xl bg-blue-50">
-            <CardContent className="p-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-[#1976D2] shadow-lg flex-shrink-0">
-                  <Sparkles className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-lg font-bold text-gray-900">
-                      Introdução ao ECG
-                    </h3>
-                    <Badge className="bg-[#22C55E] text-white">Recomendado</Badge>
-                  </div>
-                  <p className="text-sm text-gray-600 flex items-center gap-1">
-                    <BookOpen className="w-3.5 h-3.5" />
-                    Conteúdo introdutório essencial
-                  </p>
-                </div>
-              </div>
-              <Button
-                onClick={handleOpenIntro}
-                className="gap-2 bg-[#0D3B66] hover:bg-[#1976D2] text-white flex-shrink-0"
-              >
-                Ler Introdução
-              </Button>
-            </CardContent>
-          </Card>
+          <Atalho
+            Icone={Sparkles}
+            tom="roxo"
+            titulo="Introdução ao ECG"
+            legenda="Conteúdo introdutório essencial"
+            onClick={handleOpenIntro}
+          />
         )}
 
         {/* Trail */}
         {isTrailLoading ? (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-3.5">
             {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-24 w-full rounded-2xl" />
+              <Skeleton key={i} className="h-24 w-full rounded-[20px]" />
             ))}
           </div>
         ) : (
@@ -202,46 +177,39 @@ export default function Modules() {
 
       {/* Introduction Dialog */}
       <Dialog open={showIntroDialog} onOpenChange={setShowIntroDialog}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="font-nunito max-h-[90vh] max-w-3xl overflow-y-auto rounded-[22px]">
           <DialogHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-xl bg-[#1976D2] flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <DialogTitle className="text-2xl">Introdução ao ECG</DialogTitle>
-                <DialogDescription>
+            <div className="mb-2 flex items-center gap-3">
+              <span className="flex h-12 w-12 flex-none items-center justify-center rounded-[14px] bg-ecg-purple">
+                <Sparkles className="h-6 w-6 text-white" />
+              </span>
+              <div className="text-left">
+                <DialogTitle className="text-xl font-black text-ecg-midnight">Introdução ao ECG</DialogTitle>
+                <DialogDescription className="text-[13px] font-semibold text-[#6B7785]">
                   Fundamentos essenciais para começar sua jornada
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
-          <div className="py-4">
-            <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6">
-              <div className="flex items-start gap-3 mb-4">
-                <Lightbulb className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
-                <div className="flex-1">
-                  {introLoading ? (
-                    <div className="flex items-center gap-2 text-gray-500 text-sm">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Carregando introdução...
-                    </div>
-                  ) : (
-                    <div
-                      className="text-gray-700 leading-relaxed prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: introContent?.content || "" }}
-                    />
-                  )}
-                </div>
+          <div className="rounded-[18px] border border-[#E6EAEE] bg-[#F8FAFB] p-4">
+            {introLoading ? (
+              <div className="flex items-center gap-2 text-sm font-semibold text-[#6B7785]">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Carregando introdução...
               </div>
-            </div>
+            ) : (
+              <div
+                className={`text-[13px] font-semibold leading-relaxed text-[#40505F] ${ESTILO_HTML}`}
+                dangerouslySetInnerHTML={{ __html: introContent?.content || "" }}
+              />
+            )}
           </div>
 
           <div className="flex justify-end">
             <Button
               onClick={() => setShowIntroDialog(false)}
-              className="bg-[#1976D2] hover:bg-[#0D3B66] text-white"
+              className="rounded-[12px] bg-ecg-midnight font-extrabold text-white hover:bg-ecg-midnight-2"
             >
               Fechar
             </Button>
