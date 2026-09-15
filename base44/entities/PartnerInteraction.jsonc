@@ -1,0 +1,56 @@
+{
+  // PartnerInteraction — linha do tempo de conversas com um Partner. Existe
+  // para resolver exatamente o problema que motivou o CRM: sem isto, "com
+  // quem já falamos e o que ficou combinado" morava espalhado em WhatsApp e
+  // memória. Um registro por conversa/contato, nunca editado pelo sistema —
+  // só pelo admin que a escreveu, à mão, se corrigir algo.
+  "name": "PartnerInteraction",
+  "type": "object",
+  "properties": {
+    "partner_id": {
+      "type": "string",
+      "description": "Id do Partner sobre o qual esta interação aconteceu."
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Quando a conversa aconteceu (não quando foi registrada no sistema)."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["call", "whatsapp", "email", "meeting", "instagram", "other"],
+      "description": "Canal da interação."
+    },
+    "notes": {
+      "type": "string",
+      "description": "O que foi falado/combinado. É o conteúdo principal do registro."
+    },
+    "created_by": {
+      "type": "string",
+      "description": "E-mail do admin que registrou. Preenchido pela function a partir da identidade da sessão, nunca do corpo da requisição."
+    }
+  },
+  "required": ["partner_id", "occurred_at", "type", "notes"],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    }
+  }
+}

@@ -1,0 +1,80 @@
+{
+  // Partner — CRM de parcerias (influenciadores, ligas acadêmicas, cursos
+  // preparatórios, etc). Um registro por instituição OU por pessoa; qual dos
+  // dois é decidido por `kind`.
+  //
+  // kind = "institution": o nome aqui é da instituição, e as pessoas de
+  // contato dela moram em PartnerContact (partner_id -> este registro).
+  // kind = "person": o registro já É o contato — não existe PartnerContact
+  // associado, e é por isso que `notes` importa tanto para esse caso (não há
+  // outro lugar para anotar contexto sobre a pessoa).
+  "name": "Partner",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome da instituição (kind=institution) ou da pessoa (kind=person)."
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["institution", "person"],
+      "description": "institution = tem pessoas de contato cadastradas em PartnerContact. person = o próprio registro é o contato."
+    },
+    "category": {
+      "type": "string",
+      "enum": ["influencer", "academic_league", "prep_course", "medical_school", "other"],
+      "description": "Tipo de parceria. 'other' exige texto livre em category_other — sem isso o card mostraria só 'Outro', sem dizer o quê."
+    },
+    "category_other": {
+      "type": "string",
+      "description": "Descrição livre do tipo de parceria. Só tem sentido quando category = 'other'; a function ignora este campo para qualquer outra categoria, para não sobrar texto de uma categoria trocada."
+    },
+    "stage": {
+      "type": "string",
+      "enum": ["new_contact", "talking", "proposal_sent", "negotiation", "won", "lost"],
+      "default": "new_contact",
+      "description": "Etapa no funil de vendas — cada valor é uma coluna do Kanban em AdminPartnerships. won/lost são etapas finais (fechado)."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Observações gerais e livres sobre a parceria. Obrigatório na tela quando kind=person (não é obrigatório no schema para não travar edição de registros antigos)."
+    },
+    "phone": {
+      "type": "string",
+      "description": "Telefone/WhatsApp de contato direto."
+    },
+    "email": {
+      "type": "string",
+      "description": "E-mail de contato direto."
+    },
+    "instagram": {
+      "type": "string",
+      "description": "@ do Instagram, sem o @."
+    }
+  },
+  "required": ["name", "kind", "category"],
+  // Mesmo desenho do Coupon/TrialGrant: só a function adminPartners (service
+  // role) lê e escreve. Nenhum cliente acessa esta entidade direto.
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    }
+  }
+}

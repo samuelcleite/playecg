@@ -29,6 +29,7 @@ import {
   FileText,
   Calendar,
   User,
+  Handshake,
   ArrowLeft
 } from "lucide-react";
 import {
@@ -93,7 +94,7 @@ export default function Layout({ children, currentPageName }) {
     "AdminModules", "AdminPhases", "AdminCases", "AdminContent", "AdminImages",
     "AdminAchievements", "AdminCoupons", "AdminCouponStats", "AdminPayments",
     "AdminUsers", "AdminActivity", "AdminNotifications", "AdminDailyCases",
-    "AdminTrials"
+    "AdminTrials", "AdminPartnerships"
   ];
   const isAdminSubPage = adminSubPages.includes(currentPageName);
 
@@ -164,6 +165,7 @@ export default function Layout({ children, currentPageName }) {
 
   const adminItems = [
     { title: "Gerenciar Cupons", url: createPageUrl("AdminCoupons"), icon: Ticket },
+    { title: "CRM de Parcerias", url: createPageUrl("AdminPartnerships"), icon: Handshake },
     { title: "Estatísticas de Cupons", url: createPageUrl("AdminCouponStats"), icon: BarChart3 },
     { title: "Gerenciar Pagamentos", url: createPageUrl("AdminPayments"), icon: CreditCard },
     { title: "Gerenciar Usuários", url: createPageUrl("AdminUsers"), icon: Users },
