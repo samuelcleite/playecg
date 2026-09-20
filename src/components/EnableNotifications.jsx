@@ -8,7 +8,9 @@ import {
   marcarVistoSemPermissao,
   marcarPedidoRecusado,
   pedidoJaRecusado,
-  limparMemoriaPush
+  limparMemoriaPush,
+  limparPedidoRecusado,
+  registrarTentativaResgate
 } from "@/lib/memoriaPush";
 import { Bell, BellOff, CheckCircle2, Loader2, Gift } from "lucide-react";
 import { isIOSNativeApp } from "@/utils/platform";
@@ -110,7 +112,10 @@ export default function EnableNotifications({ className }) {
         try {
           const estado = await pedirPermissaoNativa();
           setStatus(estado === "concedida" ? "subscribed" : "denied");
-          if (estado === "concedida") limparMemoriaPush();
+          // Só a recusa é limpa aqui — as marcas de reconciliação
+          // (visto_sem_permissao, tentativas_resgate) ficam a cargo do
+          // resultado do resgate logo abaixo, não deste gesto de permissão.
+          if (estado === "concedida") limparPedidoRecusado();
           // Tocou e não concedeu: a partir daqui esta tela abre já no estado
           // bloqueado, com o atalho para os Ajustes. Ver lib/memoriaPush.js.
           else marcarPedidoRecusado();
@@ -123,7 +128,21 @@ export default function EnableNotifications({ className }) {
           // promoção é o servidor. Ver src/lib/promocaoPush.js.
           if (estado === "concedida") {
             const r = await resgatarPromoPush();
-            if (r.ok) setResgatado({ dias: r.dias });
+            if (r.ok) {
+              // Só agora, com o resgate confirmado, é seguro apagar a marca que
+              // a reconciliação usa para saber se ainda há algo pendente.
+              limparMemoriaPush();
+              setResgatado({ dias: r.dias });
+            } else if (r.silencioso) {
+              limparMemoriaPush();
+            } else {
+              // Falha provavelmente transitória (ex.: o OneSignal ainda não
+              // refletiu a inscrição recém-criada). NÃO limpa
+              // `visto_sem_permissao`: é o que dá à reconciliação uma segunda
+              // chance no próximo carregamento. Ver o mesmo raciocínio em
+              // NotificationBanner.jsx.
+              registrarTentativaResgate();
+            }
           }
         } finally {
           setPedindo(false);

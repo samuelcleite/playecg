@@ -7,7 +7,9 @@ import {
   marcarVistoSemPermissao,
   marcarPedidoRecusado,
   pedidoJaRecusado,
-  limparMemoriaPush
+  limparMemoriaPush,
+  limparPedidoRecusado,
+  registrarTentativaResgate
 } from "@/lib/memoriaPush";
 import Confete from "@/components/Confete";
 import { Bell, BellOff, X, Loader2, Gift, Sparkles, ChevronRight } from "lucide-react";
@@ -134,11 +136,24 @@ export default function NotificationBanner() {
     setResgatando(true);
     setErroPromo(null);
     const r = await resgatarPromoPush();
-    if (r.ok) setResgatado({ dias: r.dias });
-    // Recusa silenciosa (não havia promoção para esta pessoa) não vira mensagem:
-    // quem ativou notificações sem saber de promoção nenhuma não deve receber um
-    // aviso sobre um prêmio que nunca lhe foi oferecido.
-    else if (!r.silencioso) setErroPromo(r.erro);
+    if (r.ok) {
+      // Só agora, com o resgate confirmado, é seguro apagar a marca que a
+      // reconciliação usa para saber se ainda há algo pendente.
+      limparMemoriaPush();
+      setResgatado({ dias: r.dias });
+    } else if (r.silencioso) {
+      // Não havia promoção para esta pessoa — o assunto está encerrado, mesma
+      // regra da reconciliação (ver reconciliarPromoPush).
+      limparMemoriaPush();
+    } else {
+      // Falha provavelmente transitória (ex.: o OneSignal ainda não refletiu a
+      // inscrição recém-criada). NÃO limpa a marca `visto_sem_permissao`: é o
+      // que dá à reconciliação uma segunda chance no próximo carregamento. Sem
+      // isto, quem cumpriu o combinado no exato instante em que o OneSignal
+      // ainda não sabia ficava sem prêmio e sem segunda chance.
+      registrarTentativaResgate();
+      setErroPromo(r.erro);
+    }
     setResgatando(false);
   };
 
@@ -155,7 +170,10 @@ export default function NotificationBanner() {
           const estado = await pedirPermissaoNativa();
           if (estado === "concedida") {
             setStatus("subscribed");
-            limparMemoriaPush();
+            // Só a recusa é limpa aqui — as marcas de reconciliação
+            // (visto_sem_permissao, tentativas_resgate) ficam a cargo do
+            // resultado do resgate logo abaixo. Ver o comentário em `resgatar`.
+            limparPedidoRecusado();
             // Resgate na sequência do mesmo gesto: a pessoa clicou por causa do
             // presente, e pedir um segundo clique para recebê-lo perderia
             // justamente quem já fez a parte difícil.

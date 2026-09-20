@@ -90,6 +90,14 @@ export function pedidoJaRecusado() {
   return ler(PEDIDO_RECUSADO) === "1";
 }
 
+// Limpa só a recusa, sem mexer nas marcas de reconciliação (visto_sem_permissao,
+// tentativas_resgate). Usada no gesto de conceder permissão: a pessoa não está
+// mais recusando, mas isso não diz nada sobre se o resgate da promoção deu
+// certo — quem decide isso é o resultado do resgate, não o gesto de permissão.
+export function limparPedidoRecusado() {
+  apagar(PEDIDO_RECUSADO);
+}
+
 // ─── TENTATIVAS DE RESGATE ───────────────────────────────────────────────────
 
 export function tentativasEsgotadas() {
