@@ -118,7 +118,7 @@ Três camadas, em vigor desde 11/09/2026:
    apenas os escolhidos. Esses pools são lidos em **posição aleatória** (`skip`
    sorteado), nunca com `skip 0`: pool ordenado por `-created_date` e preso no
    topo não é amostra do catálogo, é a lista do que foi cadastrado por último
-   (22/09/2026, §9). No `getRandomCase` o tamanho do catálogo é aprendido em
+   (22/09/2026, registro de aprendizados na §12). No `getRandomCase` o tamanho do catálogo é aprendido em
    memória do isolate — offset vazio prova que ele é menor e baixa o teto; no
    `getPhaseCases` quem posiciona a janela é o `total_cases` da fase (§8).
    Agregados (streak, pontos, casos tentados, total de acertos) vêm da
