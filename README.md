@@ -115,8 +115,14 @@ Três camadas, em vigor desde 11/09/2026:
    lido um por vez (`buscarConteudo`), só quando alguém abre. Sorteio de caso
    (`getRandomCase`) e baralho da fase (`getPhaseCases`) rodam no servidor com
    pools **só de id** (`fields`, 5º parâmetro do `filter`) e leem inteiros
-   apenas os escolhidos. Agregados (streak, pontos, casos tentados, total de
-   acertos) vêm da `Account`, nunca do histórico de `QuizAttempt`.
+   apenas os escolhidos. Esses pools são lidos em **posição aleatória** (`skip`
+   sorteado), nunca com `skip 0`: pool ordenado por `-created_date` e preso no
+   topo não é amostra do catálogo, é a lista do que foi cadastrado por último
+   (22/09/2026, §9). No `getRandomCase` o tamanho do catálogo é aprendido em
+   memória do isolate — offset vazio prova que ele é menor e baixa o teto; no
+   `getPhaseCases` quem posiciona a janela é o `total_cases` da fase (§8).
+   Agregados (streak, pontos, casos tentados, total de acertos) vêm da
+   `Account`, nunca do histórico de `QuizAttempt`.
 2. **Leituras repetem em 429; escritas nunca.** `src/api/base44Client.js`
    embrulha o cliente do SDK (`comRetentativaNasLeituras`, em
    `src/lib/retentativa.js`): `list/filter/get` e as functions
@@ -932,6 +938,12 @@ rebaseada antes de qualquer merge** — senão o merge deleta `/termos`,
   mesmo motivo do `getUserSubscriptionInfo` acima — é o que separa quem comprou
   de quem só continua marcado premium. Aceito por ora: a tela é de admin e roda
   sob demanda. (08/09/2026.)
+- **O baralho da fase depende do `total_cases` digitado no admin.** O
+  `getPhaseCases` usa esse número para posicionar a janela do pool dentro da
+  fase. Zerado ou menor que o real, a janela volta ao topo da lista e os casos
+  mais antigos da fase param de entrar no baralho — sem erro, sem log, sem nada
+  aparecendo na tela. Nenhuma rotina confere o campo contra a contagem real de
+  `ECGCase`. (23/09/2026, lido no código.)
 - **O app é claro por design e não pode ganhar modo noturno por acidente.** As
   telas usam ~770 cores hardcoded (`text-gray-600`, `text-gray-900`, `bg-white`)
   espalhadas por 44 arquivos. O bloco `.dark` do `src/index.css` existe e está
@@ -1076,6 +1088,7 @@ Só o que não coube em nenhuma seção. Mais recente no topo.
  
 | Data | O que se descobriu | Como se sabe |
 |---|---|---|
+| 22/09/2026 | **Otimização de leitura pode trocar a distribuição de um sorteio sem quebrar nada.** Para cortar o 429, o sorteio do Quiz virou `Math.random()` dentro de um pool de 30 lido com `-created_date` e `skip 0`: aleatório dentro do pool, mas o pool era sempre o dos 30 casos cadastrados mais recentemente. Como os casos entram em lote e por tema, quem jogava ficava preso no último lote — e no gratuito, com 5 questões por dia, isso dura dias. Nada falhou e nada foi logado: quem percebeu foram as alunas no grupo, onze dias depois. Amostra tirada de lista ordenada precisa de `skip` sorteado; e mudança de distribuição não se confere lendo o código, se confere contando. | Relato de duas alunas em 22/09/2026, confirmado no `getRandomCase` da `main` (`filter(consulta, '-created_date', 30, 0)`) e medido com os handlers reais contra catálogo simulado: 100% dos sorteios nos 30 mais novos, contra 2,4% depois da correção (PRs #94 e #95). |
 | 11/09/2026 | **Otimizar UMA tela não resolve um limite que é do app inteiro.** O 429 de volume de leitura do Base44 soma as leituras de todos os usuários (e do admin) na mesma janela: o bot corrigiu Quiz, Troféus e a abertura da fase e o erro continuou, porque Módulos ainda baixava o corpo de todos os conteúdos, o Quiz relia o conteúdo da fase a cada pergunta, o `checkNewAchievements` lia todas as fases a cada resposta e a tela de usuários do admin baixava todas as tentativas. A pergunta certa não é "esta tela lê muito?" e sim "quantos registros o app inteiro lê por minuto, e o que acontece com a tela quando uma leitura é recusada?". Guardrails na §2. | Print do 429 às 19:38 de 11/09/2026, onze horas depois do commit do bot; leituras contadas no código da `main`. |
 | 08/09/2026 | **Comentário e código podem divergir sem nada acusar.** O `avaliarElegibilidade` dizia, em comentário, "uma data vencida não conta: o tratamento correto é o mesmo do free" — e o `if` logo abaixo recusava, respondendo "já é premium por assinatura paga" a quem nunca pagou nada. O `check-invariantes` passava: ele compara as duas **cópias** entre si, nunca o código com o que o comentário promete. Comentário bom não é prova; num arquivo com cópias sincronizadas por hash, ele é ainda menos. | Lido no código durante a investigação de 08/09/2026 — as duas cópias estavam idênticas, e as duas estavam erradas do mesmo jeito. |
 | 08/09/2026 | **Expiração preguiçosa vira mentira de relatório, não só atraso.** Cortesia que vence sem a pessoa reabrir o app deixa a conta `premium` no banco por tempo indefinido. Qualquer tela ou métrica que leia só `subscription_type` passa a contar essas pessoas como assinantes — foi assim que a taxa de conversão da promoção de push ficou otimista e que o Perfil anunciou "R$ 59, renova em 30 dias" para quem ganhou 3 dias de cortesia. Ao ler assinatura para **relatar** (não para liberar acesso), cruze sempre com `Payment`/`store_expires_at`/`lifetime_access`. | Quatro contas apareciam como "Virou premium" na tela de cortesias com "Nenhum pagamento registrado" no detalhe; confirmado no `adminListTrials`, no `getUserSubscriptionInfo` e no export de `Payment` de 08/09/2026. |
