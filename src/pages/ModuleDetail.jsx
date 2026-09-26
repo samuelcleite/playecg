@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { getCurrentUser, clearCurrentUserCache } from '@/lib/currentUser';
 import { comTimeout, descreverErro, detalheTecnico } from '@/lib/carregamento';
 import { moduloEFases, conteudoDaFase } from '@/lib/catalogoTrilha';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { triggerAchievementCheck } from "@/components/AchievementChecker";
 import AchievementToast from "@/components/AchievementToast";
@@ -26,6 +26,27 @@ import { BotaoPrincipal, BotaoSecundario } from "@/components/BarraDeAcao";
 import { MAX_TENTATIVAS, respostasCorretas, acertou, alternar, alternativasDe, marcarRespostas } from "@/lib/caso";
 import { useRolarAoTopo } from "@/lib/rolagem";
 import { registrarTentativa } from "@/lib/registrarTentativa";
+import { podeAbrirModulo, ehPremium, moduloGratuito } from "@/lib/acesso";
+
+// Chamada do Premium dentro das telas de fim de fase do Módulo 1, que é grátis.
+// É a "chamada entre fases": aparece a cada fase concluída, sem tirar o botão
+// principal, que continua levando à próxima fase.
+function ChamadaPremium({ titulo, texto, comBotao = true }) {
+  return (
+    <section className="rounded-[20px] bg-ecg-midnight p-[18px]">
+      <p className="text-[15px] font-black text-ecg-green">{titulo}</p>
+      <p className={`mt-1 text-xs font-semibold leading-relaxed text-white/75 ${comBotao ? "mb-3" : ""}`}>{texto}</p>
+      {comBotao && (
+        <Link
+          to={createPageUrl("Upgrade")}
+          className="inline-block rounded-[11px] bg-ecg-green px-4 py-2.5 text-[13px] font-black text-ecg-midnight shadow-[0_3px_0_#16a34a] transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#16a34a]"
+        >
+          CONHECER O PREMIUM
+        </Link>
+      )}
+    </section>
+  );
+}
 
 export default function ModuleDetail() {
   const navigate = useNavigate();
@@ -63,7 +84,9 @@ export default function ModuleDetail() {
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [phaseContent, setPhaseContent] = useState(null);
   const [showPhaseCompletion, setShowPhaseCompletion] = useState(false);
-  const [nextPhase, setNextPhase] = useState(null);
+  // As fases do módulo, em ordem — do catálogo que a carga já leu. A próxima
+  // fase sai daqui na hora do render (ver `nextPhase` lá embaixo).
+  const [fasesDoModulo, setFasesDoModulo] = useState([]);
 
   // O que o recordQuizAttempt devolveu, para os números da tela de resultado.
   // { pendente: true } enquanto a resposta não chega; null se falhou.
@@ -80,27 +103,6 @@ export default function ModuleDetail() {
   // o resultado abre rolado até onde estava o VERIFICAR.
   const casoFinalizado = showResult && (isCorrect || showCorrectAnswer);
   useRolarAoTopo(`${currentCaseIndex}-${casoFinalizado}-${showPhaseCompletion}`);
-
-  useEffect(() => {
-    // Só faz sentido buscar a próxima fase quando esta acabou de ser concluída.
-    // Em revisão a trilha já está liberada; numa sessão encerrada sem atingir a
-    // meta ainda não há próxima fase a oferecer.
-    const goalReached = totalPhaseCases > 0 && completedCasesCount >= totalPhaseCases;
-    if (showPhaseCompletion && !isReview && goalReached && module && phase) {
-      findNextPhase();
-    }
-  }, [showPhaseCompletion, isReview, completedCasesCount, totalPhaseCases, module, phase]);
-
-  const findNextPhase = async () => {
-    // Do catálogo em cache: as fases deste módulo já foram lidas ao abrir a
-    // fase (executarCarga), e uma leitura a mais aqui só gastaria cota.
-    const { fases: modulePhasesOrdered } = await moduloEFases(module.id);
-
-    const currentPhaseIndex = modulePhasesOrdered.findIndex(p => p.id === phase.id);
-    if (currentPhaseIndex !== -1 && currentPhaseIndex < modulePhasesOrdered.length - 1) {
-      setNextPhase(modulePhasesOrdered[currentPhaseIndex + 1]);
-    }
-  };
 
   // loadData é só a casca de erro. Toda falha aqui dentro terminava num spinner
   // eterno: sem catch, o `setLoading(false)` do fim nunca era alcançado, e a
@@ -198,13 +200,17 @@ export default function ModuleDetail() {
       return;
     }
     setPhase(foundPhase);
+    setFasesDoModulo(catalogo.fases);
 
     // PAYWALL — daqui para baixo começa o conteúdo pago (os casos de ECG).
     // Parar exatamente nesta linha é intencional: Module e Phase já foram
     // lidos, então a tela de bloqueio consegue dizer o nome do que a pessoa
     // tentou abrir, mas selectAndCombineCases ainda não rodou — nenhum caso
     // chega ao navegador de quem não assinou.
-    if (userData?.subscription_type !== 'premium') {
+    //
+    // Desde 26/09/2026 o Módulo 1 passa por aqui no plano gratuito. A regra
+    // mora em src/lib/acesso.js, a mesma que ConteudoECG e AprendaECG usam.
+    if (!podeAbrirModulo(userData, foundModule)) {
       setNeedsUpgrade(true);
       setLoading(false);
       return;
@@ -417,7 +423,6 @@ export default function ModuleDetail() {
   // que acabou de ser gravado nesta sessão.
   const startNewRound = async () => {
     setShowPhaseCompletion(false);
-    setNextPhase(null);
     setCurrentCaseIndex(0);
     setSelectedAnswers([]);
     setShowResult(false);
@@ -488,7 +493,7 @@ export default function ModuleDetail() {
         tom="escuro"
         sobretitulo={module?.name}
         titulo={phase?.name || `Fase ${phase?.order}`}
-        texto="Esta fase faz parte do plano premium. Assine para estudar os casos de ECG deste módulo e destravar a trilha inteira."
+        texto="Esta fase faz parte do plano Premium. O Módulo 1 da trilha é grátis; do segundo módulo em diante, é preciso assinar para estudar os casos e destravar a trilha inteira."
         acoes={
           <>
             <BotaoPrincipal to={createPageUrl("Upgrade")}>ASSINAR AGORA</BotaoPrincipal>
@@ -505,6 +510,23 @@ export default function ModuleDetail() {
   const phaseGoalReached = totalPhaseCases > 0 && completedCasesCount >= totalPhaseCases;
   const casesRemaining = Math.max(0, totalPhaseCases - completedCasesCount);
 
+  // A próxima fase deste módulo, das fases que a carga já leu. Calculada aqui, e
+  // não num efeito depois de a tela aparecer: com o efeito, a tela final
+  // desenhava primeiro a versão "sem próxima fase" e trocava um instante depois
+  // — no plano gratuito, seria o convite do fim do módulo piscando antes do
+  // botão da próxima fase.
+  const indiceDaFase = fasesDoModulo.findIndex((p) => p.id === phase?.id);
+  const nextPhase =
+    indiceDaFase !== -1 && indiceDaFase < fasesDoModulo.length - 1 ? fasesDoModulo[indiceDaFase + 1] : null;
+
+  // Plano gratuito no Módulo 1: toda fase concluída mostra a chamada do Premium,
+  // sem tirar o botão da próxima fase. Na última fase do módulo a tela inteira
+  // vira o convite, porque o módulo seguinte é pago.
+  const gratuito = !ehPremium(user);
+  const concluiuAgora = phaseGoalReached && !isReview;
+  const fimDoModuloGratis = gratuito && concluiuAgora && !nextPhase && moduloGratuito(module);
+  const chamadaEntreFases = gratuito && concluiuAgora && !!nextPhase;
+
   // Tela de conclusão da fase
   if (showPhaseCompletion) {
     const nomes = (
@@ -513,6 +535,38 @@ export default function ModuleDetail() {
         <strong className="text-ecg-midnight-2">{module?.name}</strong>
       </>
     );
+
+    if (fimDoModuloGratis) {
+      return (
+        <TelaDeAviso
+          Icone={Trophy}
+          tom="verde"
+          sobretitulo={module?.name}
+          titulo="Módulo concluído!"
+          texto="Você fechou o módulo gratuito da trilha. Daqui para a frente, os módulos são do Premium."
+          acoes={
+            <>
+              <BotaoPrincipal to={createPageUrl("Upgrade")}>CONTINUAR COM O PREMIUM</BotaoPrincipal>
+              <BotaoSecundario to={createPageUrl("Modules")}>Ver a trilha</BotaoSecundario>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-2.5">
+            <QuadroAviso tom="verde">
+              <p>
+                <span className="text-2xl font-black">{Math.min(completedCasesCount, totalPhaseCases)}</span> casos completados nesta fase
+              </p>
+            </QuadroAviso>
+            <ChamadaPremium
+              comBotao={false}
+              titulo="O que o Premium libera"
+              texto="Todos os módulos da trilha, com a teoria de cada fase e a explicação de cada caso, e o Quiz aleatório sem limite diário."
+            />
+          </div>
+        </TelaDeAviso>
+      );
+    }
+
     return (
       <TelaDeAviso
         Icone={isReview ? RefreshCw : phaseGoalReached ? Trophy : BookOpen}
@@ -545,32 +599,40 @@ export default function ModuleDetail() {
           )
         }
       >
-        <QuadroAviso tom={isReview || phaseGoalReached ? "verde" : "azul"}>
-          {isReview ? (
-            <>
-              <p>
-                <span className="text-2xl font-black">{reviewAnswered}</span> casos revisados
-              </p>
-              <p className="mt-1">Quantas rodadas você quiser — a fase continua concluída.</p>
-            </>
-          ) : phaseGoalReached ? (
-            <>
-              <p>
-                <span className="text-2xl font-black">{Math.min(completedCasesCount, totalPhaseCases)}</span> casos completados
-              </p>
-              <p className="mt-1">Continue sua jornada nas próximas fases!</p>
-            </>
-          ) : (
-            <>
-              <p>
-                Faltam <span className="text-2xl font-black">{casesRemaining}</span> {casesRemaining === 1 ? "caso" : "casos"} para concluir esta fase
-              </p>
-              <p className="mt-1">
-                Você já fez {completedCasesCount} de {totalPhaseCases}. Continue praticando para liberar a próxima fase.
-              </p>
-            </>
+        <div className="flex flex-col gap-2.5">
+          <QuadroAviso tom={isReview || phaseGoalReached ? "verde" : "azul"}>
+            {isReview ? (
+              <>
+                <p>
+                  <span className="text-2xl font-black">{reviewAnswered}</span> casos revisados
+                </p>
+                <p className="mt-1">Quantas rodadas você quiser — a fase continua concluída.</p>
+              </>
+            ) : phaseGoalReached ? (
+              <>
+                <p>
+                  <span className="text-2xl font-black">{Math.min(completedCasesCount, totalPhaseCases)}</span> casos completados
+                </p>
+                <p className="mt-1">Continue sua jornada nas próximas fases!</p>
+              </>
+            ) : (
+              <>
+                <p>
+                  Faltam <span className="text-2xl font-black">{casesRemaining}</span> {casesRemaining === 1 ? "caso" : "casos"} para concluir esta fase
+                </p>
+                <p className="mt-1">
+                  Você já fez {completedCasesCount} de {totalPhaseCases}. Continue praticando para liberar a próxima fase.
+                </p>
+              </>
+            )}
+          </QuadroAviso>
+          {chamadaEntreFases && (
+            <ChamadaPremium
+              titulo="Gostando da trilha?"
+              texto="O Módulo 1 é grátis. O Premium libera todos os módulos, a teoria de cada fase e o Quiz aleatório sem limite diário."
+            />
           )}
-        </QuadroAviso>
+        </div>
       </TelaDeAviso>
     );
   }

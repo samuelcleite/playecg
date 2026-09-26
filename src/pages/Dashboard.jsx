@@ -12,6 +12,8 @@ import DashboardMobile from "@/components/home/DashboardMobile";
 import { montarTrilha, proximaFase } from "@/lib/trilha";
 import { carregarCatalogoTrilha } from "@/lib/catalogoTrilha";
 import { inicioDoDiaBrasilia } from "@/lib/diaBrasilia";
+import { repararNome } from "@/lib/nome";
+import { podeAbrirModulo } from "@/lib/acesso";
 import { Atalho } from "@/components/Cartao";
 import {
   Flame,
@@ -32,6 +34,19 @@ const META_DIARIA = 5;
 // useIsMobile começa em false e só depois vira true, o que no celular montaria
 // o NotificationBanner no bloco desktop e em seguida o remontaria no mobile.
 const CONSULTA_MOBILE = "(max-width: 767px)";
+
+// A pessoa já respondeu alguma questão? Lido da Account em cache, sem ida ao
+// servidor: o registrarTentativa mescla nela `last_practice_date` e
+// `attempted_case_ids` a cada resposta, então voltar ao Dashboard depois da
+// primeira questão já enxerga a mudança. `total_attempts` cobre as contas
+// antigas, anteriores ao attempted_case_ids.
+function jaRespondeu(conta) {
+  return (
+    (conta?.total_attempts || 0) > 0 ||
+    !!conta?.last_practice_date ||
+    (Array.isArray(conta?.attempted_case_ids) && conta.attempted_case_ids.length > 0)
+  );
+}
 
 function useTelaMobile() {
   const [mobile, setMobile] = useState(() => window.matchMedia(CONSULTA_MOBILE).matches);
@@ -126,6 +141,10 @@ export default function Dashboard() {
             modulo: `Módulo ${prox.module.order} · ${prox.module.name}`,
             fase: `Fase ${prox.indice + 1} de ${prox.total} — ${prox.phase.name || `Fase ${prox.phase.order}`}`,
             url: `${createPageUrl("ModuleDetail")}?module_id=${prox.module.id}&phase_id=${prox.phase.id}`,
+            // O gratuito que terminou o Módulo 1 tem uma fase paga pela frente:
+            // o CONTINUAR leva ao convite do Premium (é o gatilho do fim do
+            // módulo), mas a meta do dia leva ao Quiz, onde ele ainda pratica.
+            aberta: podeAbrirModulo(userData, prox.module),
           });
         })
         .catch((err) => console.error("trilha (card Continuar):", err));
@@ -152,6 +171,15 @@ export default function Dashboard() {
 
   const isPremium = user?.subscription_type === "premium";
   const earnedAchievements = achievements.filter(a => a.earned);
+  const respondeu = jaRespondeu(user);
+
+  // O banner de notificações — com a promoção "ative e ganhe N dias de
+  // Premium" quando PROMO_PUSH_DIAS está ligada — só aparece DEPOIS da
+  // primeira questão (26/09/2026). Antes ele era a primeira coisa da tela de
+  // quem acabou de criar a conta, antes de qualquer ECG, e no iPhone o pedido
+  // de permissão só pode ser feito uma vez. Continua UMA instância só (ver o
+  // comentário do matchMedia acima): a condição apenas adia a montagem.
+  const mostrarBanner = respondeu;
 
   return (
     <div ref={containerRef} className="min-h-screen bg-[#F4F6F8] md:bg-gradient-to-br md:from-slate-50 md:via-blue-50 md:to-cyan-50 w-full max-w-full relative">
@@ -164,8 +192,9 @@ export default function Dashboard() {
       {/* ══════════ MOBILE: redesenho (1b) ══════════
           Meta do dia, CONTINUAR direto na próxima fase, e dois atalhos. O card
           "Módulos" saiu: a trilha segue na barra inferior, e o CONTINUAR leva à
-          fase — no plano gratuito, à tela de bloqueio do ModuleDetail com o
-          nome do que a pessoa tentou abrir, que é onde a cobrança acontece. */}
+          fase. Desde 26/09/2026 o Módulo 1 é grátis, então o primeiro toque de
+          quem acabou de chegar abre uma fase, não uma cobrança; o bloqueio do
+          ModuleDetail só aparece quando o gratuito termina o Módulo 1. */}
       <div className="md:hidden">
         <DashboardMobile
           ofensiva={streakDays}
@@ -174,7 +203,8 @@ export default function Dashboard() {
           metaTotal={META_DIARIA}
           continuar={continuar}
           isPremium={isPremium}
-          aviso={telaMobile ? <NotificationBanner /> : null}
+          primeiraVez={!respondeu}
+          aviso={telaMobile && mostrarBanner ? <NotificationBanner /> : null}
         />
       </div>
 
@@ -222,12 +252,12 @@ export default function Dashboard() {
         {/* Uma instância só: o banner roda o resgate da promoção de push ao
             montar, e duas cópias (uma escondida por CSS) resgatariam em dobro.
             No mobile ele entra dentro do DashboardMobile. */}
-        {!telaMobile && <NotificationBanner />}
+        {!telaMobile && mostrarBanner && <NotificationBanner />}
 
         {/* Greeting */}
         <div className="mb-6">
           <h1 className="text-2xl font-black text-ecg-midnight">
-            Olá, {user?.full_name?.split(" ")[0] || "Jogador"}! 👋
+            Olá, {repararNome(user?.full_name)?.split(" ")[0] || "Jogador"}! 👋
           </h1>
           <p className="mt-1 text-sm font-semibold text-[#6B7785]">
             {streakDays > 0
@@ -251,7 +281,13 @@ export default function Dashboard() {
             Icone={ListOrdered}
             tom="escuro"
             titulo="Módulos"
-            legenda="Continue seu aprendizado de onde parou"
+            legenda={
+              respondeu
+                ? "Continue seu aprendizado de onde parou"
+                : isPremium
+                ? "Comece pelo Módulo 1"
+                : "Comece pelo Módulo 1, que é grátis"
+            }
             to={createPageUrl("Modules")}
           />
         </div>

@@ -49,6 +49,16 @@ export function SeloPremium() {
   );
 }
 
+// O par do SeloPremium: marca o que o plano gratuito abre (o Módulo 1 e a
+// Introdução, desde 26/09/2026).
+export function SeloGratis({ texto = "Grátis" }) {
+  return (
+    <span className="flex flex-none items-center rounded-md bg-[#E6F9EC] px-1.5 py-0.5">
+      <span className="text-[11px] font-extrabold text-[#15803D]">{texto}</span>
+    </span>
+  );
+}
+
 /* Linha clicável: ícone, título, legenda e uma ponta à direita. `to` vira
    Link; sem ele é <button>. `direita` substitui a seta (o selo Premium, por
    exemplo). */

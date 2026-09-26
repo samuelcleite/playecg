@@ -534,6 +534,11 @@ export default function Quiz() {
         acoes={
           <>
             <BotaoPrincipal to={createPageUrl("Upgrade")}>ASSINAR O PREMIUM</BotaoPrincipal>
+            {/* O limite fecha só o Quiz aleatório: o Módulo 1 é grátis e sem
+                limite (recordQuizAttempt só recusa 'random'). Esta tela era um
+                beco sem saída para quem não assina — 1 em cada 3 gratuitos que
+                responderam parou exatamente na 5ª questão e não voltou. */}
+            <BotaoSecundario to={createPageUrl("Modules")}>Praticar no Módulo 1, que é grátis</BotaoSecundario>
             <BotaoSecundario to={createPageUrl("Dashboard")}>Voltar ao início</BotaoSecundario>
           </>
         }
@@ -553,15 +558,16 @@ export default function Quiz() {
           <QuadroAviso tom="azul">
             <p className="mb-1 font-extrabold">Como funciona o plano gratuito</p>
             <ul className="list-disc pl-5">
-              <li><strong>{FREE_DAILY_LIMIT} questões</strong> liberadas por dia</li>
+              <li><strong>{FREE_DAILY_LIMIT} questões</strong> do Quiz aleatório por dia</li>
               <li>Depois delas, <strong>1 questão por hora</strong></li>
+              <li>O <strong>Módulo 1</strong> da trilha inteiro, sem limite</li>
             </ul>
           </QuadroAviso>
           <QuadroAviso tom="escuro">
             <p className="mb-1 font-extrabold">Com Premium você tem</p>
             <ul className="list-disc pl-5">
               <li>Quizzes ilimitados por dia</li>
-              <li>Módulos estruturados</li>
+              <li>Todos os módulos da trilha</li>
             </ul>
           </QuadroAviso>
         </div>
@@ -675,14 +681,22 @@ export default function Quiz() {
             <section className="rounded-[20px] bg-ecg-midnight p-[18px]">
               <p className="text-[15px] font-black text-ecg-green">A explicação é do Premium</p>
               <p className="mb-3 mt-1 text-xs font-semibold leading-relaxed text-white/75">
-                Aprenda a teoria junto com a prática nos módulos estruturados, com a explicação de cada caso.
+                No Módulo 1, que é grátis, você já vê a explicação de cada caso. O Premium libera todos os módulos.
               </p>
-              <Link
-                to={createPageUrl("Upgrade")}
-                className="inline-block rounded-[11px] bg-ecg-green px-4 py-2.5 text-[13px] font-black text-ecg-midnight shadow-[0_3px_0_#16a34a] transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#16a34a]"
-              >
-                VER PLANOS
-              </Link>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <Link
+                  to={createPageUrl("Upgrade")}
+                  className="inline-block rounded-[11px] bg-ecg-green px-4 py-2.5 text-[13px] font-black text-ecg-midnight shadow-[0_3px_0_#16a34a] transition-transform active:translate-y-[2px] active:shadow-[0_1px_0_#16a34a]"
+                >
+                  VER PLANOS
+                </Link>
+                <Link
+                  to={createPageUrl("Modules")}
+                  className="text-[13px] font-extrabold text-white underline underline-offset-2"
+                >
+                  Ir para o Módulo 1
+                </Link>
+              </div>
             </section>
           )}
           onVerEcg={currentCase.image_url ? () => setShowZoom(true) : undefined}

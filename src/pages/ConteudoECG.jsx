@@ -12,7 +12,8 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import TelaDeAviso, { QuadroAviso } from "@/components/caso/TelaDeAviso";
-import { BotaoPrincipal, BotaoSecundario } from "@/components/BarraDeAcao";
+import BarraDeAcao, { BotaoPrincipal, BotaoSecundario } from "@/components/BarraDeAcao";
+import { podeLerConteudo } from "@/lib/acesso";
 import { IconeQuadrado } from "@/components/Cartao";
 import { useCorDaFaixa, FAIXA_BRANCA } from "@/lib/faixaTopo";
 import { ESTILO_HTML } from "@/lib/estiloHtml";
@@ -143,15 +144,17 @@ export default function ConteudoECG() {
     );
   }
 
-  const isPremium = user?.subscription_type === "premium";
-
-  if (!isPremium) {
+  // A Introdução e a teoria do Módulo 1 são de todos desde 26/09/2026 — sem
+  // isso, liberar só a fase no ModuleDetail mandaria o gratuito para um bloqueio
+  // aqui, porque a primeira entrada numa fase passa pela teoria. A regra mora em
+  // src/lib/acesso.js.
+  if (!podeLerConteudo(user, contentType, module)) {
     return (
       <TelaDeAviso
         Icone={Lock}
         tom="escuro"
         titulo="Conteúdo Premium"
-        texto="Este conteúdo educacional é exclusivo para usuários Premium."
+        texto="Este conteúdo faz parte do Premium. A Introdução ao ECG e o Módulo 1 são grátis."
         acoes={
           <>
             <BotaoPrincipal to={createPageUrl("Upgrade")}>ASSINAR PREMIUM</BotaoPrincipal>
@@ -232,7 +235,7 @@ export default function ConteudoECG() {
   // Sem reserva de safe-area propria: esta tela passa pelo Layout, e o <main>
   // de la ja reservou o topo. Somar as duas dobrava o espaco.
   return (
-    <div className="font-nunito min-h-full bg-[#F4F6F8]">
+    <div className="font-nunito flex min-h-full flex-col bg-[#F4F6F8]">
       <header className="sticky z-30 border-b border-[#E6EAEE] bg-white" style={{ top: 'var(--app-sticky-top, 0px)' }}>
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 pb-3 pt-2.5">
           <button
@@ -270,7 +273,7 @@ export default function ConteudoECG() {
             <div className="min-w-0">
               <p className="text-[15px] font-black text-[#15803D]">Nova fase desbloqueada! 🎉</p>
               <p className="mt-0.5 text-xs font-semibold text-[#2F7A4F]">
-                Leia o conteúdo abaixo antes de começar as questões.
+                Leia a teoria abaixo, ou comece as questões quando quiser.
               </p>
             </div>
           </section>
@@ -292,16 +295,22 @@ export default function ConteudoECG() {
             dangerouslySetInnerHTML={{ __html: content.content }}
           />
         </section>
+      </div>
 
-        {/* CTA para iniciar a fase após ler o conteúdo */}
-        {isPhaseTransition && moduleId && phaseId && (
+      {/* CTA para iniciar a fase. Grudado no rodapé (26/09/2026): no fim do
+          texto, só o via quem lia a teoria inteira — e a primeira fase de todo
+          usuário novo passa por esta tela antes da primeira questão. Barra
+          grudada aqui é segura: o que fica por baixo é texto, nunca
+          alternativa de resposta (README §2). */}
+      {isPhaseTransition && moduleId && phaseId && (
+        <BarraDeAcao>
           <BotaoPrincipal
             onClick={() => navigate(`${createPageUrl("ModuleDetail")}?module_id=${moduleId}&phase_id=${phaseId}&from=content`)}
           >
             COMEÇAR A FASE
           </BotaoPrincipal>
-        )}
-      </div>
+        </BarraDeAcao>
+      )}
     </div>
   );
 }

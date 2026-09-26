@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Lock, Check, Play, Trophy, BookOpen } from "lucide-react";
 import { montarTrilha, moduloLiberado, proximaFase } from "@/lib/trilha";
+import { SeloGratis, SeloPremium } from "@/components/Cartao";
 
 /* Trilha no padrão do redesenho (1b):
    - caminho curvo contínuo ligando as fases, trecho percorrido em verde
@@ -14,6 +15,11 @@ import { montarTrilha, moduloLiberado, proximaFase } from "@/lib/trilha";
 // pelo plano acontece no ModuleDetail, quando a pessoa tenta abrir a fase.
 // Sem isso, o usuário free não conseguiria nem clicar para chegar ao paywall.
 // A regra de progressão mora em src/lib/trilha.js, junto com o Dashboard.
+//
+// `seloDoModulo` (26/09/2026) é SÓ desenho: um selo Grátis/Premium ao lado do
+// nome do módulo, para o gratuito saber de antemão o que o plano abre. Ele não
+// tranca nó nenhum e não entra no cálculo de `locked` — trancar por plano aqui
+// deixaria o gratuito sem ter onde clicar (ver o parágrafo acima).
 
 const PCTS = [50, 71, 79, 64, 40, 24]; // posições horizontais, em % da largura
 const NODE = 74;
@@ -52,7 +58,7 @@ function rolarAteCentralizar(el) {
   }
 }
 
-export default function LearningTrail({ modules, phases, userProgress }) {
+export default function LearningTrail({ modules, phases, userProgress, seloDoModulo = null }) {
   const trail = useMemo(
     () => montarTrilha(modules, phases, userProgress),
     [modules, phases, userProgress]
@@ -85,13 +91,14 @@ export default function LearningTrail({ modules, phases, userProgress }) {
           locked={!moduloLiberado(trail, item.module)}
           nextPhaseId={nextPhase?.phase?.id}
           nextPhaseRef={nextPhaseRef}
+          selo={seloDoModulo ? seloDoModulo(item.module) : null}
         />
       ))}
     </div>
   );
 }
 
-function ModuleTrail({ item, locked, nextPhaseId, nextPhaseRef }) {
+function ModuleTrail({ item, locked, nextPhaseId, nextPhaseRef, selo }) {
   const wrapRef = useRef(null);
   const [width, setWidth] = useState(326);
 
@@ -135,6 +142,8 @@ function ModuleTrail({ item, locked, nextPhaseId, nextPhaseRef }) {
           {locked && <Lock className="w-3 h-3 inline mr-1" />}
           {item.module.name}
         </span>
+        {selo === "gratis" && <SeloGratis />}
+        {selo === "premium" && <SeloPremium />}
         <div className="h-px flex-1 bg-[#E2E8EE]" />
       </div>
 

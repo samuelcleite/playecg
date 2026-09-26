@@ -1,8 +1,9 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Flame, Zap, ListOrdered, Shuffle, BookOpen, ChevronRight, Lock, Trophy } from "lucide-react";
+import { Flame, Zap, ListOrdered, Shuffle, BookOpen, ChevronRight, Trophy } from "lucide-react";
 import { useCorDaFaixa, FAIXA_BRANCA } from "@/lib/faixaTopo";
+import { SeloGratis } from "@/components/Cartao";
 
 /* Bloco mobile do Dashboard no padrão do redesenho (1b).
    A barra inferior e a safe-area continuam no Layout.jsx — este componente
@@ -12,9 +13,14 @@ import { useCorDaFaixa, FAIXA_BRANCA } from "@/lib/faixaTopo";
    - `metaFeitos` null = contagem ainda não chegou (a barra fica vazia e o texto
      não promete número nenhum).
    - `continuar` null = trilha ainda carregando; `{ concluida: true }` = não há
-     próxima fase; senão `{ modulo, fase, url }`.
+     próxima fase; senão `{ modulo, fase, url, aberta }` — `aberta` falso é a
+     fase paga que o gratuito encontra depois do Módulo 1.
    - `aviso` entra no topo da coluna (o NotificationBanner da promoção de push
-     mora ali — ele não pode sumir do mobile). */
+     mora ali — ele não pode sumir do mobile; a página só o entrega depois da
+     primeira questão respondida).
+   - `primeiraVez` = a pessoa nunca respondeu uma questão: o CONTINUAR vira o
+     convite do primeiro caso, que abre a Fase 1 do Módulo 1 — grátis desde
+     26/09/2026. */
 
 export default function DashboardMobile({
   ofensiva = 0,
@@ -23,12 +29,22 @@ export default function DashboardMobile({
   metaTotal = 5,
   continuar = null,
   isPremium = false,
+  primeiraVez = false,
   aviso = null,
 }) {
   useCorDaFaixa(FAIXA_BRANCA);
   const feitos = metaFeitos ?? 0;
   const faltam = Math.max(0, metaTotal - feitos);
   const pct = metaTotal ? Math.min(100, Math.round((feitos / metaTotal) * 100)) : 0;
+
+  // A meta é tocável e leva a praticar: à próxima fase, como o CONTINUAR. Trilha
+  // ainda carregando, a trilha; trilha concluída ou próxima fase paga para quem
+  // é gratuito, o Quiz aleatório — a meta nunca leva a uma cobrança.
+  const urlPraticar = !continuar
+    ? createPageUrl("Modules")
+    : continuar.concluida || continuar.aberta === false
+    ? createPageUrl("Quiz")
+    : continuar.url;
 
   return (
     <div className="font-nunito bg-[#F4F6F8] min-h-full">
@@ -64,8 +80,12 @@ export default function DashboardMobile({
       <div className="flex flex-col gap-3.5 px-4 pb-6 pt-4">
         {aviso}
 
-        {/* Meta do dia */}
-        <section className="rounded-[20px] border border-[#E6EAEE] bg-white p-[18px]">
+        {/* Meta do dia — tocar leva a praticar (era só um cartão parado, e quem
+            chegava agora tocava nele esperando começar). */}
+        <Link
+          to={urlPraticar}
+          className="block rounded-[20px] border border-[#E6EAEE] bg-white p-[18px] transition-colors hover:border-ecg-midnight-2"
+        >
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[17px] font-extrabold text-ecg-midnight">Meta de hoje</p>
@@ -88,10 +108,10 @@ export default function DashboardMobile({
               style={{ width: `${pct}%` }}
             />
           </div>
-        </section>
+        </Link>
 
         {/* Continuar */}
-        <ContinuarCard continuar={continuar} />
+        <ContinuarCard continuar={continuar} primeiraVez={primeiraVez} />
 
         {/* Atalhos */}
         <div className="flex flex-col gap-2.5">
@@ -120,11 +140,12 @@ export default function DashboardMobile({
               <span className="block text-[15px] font-extrabold text-ecg-midnight">Aprenda ECG</span>
               <span className="block text-xs font-semibold text-[#6B7785]">A teoria por trás dos casos</span>
             </span>
-            {!isPremium && (
-              <span className="flex flex-none items-center gap-1 rounded-md bg-[#FFF6E0] px-1.5 py-0.5">
-                <Lock className="h-3 w-3 text-[#946200]" />
-                <span className="text-[11px] font-extrabold text-[#946200]">Premium</span>
-              </span>
+            {/* Era um cadeado Premium; desde 26/09/2026 a Introdução e a teoria
+                do Módulo 1 abrem para todos. */}
+            {!isPremium ? (
+              <SeloGratis texto="Módulo 1 grátis" />
+            ) : (
+              <ChevronRight className="h-5 w-5 flex-none text-[#B4BEC8]" />
             )}
           </Link>
         </div>
@@ -138,7 +159,7 @@ export default function DashboardMobile({
               className="block w-16 flex-none"
             />
             <div className="min-w-0 flex-1">
-              <p className="text-[15px] font-black text-ecg-green">Libere os 8 módulos</p>
+              <p className="text-[15px] font-black text-ecg-green">Libere todos os módulos</p>
               <p className="mb-2 mt-0.5 text-xs font-semibold leading-relaxed text-white/75">
                 Trilha completa e material teórico por R$59/mês
               </p>
@@ -156,17 +177,28 @@ export default function DashboardMobile({
   );
 }
 
-function ContinuarCard({ continuar }) {
+function ContinuarCard({ continuar, primeiraVez }) {
   // Sem próxima fase: a pessoa terminou a trilha. O botão leva para a trilha
   // em vez de sumir — é o único card da tela que chega a Módulos.
   const concluida = continuar?.concluida;
   const carregando = !continuar;
+  // Quem nunca respondeu: o mesmo destino (a Fase 1 do Módulo 1), com o convite
+  // do primeiro caso no lugar do "continuar" — não há nada a continuar ainda.
+  const comecar = primeiraVez && !carregando && !concluida;
 
-  const titulo = carregando ? "Sua trilha" : concluida ? "Trilha concluída" : continuar.modulo;
+  const titulo = carregando
+    ? "Sua trilha"
+    : concluida
+    ? "Trilha concluída"
+    : comecar
+    ? "Seu primeiro ECG"
+    : continuar.modulo;
   const legenda = carregando
     ? "Carregando sua próxima fase…"
     : concluida
     ? "Você fechou todos os módulos disponíveis"
+    : comecar
+    ? `${continuar.modulo} · leva 1 minuto`
     : continuar.fase;
   const url = carregando || concluida ? createPageUrl("Modules") : continuar.url;
   const Icone = concluida ? Trophy : ListOrdered;
@@ -186,7 +218,7 @@ function ContinuarCard({ continuar }) {
         to={url}
         className="block rounded-[14px] bg-ecg-green py-[15px] text-center text-base font-black tracking-wide text-ecg-midnight shadow-[0_4px_0_#16a34a] transition-transform active:translate-y-[3px] active:shadow-[0_1px_0_#16a34a]"
       >
-        {carregando || concluida ? "VER TRILHA" : "CONTINUAR"}
+        {carregando || concluida ? "VER TRILHA" : comecar ? "COMEÇAR" : "CONTINUAR"}
       </Link>
     </section>
   );

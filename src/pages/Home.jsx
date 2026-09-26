@@ -132,6 +132,7 @@ export default function Home() {
   ];
 
   const freeFeatures = [
+    "Módulo 1 da trilha completo, com a teoria e a explicação de cada caso",
     "Acesso a todos os casos clínicos, de maneira aleatória"
   ];
 

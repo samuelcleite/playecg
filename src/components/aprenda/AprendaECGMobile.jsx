@@ -2,17 +2,23 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { BookOpen, ChevronRight, ChevronDown, FileText, Lock } from "lucide-react";
 import { useCorDaFaixa, FAIXA_BRANCA } from "@/lib/faixaTopo";
+import { SeloGratis } from "@/components/Cartao";
 
 /* Aprenda ECG (1f).
-   intro   = { titulo, legenda, to }
-   modulos = [{ id, n, nome, legenda, conteudos: [{ id, titulo, legenda, to }] }]
+   intro   = { titulo, legenda, to, bloqueado }
+   modulos = [{ id, n, nome, legenda, bloqueado, conteudos: [{ id, titulo, legenda, to }] }]
 
-   `bloqueado` (plano gratuito) vale para a tela inteira: todo módulo aparece
-   com o selo Premium, nenhum expande, e tocar leva a `urlBloqueado` (os
-   planos). É a vitrine do que a assinatura vende, como a trilha de Módulos —
-   a pessoa vê os nomes do que existe em vez de uma parede. Os nomes já são
-   públicos na trilha; o CORPO de cada conteúdo nunca chega aqui (o índice é
-   buscado só com id/module_id/phase_id) e o ConteudoECG tem o próprio gate.
+   `bloqueado` é POR ITEM desde 26/09/2026: a Introdução e o Módulo 1 são
+   grátis, e quem decide é a página, pela regra de src/lib/acesso.js. Item
+   bloqueado aparece com o selo Premium, não expande, e tocar leva a
+   `urlBloqueado` (os planos). É a vitrine do que a assinatura vende, como a
+   trilha de Módulos — a pessoa vê os nomes do que existe em vez de uma parede.
+   Os nomes já são públicos na trilha; o CORPO de cada conteúdo nunca chega aqui
+   (o índice é buscado só com id/module_id/phase_id) e o ConteudoECG tem o
+   próprio gate.
+
+   Havendo algo bloqueado (plano gratuito), o topo diz o que é grátis e chama
+   para o Premium, e os módulos livres ganham o selo Grátis.
 
    Sem o check de "lido" do design: o app não guarda o que a pessoa leu. */
 
@@ -25,9 +31,10 @@ function SeloPremium() {
   );
 }
 
-export default function AprendaECGMobile({ intro, modulos = [], bloqueado = false, urlBloqueado }) {
+export default function AprendaECGMobile({ intro, modulos = [], urlBloqueado }) {
   useCorDaFaixa(FAIXA_BRANCA);
-  const [aberto, setAberto] = useState(bloqueado ? null : modulos[0]?.id ?? null);
+  const algumBloqueado = !!intro?.bloqueado || modulos.some((m) => m.bloqueado);
+  const [aberto, setAberto] = useState(modulos.find((m) => !m.bloqueado)?.id ?? null);
 
   return (
     <div className="font-nunito min-h-full bg-[#F4F6F8]">
@@ -35,18 +42,18 @@ export default function AprendaECGMobile({ intro, modulos = [], bloqueado = fals
         <div className="mx-auto w-full max-w-2xl px-4 pb-3.5 pt-2">
           <h1 className="text-2xl font-black text-ecg-midnight">Aprenda ECG</h1>
           <p className="mt-0.5 text-[13px] font-semibold text-[#6B7785]">
-            {bloqueado ? "A teoria por trás dos casos · exclusivo do Premium" : "A teoria por trás dos casos"}
+            {algumBloqueado ? "A teoria por trás dos casos · Módulo 1 grátis" : "A teoria por trás dos casos"}
           </p>
         </div>
       </header>
 
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 pb-6 pt-3.5">
-        {bloqueado && (
+        {algumBloqueado && (
           <section className="flex items-center gap-3.5 rounded-[20px] bg-ecg-midnight p-[18px]">
             <div className="min-w-0 flex-1">
               <p className="text-[15px] font-black text-ecg-green">Estude a teoria de cada fase</p>
               <p className="mb-2 mt-0.5 text-xs font-semibold leading-relaxed text-white/75">
-                Todo o conteúdo abaixo é liberado na assinatura Premium.
+                A Introdução e o Módulo 1 são grátis. Os outros módulos são liberados no Premium.
               </p>
               <Link
                 to={urlBloqueado}
@@ -60,7 +67,7 @@ export default function AprendaECGMobile({ intro, modulos = [], bloqueado = fals
 
         {intro && (
           <Link
-            to={bloqueado ? urlBloqueado : intro.to}
+            to={intro.bloqueado ? urlBloqueado : intro.to}
             className="flex w-full items-center gap-3.5 rounded-[20px] border border-[#DDD3FF] bg-[#F1EEFF] p-4 text-left"
           >
             <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-ecg-purple">
@@ -70,7 +77,7 @@ export default function AprendaECGMobile({ intro, modulos = [], bloqueado = fals
               <span className="block text-[15px] font-black text-[#3B2A80]">{intro.titulo}</span>
               <span className="block text-xs font-semibold text-[#6B5BA8]">{intro.legenda}</span>
             </span>
-            {bloqueado ? (
+            {intro.bloqueado ? (
               <SeloPremium />
             ) : (
               <ChevronRight className="h-5 w-5 flex-none text-ecg-purple" strokeWidth={2.5} />
@@ -79,13 +86,13 @@ export default function AprendaECGMobile({ intro, modulos = [], bloqueado = fals
         )}
 
         {modulos.map((m) => {
-          const expandido = !bloqueado && aberto === m.id;
+          const expandido = !m.bloqueado && aberto === m.id;
           const cabecalho = (
             <>
               <span
                 className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] text-sm font-black"
                 style={
-                  bloqueado
+                  m.bloqueado
                     ? { background: "#F1EEFF", color: "#7C4DFF" }
                     : { background: "#0D1E30", color: "#39FF6A" }
                 }
@@ -96,22 +103,25 @@ export default function AprendaECGMobile({ intro, modulos = [], bloqueado = fals
                 <span className="block text-[15px] font-extrabold text-ecg-midnight">{m.nome}</span>
                 <span className="block text-xs font-semibold text-[#6B7785]">{m.legenda}</span>
               </span>
-              {bloqueado ? (
+              {m.bloqueado ? (
                 <SeloPremium />
               ) : (
-                <ChevronDown
-                  className={`h-[18px] w-[18px] flex-none text-[#6B7785] transition-transform ${
-                    expandido ? "rotate-180" : ""
-                  }`}
-                  strokeWidth={2.5}
-                />
+                <>
+                  {algumBloqueado && <SeloGratis />}
+                  <ChevronDown
+                    className={`h-[18px] w-[18px] flex-none text-[#6B7785] transition-transform ${
+                      expandido ? "rotate-180" : ""
+                    }`}
+                    strokeWidth={2.5}
+                  />
+                </>
               )}
             </>
           );
 
           return (
             <div key={m.id} className="overflow-hidden rounded-[20px] border border-[#E6EAEE] bg-white">
-              {bloqueado ? (
+              {m.bloqueado ? (
                 <Link to={urlBloqueado} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
                   {cabecalho}
                 </Link>
