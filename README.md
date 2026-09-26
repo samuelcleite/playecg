@@ -138,6 +138,17 @@ Três camadas, em vigor desde 11/09/2026:
    jeito mais rápido de derrubar o app: `AdminActivity` ainda faz isso (até
    5000 `QuizAttempt` por visita) — pendência conhecida, não tratada.
 
+**Tela admin que lista pessoas segue o padrão da tela de usuários
+(26/09/2026):** uma function de listagem por visita, com a `Account` projetada
+por `fields` e já classificada no servidor (`adminListUsuarios`), e uma function
+de detalhe por clique, restrita àquele e-mail (`adminListUsuarioDetalhe`). A
+Account nunca vem inteira: o `attempted_case_ids` cresce a cada caso respondido
+e é a coluna mais pesada da tabela. O `adminListAccounts` ainda a devolve
+inteira para `AdminActivity`, `AdminPayments` e `AdminTrials`. "Já usou tal
+coisa?" se responde com consulta de **um** registro (`limit 1`, ordenado),
+nunca contando o histórico. O nome começa com `adminList` de propósito: é o que
+dá retentativa em 429 (camada 2).
+
 Como se sabe: print do 429 no ModuleDetail em 11/09/2026 às 19:38, onze horas
 depois do commit do bot que criou o `getPhaseCases`; leituras contadas no
 código da `main`. O `fields` foi confirmado no SDK 0.8.31 (`entities.js`), não
@@ -314,6 +325,20 @@ Três trilhos independentes. **Nenhum sistema de cupom atravessa os três.**
   delas esquecer o tratamento.
 - Planos: **mensal R$59** (`monthly`), **anual R$499** (`annual`) e **vitalício
   R$400** (`lifetime`). O Product ID anual da Apple ainda usa sufixo `.yearly`.
+- **O `Payment` não guarda o plano, e nada guarda o cancelamento** (lido no
+  código em 26/09/2026). O Stripe conhece o plano (`metadata.plan`) e a loja
+  também (`product_id`), mas nenhum dos dois webhooks o grava. O
+  `customer.subscription.deleted` só volta a conta para `free`, e o
+  `CANCELLATION` do RevenueCat só anota o prazo. Por isso a tela de usuários
+  **deduz** a origem do premium, nesta ordem: `lifetime_access`, depois
+  `trial_ends_at`, depois Payment de assinatura ou `store_expires_at`, e por
+  último "manual". Mensal ou anual sai do valor pago (acima de R$ 60 é anual),
+  e isso é estimativa. "Ex-assinante" é quem está `free` e tem Payment `PAID`
+  ou `CANCELED`: o `CANCELED` só nasce de um `PAID`, no cancelamento pelo app
+  e no estorno do vitalício. Plano exato e "renovação desligada" só consultando
+  o Stripe e o RevenueCat, o que o `adminListUsuarioDetalhe` faz para uma pessoa
+  por vez. Gravar o plano no Payment e a data do cancelamento na Account está
+  proposto e **não feito** (mexe nos webhooks).
 - **Preço e price ID vivem em `base44/shared/plans.ts`.** Aquele arquivo não
   roda — o Base44 não resolve import entre functions — então ele é o *original*
   e as functions carregam cópias inline, mesmo contrato do `resolveIdentity`.
@@ -901,8 +926,6 @@ rebaseada antes de qualquer merge** — senão o merge deleta `/termos`,
 - `updateUserProgress` autentica mas não valida que `body.user_email` bate com o
   usuário autenticado antes de gravar via service role.
 - `onUserCreated` não valida quem chama.
-- `AdminUsers.jsx:583` lê `user.streak_days`, campo inexistente (provável typo de
-  `current_streak`); mostra sempre 0.
 - Entidade `Coupon` sem RLS deny-all; `used_count` sujeito a race condition;
   falta ledger `CouponRedemption` para garantir `one_per_user`.
 - **`getUserSubscriptionInfo` carrega a tabela `Payment` inteira**
@@ -927,17 +950,20 @@ rebaseada antes de qualquer merge** — senão o merge deleta `/termos`,
   check `premium_sem_origem` teve que exigir `subscription_start_date` ausente
   para não acusar as concessões de verdade — e com isso deixa passar qualquer
   caminho novo que carimbe o campo. Fechar exige a concessão permanente deixar
-  registro próprio. (Lido no código, 08/09/2026.)
+  registro próprio. (Lido no código, 08/09/2026.) A tela de usuários tem o mesmo
+  limite: "Manual" é o premium sem nenhuma outra marca, então um assinante de
+  loja cujo `Payment` não foi gravado também cai ali (26/09/2026).
 - **Texto de venda escrito à mão nas telas do redesenho.** "Libere os 8
   módulos" (Dashboard mobile e Upgrade) e "R$59/mês" (card de upsell do
   Dashboard) não vêm de dado nenhum — e os preços do seletor de planos do
   Upgrade (59/499) também não saem de `base44/shared/plans.ts`. Criar ou tirar
   módulo, ou mudar preço, exige editar essas telas à mão. (11/09/2026, lido no
   código.)
-- `adminListTrials` também carrega a tabela `Payment` inteira (`listAll`), pelo
-  mesmo motivo do `getUserSubscriptionInfo` acima — é o que separa quem comprou
-  de quem só continua marcado premium. Aceito por ora: a tela é de admin e roda
-  sob demanda. (08/09/2026.)
+- `adminListTrials` e `adminListUsuarios` também carregam a tabela `Payment`
+  inteira, pelo mesmo motivo do `getUserSubscriptionInfo` acima: é o que separa
+  quem comprou de quem só continua marcado premium. Aceito por ora, porque as
+  telas são de admin e rodam sob demanda (o `adminListUsuarios` projeta as
+  colunas). (08/09/2026; `adminListUsuarios` em 26/09/2026.)
 - **O baralho da fase depende do `total_cases` digitado no admin.** O
   `getPhaseCases` usa esse número para posicionar a janela do pool dentro da
   fase. Zerado ou menor que o real, a janela volta ao topo da lista e os casos
