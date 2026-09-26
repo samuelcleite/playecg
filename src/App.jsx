@@ -10,6 +10,7 @@ import Privacidade from './pages/Privacidade';
 import Termos from './pages/Termos';
 import Suporte from './pages/Suporte';
 import ExcluirConta from './pages/ExcluirConta';
+import Lembretes from './pages/Lembretes';
 import Auth from './pages/Auth';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -55,8 +56,10 @@ const AuthenticatedApp = () => {
   // o retorno do OAuth entrega o `code`, e ela roda por definição com o usuário
   // deslogado. Mandá-la para a tela de login descarta o code e o login nunca
   // conclui — o usuário fica preso num ciclo de "entrar" que volta para a Home.
+  // A /lembretes é o link "Desativar lembretes" dos e-mails: tem que abrir sem
+  // login (ver src/pages/Lembretes.jsx).
   const rotasPublicas = ['/', '/auth', '/home', '/instale', '/baixar',
-                         '/privacidade', '/termos', '/suporte', '/excluir-conta'];
+                         '/privacidade', '/termos', '/suporte', '/excluir-conta', '/lembretes'];
   const rotaEhPublica = rotasPublicas.includes(location.pathname.toLowerCase());
 
   // Handle authentication errors
@@ -105,6 +108,7 @@ const AuthenticatedApp = () => {
       <Route path="/termos" element={<Termos />} />
       <Route path="/suporte" element={<Suporte />} />
       <Route path="/excluir-conta" element={<ExcluirConta />} />
+      <Route path="/lembretes" element={<Lembretes />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>

@@ -1,0 +1,44 @@
+{
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 19 * * *",
+      "one_time_date": null,
+      "timezone": "America/Sao_Paulo",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "description": "Todos os dias às 19:00 (Brasília), manda o lembrete de quem se cadastrou e não respondeu nenhuma questão e de quem praticou ontem e ainda não hoje. Cada lembrete sai no máximo uma vez por conta. Só envia com a env LEMBRETES_DIARIOS=1; sem ela, apenas registra no log quem receberia.",
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "lembretes_diarios",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "enviar_lembretes": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "lembretesDiarios"
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Enviar os lembretes do dia",
+            "description": "Primeira questão e retorno no dia seguinte, por e-mail e push"
+          }
+        }
+      }
+    ]
+  },
+  "name": "Lembretes Diários"
+}
