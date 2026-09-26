@@ -64,10 +64,12 @@ export const planoEstimado = (u) => u.origem === "mensal" || u.origem === "anual
 
 // ── DATAS ────────────────────────────────────────────────────────────────
 
+// Por dataLocal, e não new Date(v): `last_practice_date` é só dia
+// (AAAA-MM-DD), que o new Date lê como meia-noite UTC — no Brasil isso vira o
+// dia anterior, e o CSV saía com a última prática um dia antes.
 export function formatarData(v) {
-  if (!v) return "—";
-  const d = new Date(v);
-  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
+  const d = dataLocal(v);
+  return d ? d.toLocaleDateString("pt-BR") : "—";
 }
 
 export function formatarDataHora(v) {

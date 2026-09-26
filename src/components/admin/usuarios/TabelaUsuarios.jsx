@@ -47,6 +47,19 @@ export function Jornada({ usuario }) {
   );
 }
 
+// Toda data da tabela no mesmo formato ("há X dias") e no mesmo bloco, à
+// direita. A data exata aparece ao passar o mouse.
+function CelulaData({ valor, primeira }) {
+  return (
+    <td
+      className={`py-2 px-3 whitespace-nowrap text-gray-700 ${primeira ? "border-l border-gray-100" : ""}`}
+      title={valor ? formatarData(valor) : undefined}
+    >
+      {textoDiasDesde(valor)}
+    </td>
+  );
+}
+
 export default function TabelaUsuarios({ usuarios, onAbrir, selecionado }) {
   if (usuarios.length === 0) {
     return (
@@ -60,15 +73,15 @@ export default function TabelaUsuarios({ usuarios, onAbrir, selecionado }) {
         <thead>
           <tr className="border-b text-left text-xs uppercase tracking-wide text-gray-500">
             <th className="py-2 px-3 font-medium">Usuário</th>
-            <th className="py-2 px-3 font-medium">Cadastro</th>
             <th className="py-2 px-3 font-medium">Situação</th>
             <th className="py-2 px-3 font-medium">Plataforma</th>
-            <th className="py-2 px-3 font-medium">Último pagamento</th>
-            <th className="py-2 px-3 font-medium">Último login</th>
-            <th className="py-2 px-3 font-medium">Última prática</th>
             <th className="py-2 px-3 font-medium text-right">Tentativas</th>
             <th className="py-2 px-3 font-medium text-right">Acerto</th>
             <th className="py-2 px-3 font-medium">Jornada</th>
+            <th className="py-2 px-3 font-medium border-l border-gray-100">Cadastro</th>
+            <th className="py-2 px-3 font-medium">Último pagamento</th>
+            <th className="py-2 px-3 font-medium">Último login</th>
+            <th className="py-2 px-3 font-medium">Última prática</th>
           </tr>
         </thead>
         <tbody>
@@ -96,19 +109,17 @@ export default function TabelaUsuarios({ usuarios, onAbrir, selecionado }) {
                   </div>
                   <div className="text-xs text-gray-500 truncate">{u.email}</div>
                 </td>
-                <td className="py-2 px-3 whitespace-nowrap text-gray-700">{formatarData(u.created_date)}</td>
                 <td className="py-2 px-3"><SeloSituacao usuario={u} /></td>
                 <td className="py-2 px-3 whitespace-nowrap text-gray-700">
                   {u.plataforma ? ROTULO_PLATAFORMA[u.plataforma] : "—"}
                 </td>
-                <td className="py-2 px-3 whitespace-nowrap text-gray-700">
-                  {formatarData(u.assinatura?.ultimo_pagamento_em)}
-                </td>
-                <td className="py-2 px-3 whitespace-nowrap text-gray-700">{textoDiasDesde(u.last_login_at)}</td>
-                <td className="py-2 px-3 whitespace-nowrap text-gray-700">{textoDiasDesde(u.last_practice_date)}</td>
                 <td className="py-2 px-3 text-right tabular-nums text-gray-900">{u.total_attempts}</td>
                 <td className="py-2 px-3 text-right tabular-nums text-gray-900">{p === null ? "—" : `${p}%`}</td>
                 <td className="py-2 px-3"><Jornada usuario={u} /></td>
+                <CelulaData valor={u.created_date} primeira />
+                <CelulaData valor={u.assinatura?.ultimo_pagamento_em} />
+                <CelulaData valor={u.last_login_at} />
+                <CelulaData valor={u.last_practice_date} />
               </tr>
             );
           })}
