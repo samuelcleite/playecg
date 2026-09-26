@@ -123,15 +123,35 @@ Deno.serve(async (req) => {
     const userName = user.full_name || identity.email || 'Novo usuário';
     const userEmail = identity.email || 'N/A';
     const specialty = user.specialty || 'Não informada';
-    const location = [user.city, user.state, user.country].filter(Boolean).join(', ') || 'Não informada';
+    // País, estado e cidade saíram do cadastro em 26/09/2026: a linha só
+    // aparece para conta antiga que ainda tem esses dados.
+    const location = [user.city, user.state, user.country].filter(Boolean).join(', ');
+    const ORIGENS = {
+      ios_app: 'app do iPhone',
+      android_app: 'app Android',
+      web_mobile: 'site, no celular',
+      web_desktop: 'site, no computador'
+    };
+    const origem = ORIGENS[user.plataforma_cadastro] || '';
     const createdAt = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+    const linhas = [
+      'Um novo usuário se cadastrou na plataforma:',
+      '',
+      `Nome: ${userName}`,
+      `Email: ${userEmail}`,
+      `Especialidade: ${specialty}`,
+      ...(location ? [`Localização: ${location}`] : []),
+      ...(origem ? [`Origem: ${origem}`] : []),
+      `Data: ${createdAt}`
+    ];
 
     for (const admin of admins) {
       if (!admin.email) continue;
       await base44.integrations.Core.SendEmail({
         to: admin.email,
         subject: 'Novo usuário cadastrado no PlayECG',
-        body: `Um novo usuário se cadastrou na plataforma:\n\nNome: ${userName}\nEmail: ${userEmail}\nEspecialidade: ${specialty}\nLocalização: ${location}\nData: ${createdAt}`
+        body: linhas.join('\n')
       });
     }
 

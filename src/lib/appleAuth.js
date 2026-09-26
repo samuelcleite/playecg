@@ -3,6 +3,7 @@
 // Android (ponte oauth://) fica pra fase Android â€” nÃ£o tratado aqui de propÃ³sito.
 import { base44 } from '@/api/base44Client'
 import { setToken } from '@/lib/customAuth'
+import { plataformaDoCadastro } from '@/utils/platform'
 const APPLE_SERVICES_ID = 'com.despia.playecg.signin'
 export async function signInWithApple() {
   if (!window.AppleID?.auth) throw new Error('Apple sign-in indisponível')
@@ -30,6 +31,8 @@ export async function signInWithApple() {
   const { data } = await base44.functions.invoke('appleSignIn', {
     apple_id_token: idToken,
     full_name: fullName,
+    // Só vale na criação da conta — ver loginWithGoogleCode.
+    plataforma: plataformaDoCadastro(),
   })
   if (!data?.token) throw new Error(data?.error || 'falha no login Apple')
   setToken(data.token)

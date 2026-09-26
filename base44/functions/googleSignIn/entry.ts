@@ -22,6 +22,30 @@ async function signJwt(payload, secret, ttl = 60 * 60 * 24 * 30) {
   return `${data}.${b64url(sig)}`;
 }
 
+// O payload do id_token é JSON em UTF-8, codificado em base64url. O `atob`
+// devolve BYTES — um caractere por byte —, e o JSON.parse direto sobre isso
+// corrompia todo nome com acento: "João" virava "JoÃ£o". Foi assim que as
+// contas nasceram até 26/09/2026, e o formulário de perfil abria com o nome
+// estragado. Ler os bytes como UTF-8 antes do parse resolve.
+function lerPayloadDoIdToken(idToken) {
+  let s = idToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  const bytes = Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+// A forma exata como o bug acima gravava um nome: os bytes UTF-8 lidos como um
+// caractere cada. Conta antiga cujo nome é IGUAL a isto nunca foi editada pela
+// pessoa, e pode receber o nome certo no próximo login.
+function nomeComOBugAntigo(nome) {
+  return String.fromCharCode(...new TextEncoder().encode(nome));
+}
+
+// Origem do cadastro, informada pelo app (plataformaDoCadastro, em
+// src/utils/platform.js). Lista fechada: qualquer outro valor é ignorado em vez
+// de gravado.
+const PLATAFORMAS = ['ios_app', 'android_app', 'web_mobile', 'web_desktop'];
+
 export default async function googleSignIn(req) {
   // try/catch no corpo inteiro: sem isto, QUALQUER exceção vira um 500 mudo e o
   // usuário vê "Request failed with status code 500" sem nada acionável — foi
@@ -38,7 +62,7 @@ export default async function googleSignIn(req) {
 }
 
 async function handle(req) {
-  let { google_code } = await req.json();
+  let { google_code, plataforma } = await req.json();
   if (!google_code)
     return Response.json({ error: 'google_code is required' }, { status: 400 });
   if (google_code.includes('%')) {
@@ -69,9 +93,7 @@ async function handle(req) {
     );
   }
 
-  const info = JSON.parse(
-    atob(tokenData.id_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))
-  );
+  const info = lerPayloadDoIdToken(tokenData.id_token);
   if (!info.email)
     return Response.json({ error: 'Google account has no email' }, { status: 401 });
   if (!['accounts.google.com', 'https://accounts.google.com'].includes(info.iss))
@@ -96,14 +118,24 @@ async function handle(req) {
       role: 'user',
       subscription_type: 'free',
       last_login_at: new Date().toISOString(),
+      ...(PLATAFORMAS.includes(plataforma) ? { plataforma_cadastro: plataforma } : {}),
     });
   } else {
+    // Conta criada antes da correção do UTF-8: o nome só é trocado se for
+    // exatamente a versão estragada do nome que o Google manda agora. Nome que a
+    // pessoa editou nunca é tocado.
+    const nomeCorrigido =
+      info.name && account.full_name !== info.name && account.full_name === nomeComOBugAntigo(info.name)
+        ? info.name
+        : null;
     await base44.asServiceRole.entities.Account.update(account.id, {
       google_id: account.google_id || info.sub || '',
       avatar_url: account.avatar_url || info.picture || '',
       email_verified: true,
       last_login_at: new Date().toISOString(),
+      ...(nomeCorrigido ? { full_name: nomeCorrigido } : {}),
     });
+    if (nomeCorrigido) account = { ...account, full_name: nomeCorrigido };
   }
 
   const token = await signJwt(

@@ -3,103 +3,182 @@ import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { getCurrentUser, refreshCurrentUser } from '@/lib/currentUser';
 import { createPageUrl } from "@/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Activity, User as UserIcon, MapPin, Stethoscope, AlertCircle, Loader2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { AlertCircle, Check, Loader2 } from "lucide-react";
+import { BotaoPrincipal } from "@/components/BarraDeAcao";
+import { useCorDaFaixa, FAIXA_CINZA } from "@/lib/faixaTopo";
+import { repararNome } from "@/lib/nome";
 import { notifyAdminNewUser } from "@/functions/notifyAdminNewUser";
 
+/* Cadastro de UM toque (26/09/2026).
+
+   Antes eram cinco campos obrigatórios — nome, especialidade numa lista de 60,
+   país, estado (só UFs do Brasil, obrigatório até para quem mora fora) e cidade
+   digitada — e 1 em cada 4 contas criadas pelo Google parava aqui. País, estado
+   e cidade não eram usados para nada e saíram. Ficou o que a tela precisa:
+
+   - o nome, que já vem do Google/Apple — consertado se chegou com o acento
+     estragado (src/lib/nome.js);
+   - a área: as cinco mais escolhidas viram botões (75% dos cadastros até
+     26/09/2026) e o resto fica numa lista NATIVA atrás de "Outra área".
+
+   A validação é desta tela, com mensagem visível. O `required` dos selects do
+   Radix validava num <select> escondido, e o aviso do navegador podia não
+   aparecer — a pessoa tocava no botão e nada acontecia. */
+
+const AREAS_RAPIDAS = [
+  "Estudante de medicina",
+  "Clínica Médica",
+  "Cardiologia",
+  "Médico generalista",
+  "Enfermeiro",
+];
+
+// A lista completa de antes, com os mesmos valores: o que já está gravado nas
+// contas continua batendo com ela.
+const TODAS_AS_AREAS = [
+  "Acupuntura",
+  "Alergia e Imunologia",
+  "Anestesiologia",
+  "Angiologia",
+  "Cardiologia",
+  "Cirurgia Cardiovascular",
+  "Cirurgia da Mão",
+  "Cirurgia de Cabeça e Pescoço",
+  "Cirurgia do Aparelho Digestivo",
+  "Cirurgia Geral",
+  "Cirurgia Oncológica",
+  "Cirurgia Pediátrica",
+  "Cirurgia Plástica",
+  "Cirurgia Torácica",
+  "Cirurgia Vascular",
+  "Clínica Médica",
+  "Coloproctologia",
+  "Dermatologia",
+  "Endocrinologia e Metabologia",
+  "Enfermeiro",
+  "Estudante de medicina",
+  "Farmacêutico",
+  "Fisioterapeuta",
+  "Gastroenterologia",
+  "Genética Médica",
+  "Geriatria",
+  "Ginecologia e Obstetrícia",
+  "Hematologia e Hemoterapia",
+  "Homeopatia",
+  "Infectologia",
+  "Mastologia",
+  "Medicina de Família e Comunidade",
+  "Medicina do Esporte",
+  "Medicina do Trabalho",
+  "Medicina do Tráfego",
+  "Medicina Física e Reabilitação",
+  "Medicina Intensiva",
+  "Medicina Legal",
+  "Medicina Nuclear",
+  "Medicina Preventiva e Social",
+  "Médico generalista",
+  "Nefrologia",
+  "Neurocirurgia",
+  "Neurologia",
+  "Nutrologia",
+  "Oftalmologia",
+  "Oncologia Clínica",
+  "Ortopedia e Traumatologia",
+  "Otorrinolaringologia",
+  "Paramédicos",
+  "Patologia",
+  "Pediatria",
+  "Pneumologia",
+  "Psiquiatria",
+  "Radiologia e Diagnóstico por Imagem",
+  "Radioterapia",
+  "Reumatologia",
+  "Técnico de enfermagem",
+  "Urologia",
+  "Outros profissionais"
+];
+
+const OUTRA = "__outra__";
+
+const LOGO = "https://media.base44.com/images/public/68e28688c6f4ec5cd17e317d/88192cd50_903B5817-5009-4B34-8478-509B00A9C6B8.png";
+
 export default function CompleteProfile() {
+  useCorDaFaixa(FAIXA_CINZA);
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState(null);
-  const [formData, setFormData] = useState({
-    full_name: "",
-    specialty: "",
-    country: "",
-    state: "",
-    city: ""
-  });
+  const [nome, setNome] = useState("");
+  const [escolha, setEscolha] = useState(""); // um valor de AREAS_RAPIDAS, ou OUTRA
+  const [outraArea, setOutraArea] = useState(""); // valor da lista completa
 
   useEffect(() => {
-    loadUser();
+    carregar();
   }, []);
 
-  const loadUser = async () => {
+  const carregar = async () => {
     try {
-      const userData = await getCurrentUser();
-      setUser(userData);
-      
-      // Se o perfil já foi completado, redirecionar para o dashboard
-      if (userData.profile_completed) {
-        navigate(createPageUrl("Dashboard"));
+      const conta = await getCurrentUser();
+
+      // Perfil já completo: nada a fazer aqui.
+      if (conta?.profile_completed) {
+        navigate(createPageUrl("Dashboard"), { replace: true });
         return;
       }
 
-      // O bloco que forçava subscription_type: "free" foi removido. O schema da
-      // Account já materializa esse default na criação, então o campo nunca vem
-      // vazio — e escrevê-lo daqui seria pedir ao servidor para aceitar
-      // subscription_type vindo do cliente, que é justamente o que o
-      // updateMyProfile recusa a fazer.
-
-      setFormData({
-        full_name: userData.full_name || "",
-        specialty: userData.specialty || "",
-        country: userData.country || "",
-        state: userData.state || "",
-        city: userData.city || ""
-      });
-      setLoading(false);
+      setNome(repararNome(conta?.full_name || ""));
+      const area = conta?.specialty || "";
+      if (AREAS_RAPIDAS.includes(area)) {
+        setEscolha(area);
+      } else if (area) {
+        setEscolha(OUTRA);
+        setOutraArea(area);
+      }
     } catch (error) {
-      console.error("Erro ao carregar usuário:", error);
+      console.error("Erro ao carregar a conta:", error);
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = async (e) => {
+  const area = escolha === OUTRA ? outraArea : escolha;
+
+  const enviar = async (e) => {
     e.preventDefault();
+
+    const nomeLimpo = nome.trim();
+    if (!nomeLimpo) {
+      setErro("Digite o seu nome.");
+      return;
+    }
+    if (!area) {
+      setErro(escolha === OUTRA ? "Escolha a sua área na lista." : "Escolha a sua área.");
+      return;
+    }
 
     // O try/catch não é decorativo: esta tela é a única saída do cadastro, e o
     // Dashboard devolve para cá enquanto profile_completed for falso. Uma falha
-    // silenciosa aqui não é "o salvamento não funcionou" — é o usuário preso no
-    // app sem nada escrito na tela explicando por quê. Foi exatamente o que
-    // aconteceu enquanto o `base44` deste arquivo estava sem import.
+    // silenciosa aqui deixa a pessoa presa no app sem nada escrito na tela.
     setErro(null);
     setSalvando(true);
 
     try {
-      // updateMyProfile grava na Account. subscription_type NÃO vai junto: a
-      // function ignora o campo de propósito, porque aceitá-lo do cliente
-      // permitiria um POST com subscription_type: "premium". O default do schema
-      // já cuida disso na criação da Account.
+      // updateMyProfile grava na Account, por lista branca de campos. País,
+      // estado e cidade simplesmente não vão mais.
       await base44.functions.invoke('updateMyProfile', {
-        full_name: formData.full_name,
-        specialty: formData.specialty,
-        country: formData.country,
-        state: formData.state,
-        city: formData.city,
+        full_name: nomeLimpo,
+        specialty: area,
         profile_completed: true
       });
 
-      // Sem isso o Dashboard leria o cache anterior, com profile_completed false,
-      // e mandaria o usuário de volta para esta mesma tela.
+      // Sem isso o Dashboard leria o cache anterior, com profile_completed
+      // false, e mandaria a pessoa de volta para esta mesma tela.
       await refreshCurrentUser();
 
-      // Notifica o admin sobre o novo usuário (em background, sem bloquear a navegação)
+      // Avisa o admin do novo usuário, em background.
       notifyAdminNewUser({}).catch((err) => console.error("Falha ao notificar admin:", err));
 
-      navigate(createPageUrl("Dashboard"));
+      navigate(createPageUrl("Dashboard"), { replace: true });
     } catch (err) {
       console.error("Falha ao salvar o perfil:", err);
       // O invoke embrulha o corpo da resposta em `.data`, então a mensagem do
@@ -108,261 +187,113 @@ export default function CompleteProfile() {
         err?.response?.data?.error ||
         err?.data?.error ||
         err?.message ||
-        "Não foi possível salvar seu perfil. Verifique sua conexão e tente novamente."
+        "Não foi possível salvar. Verifique sua conexão e tente de novo."
       );
       setSalvando(false);
     }
   };
 
-  const especialidades = [
-    "Acupuntura",
-    "Alergia e Imunologia",
-    "Anestesiologia",
-    "Angiologia",
-    "Cardiologia",
-    "Cirurgia Cardiovascular",
-    "Cirurgia da Mão",
-    "Cirurgia de Cabeça e Pescoço",
-    "Cirurgia do Aparelho Digestivo",
-    "Cirurgia Geral",
-    "Cirurgia Oncológica",
-    "Cirurgia Pediátrica",
-    "Cirurgia Plástica",
-    "Cirurgia Torácica",
-    "Cirurgia Vascular",
-    "Clínica Médica",
-    "Coloproctologia",
-    "Dermatologia",
-    "Endocrinologia e Metabologia",
-    "Enfermeiro",
-    "Estudante de medicina",
-    "Farmacêutico",
-    "Fisioterapeuta",
-    "Gastroenterologia",
-    "Genética Médica",
-    "Geriatria",
-    "Ginecologia e Obstetrícia",
-    "Hematologia e Hemoterapia",
-    "Homeopatia",
-    "Infectologia",
-    "Mastologia",
-    "Medicina de Família e Comunidade",
-    "Medicina do Esporte",
-    "Medicina do Trabalho",
-    "Medicina do Tráfego",
-    "Medicina Física e Reabilitação",
-    "Medicina Intensiva",
-    "Medicina Legal",
-    "Medicina Nuclear",
-    "Medicina Preventiva e Social",
-    "Médico generalista",
-    "Nefrologia",
-    "Neurocirurgia",
-    "Neurologia",
-    "Nutrologia",
-    "Oftalmologia",
-    "Oncologia Clínica",
-    "Ortopedia e Traumatologia",
-    "Otorrinolaringologia",
-    "Paramédicos",
-    "Patologia",
-    "Pediatria",
-    "Pneumologia",
-    "Psiquiatria",
-    "Radiologia e Diagnóstico por Imagem",
-    "Radioterapia",
-    "Reumatologia",
-    "Técnico de enfermagem",
-    "Urologia",
-    "Outros profissionais"
-  ];
-
-  const paises = [
-    "Brasil", "Estados Unidos", "Argentina", "Chile", "Colômbia", "México", 
-    "Peru", "Uruguai", "Paraguai", "Bolívia", "Venezuela", "Equador",
-    "Portugal", "Espanha", "Reino Unido", "França", "Alemanha", "Itália",
-    "Canadá", "Austrália", "China", "Japão", "Índia", "Outro"
-  ];
-
-  const estados = [
-    "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
-    "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN",
-    "RS", "RO", "RR", "SC", "SP", "SE", "TO"
-  ];
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-        <div className="text-center">
-          <Activity className="w-12 h-12 animate-pulse text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Carregando...</p>
-        </div>
+      <div className="font-nunito flex min-h-full items-center justify-center bg-[#F4F6F8] py-24">
+        <Loader2 className="h-10 w-10 animate-spin text-ecg-midnight-2" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-2xl"
+    <div className="font-nunito flex min-h-full items-start justify-center bg-[#F4F6F8] px-4 py-8 md:items-center">
+      <form
+        onSubmit={enviar}
+        noValidate
+        className="w-full max-w-md rounded-[22px] border border-[#E6EAEE] bg-white p-6"
       >
-        <Card className="border-none shadow-2xl">
-          <CardHeader className="text-center pb-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-xl">
-            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <Activity className="w-10 h-10 text-blue-600" />
-            </div>
-            <CardTitle className="text-3xl font-bold mb-2">
-              Bem-vindo ao PlayECG!
-            </CardTitle>
-            <p className="text-blue-100">
-              Complete seu perfil para personalizar sua experiência de aprendizado
-            </p>
-          </CardHeader>
-
-          <CardContent className="p-8">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-gray-700 font-medium">
-                  <UserIcon className="w-4 h-4" />
-                  Nome Completo
-                </Label>
-                <Input
-                  value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  placeholder="Digite seu nome completo"
-                  required
-                  className="h-12"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-gray-700 font-medium">
-                  <Stethoscope className="w-4 h-4" />
-                  Especialidade / Área de Atuação
-                </Label>
-                <Select
-                  value={formData.specialty}
-                  onValueChange={(value) => setFormData({ ...formData, specialty: value })}
-                  required
-                >
-                  <SelectTrigger className="h-12">
-                    <SelectValue placeholder="Selecione sua especialidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {especialidades.map((esp) => (
-                      <SelectItem key={esp} value={esp}>
-                        {esp}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-gray-700 font-medium">
-                  <MapPin className="w-4 h-4" />
-                  País
-                </Label>
-                <Select
-                  value={formData.country}
-                  onValueChange={(value) => setFormData({ ...formData, country: value })}
-                  required
-                >
-                  <SelectTrigger className="h-12">
-                    <SelectValue placeholder="Selecione seu país" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paises.map((pais) => (
-                      <SelectItem key={pais} value={pais}>
-                        {pais}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2 text-gray-700 font-medium">
-                    <MapPin className="w-4 h-4" />
-                    Estado
-                  </Label>
-                  <Select
-                    value={formData.state}
-                    onValueChange={(value) => setFormData({ ...formData, state: value })}
-                    required
-                  >
-                    <SelectTrigger className="h-12">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {estados.map((estado) => (
-                        <SelectItem key={estado} value={estado}>
-                          {estado}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2 text-gray-700 font-medium">
-                    <MapPin className="w-4 h-4" />
-                    Cidade
-                  </Label>
-                  <Input
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    placeholder="Digite sua cidade"
-                    required
-                    className="h-12"
-                  />
-                </div>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-900">
-                  <strong>📊 Por que coletamos essas informações?</strong>
-                  <br />
-                  Esses dados nos ajudam a personalizar sua experiência de aprendizado e a entender melhor nossa comunidade de usuários. Suas informações são mantidas em sigilo.
-                </p>
-              </div>
-
-              {erro && (
-                <div
-                  role="alert"
-                  className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-4"
-                >
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-900">{erro}</p>
-                </div>
-              )}
-
-              <Button
-                type="submit"
-                disabled={salvando}
-                className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg font-semibold shadow-lg"
-              >
-                {salvando ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Criando conta...
-                  </>
-                ) : (
-                  "Criar Conta"
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        <p className="text-center text-sm text-gray-500 mt-6">
-          Você poderá editar essas informações a qualquer momento em seu perfil
+        <img src={LOGO} alt="PlayECG" className="mx-auto mb-4 block h-16 w-16 rounded-[18px]" />
+        <h1 className="text-center text-[22px] font-black leading-tight text-ecg-midnight">
+          Boas-vindas ao PlayECG!
+        </h1>
+        <p className="mt-1.5 text-center text-sm font-semibold text-[#6B7785]">
+          Só uma pergunta antes do seu primeiro caso.
         </p>
-      </motion.div>
+
+        <label htmlFor="nome" className="mt-6 block text-[13px] font-extrabold text-ecg-midnight">
+          Seu nome
+        </label>
+        <input
+          id="nome"
+          value={nome}
+          autoComplete="name"
+          onChange={(e) => {
+            setNome(e.target.value);
+            setErro(null);
+          }}
+          className="mt-1.5 h-12 w-full rounded-[14px] border border-[#DCE3EA] bg-white px-3.5 text-[15px] font-semibold text-ecg-midnight outline-none focus:border-ecg-midnight-2"
+        />
+
+        <p id="rotulo-area" className="mt-5 text-[13px] font-extrabold text-ecg-midnight">
+          Qual é a sua área?
+        </p>
+        <div role="radiogroup" aria-labelledby="rotulo-area" className="mt-2 grid grid-cols-2 gap-2">
+          {[...AREAS_RAPIDAS, OUTRA].map((valor) => {
+            const ativo = escolha === valor;
+            return (
+              <button
+                key={valor}
+                type="button"
+                role="radio"
+                aria-checked={ativo}
+                onClick={() => {
+                  setEscolha(valor);
+                  setErro(null);
+                }}
+                className={`flex min-h-[48px] items-center justify-between gap-2 rounded-[14px] border-2 px-3 py-2 text-left text-[13px] font-extrabold leading-tight text-ecg-midnight transition-colors ${
+                  ativo ? "border-ecg-green bg-[#E6F9EC]" : "border-[#E6EAEE] bg-white hover:border-ecg-midnight-2"
+                }`}
+              >
+                <span>{valor === OUTRA ? "Outra área" : valor}</span>
+                {ativo && <Check className="h-4 w-4 flex-none text-[#15803D]" strokeWidth={3} />}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Lista nativa de propósito: no celular ela abre o seletor do sistema,
+            que rola bem com 60 opções. */}
+        {escolha === OUTRA && (
+          <select
+            value={outraArea}
+            aria-label="Escolha a sua área"
+            onChange={(e) => {
+              setOutraArea(e.target.value);
+              setErro(null);
+            }}
+            className="mt-2.5 h-12 w-full rounded-[14px] border border-[#DCE3EA] bg-white px-3 text-[15px] font-semibold text-ecg-midnight outline-none focus:border-ecg-midnight-2"
+          >
+            <option value="">Escolha na lista</option>
+            {TODAS_AS_AREAS.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {erro && (
+          <div role="alert" className="mt-4 flex items-start gap-2.5 rounded-2xl bg-[#FDECEC] p-3.5">
+            <AlertCircle className="mt-0.5 h-5 w-5 flex-none text-[#C0392B]" />
+            <p className="text-[13px] font-bold text-[#8A1F17]">{erro}</p>
+          </div>
+        )}
+
+        <div className="mt-6">
+          <BotaoPrincipal type="submit" ocupado={salvando}>
+            {salvando ? "SALVANDO" : "COMEÇAR"}
+          </BotaoPrincipal>
+        </div>
+        <p className="mt-3 text-center text-xs font-semibold text-[#9AA6B2]">
+          Você pode mudar isso depois, no seu perfil.
+        </p>
+      </form>
     </div>
   );
 }
