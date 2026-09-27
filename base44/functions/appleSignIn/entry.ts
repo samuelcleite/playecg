@@ -82,8 +82,11 @@ export default async function appleSignIn(req) {
   }
 }
 
+// Origem do cadastro, informada pelo app — mesma lista fechada do googleSignIn.
+const PLATAFORMAS = ['ios_app', 'android_app', 'web_mobile', 'web_desktop'];
+
 async function handle(req) {
-  const { apple_id_token, full_name } = await req.json();
+  const { apple_id_token, full_name, plataforma } = await req.json();
   if (!apple_id_token)
     return Response.json({ error: 'apple_id_token é obrigatório' }, { status: 400 });
 
@@ -118,6 +121,7 @@ async function handle(req) {
       subscription_type: 'free',
       role: 'user',
       last_login_at: new Date().toISOString(),
+      ...(PLATAFORMAS.includes(plataforma) ? { plataforma_cadastro: plataforma } : {}),
     });
   } else {
     await base44.asServiceRole.entities.Account.update(account.id, {

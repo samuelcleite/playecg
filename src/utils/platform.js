@@ -43,3 +43,19 @@ export function isAppleDevice() {
   const iPadDesktopUA = ua.includes("macintosh") && navigator.maxTouchPoints > 1;
   return /iphone|ipad|ipod/.test(ua) || iPadDesktopUA;
 }
+
+// De onde a pessoa está criando a conta: vai no primeiro login para o
+// googleSignIn/appleSignIn, que grava em Account.plataforma_cadastro só na
+// criação. Serve para medir o funil por origem — sem isso não havia como saber
+// se um cadastro veio do app ou do site. Não decide acesso nenhum.
+//
+// O site se divide pela largura, no mesmo corte `md:` do Tailwind que escolhe
+// o layout: o que importa é qual tela a pessoa viu, não o aparelho em si.
+export function plataformaDoCadastro() {
+  if (isIOSNativeApp()) return "ios_app";
+  if (isAndroidNativeApp()) return "android_app";
+  if (typeof window !== "undefined" && window.matchMedia?.("(max-width: 767px)").matches) {
+    return "web_mobile";
+  }
+  return "web_desktop";
+}

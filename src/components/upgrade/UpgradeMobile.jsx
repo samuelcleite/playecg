@@ -49,7 +49,7 @@ export default function UpgradeMobile({
           <div className="mt-3 flex items-center gap-3.5">
             <img src={MASCOTE} alt="" className="block w-[78px] flex-none" />
             <div className="min-w-0 flex-1">
-              <p className="text-[22px] font-black leading-tight text-ecg-green">Libere os 8 módulos</p>
+              <p className="text-[22px] font-black leading-tight text-ecg-green">Libere todos os módulos</p>
               <p className="mt-1.5 text-[13px] font-semibold leading-relaxed text-white/[.78]">
                 Trilha completa, teoria antes de cada fase e casos sem limite diário.
               </p>

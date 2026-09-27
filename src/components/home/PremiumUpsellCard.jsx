@@ -14,7 +14,7 @@ export default function PremiumUpsellCard() {
         className="block w-16 flex-none"
       />
       <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-black text-ecg-green">Libere os 8 módulos</p>
+        <p className="text-[15px] font-black text-ecg-green">Libere todos os módulos</p>
         <p className="mb-2 mt-0.5 text-xs font-semibold leading-relaxed text-white/75">
           Trilha completa e material teórico por R$59/mês
         </p>

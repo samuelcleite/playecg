@@ -2,6 +2,8 @@
 
 > Atualizado em 2026-08-19. A base — migração do login hospedado para auth próprio — é de
 > 2026-07-29; o acesso de cortesia, a promoção automática e o invariante 9 entraram em agosto.
+> Em 2026-09-26 entraram a origem do cadastro no login (§3.1), a leitura do nome do Google em
+> UTF-8 (§3.1) e as functions de lembretes (§4).
 >
 > **Este documento substitui o `AUDIT_AUTH.md`**, que era a fotografia do dia 26/07 — o mundo
 > *anterior* à migração. Aquele documento descrevia `base44.auth.me()` em toda tela, o `User`
@@ -65,8 +67,18 @@ Este é o contrato mínimo para qualquer app (iOS, Android, web).
 `POST googleAuthUrl { deeplink_scheme }` → devolve a URL de OAuth do Google.
 O usuário autentica; o retorno traz `?code=`.
 
-`POST googleSignIn { google_code }` → `{ token, account }`.
-`POST appleSignIn { apple_id_token, full_name }` → `{ token, account }`.
+`POST googleSignIn { google_code, plataforma? }` → `{ token, account }`.
+`POST appleSignIn { apple_id_token, full_name, plataforma? }` → `{ token, account }`.
+
+`plataforma` (`ios_app` | `android_app` | `web_mobile` | `web_desktop`) é
+opcional e só vale na **criação** da conta: vira `Account.plataforma_cadastro`,
+que mede o funil por origem e não decide acesso. Valor fora da lista é ignorado.
+(26/09/2026)
+
+O `googleSignIn` lê o payload do `id_token` como **UTF-8** desde 26/09/2026. Antes,
+`JSON.parse(atob(...))` gravava todo nome com acento corrompido ("João" →
+"JoÃ£o"); conta antiga assim é consertada no próximo login com Google, só se o
+nome gravado for exatamente a versão estragada.
 
 ### 3.2 Guardar **e aplicar** o token
 
@@ -238,6 +250,12 @@ sobre ser isso. O `granted_by` fica com o e-mail do admin (quem decidiu foi uma 
 ### Webhooks (sem sessão)
 `stripeWebhook` (assinatura HMAC), `revenuecatWebhook` (segredo compartilhado),
 `googleAuthUrl`/`googleSignIn`/`appleSignIn` (token do provedor).
+
+### Lembretes (26/09/2026)
+| Function | Quem chama | O que faz |
+|---|---|---|
+| `lembretesDiarios` | Workflow "Lembretes Diários" (sem sessão, só entre 18h e 22h de Brasília) ou admin | Lembrete de quem se cadastrou e não respondeu, e de quem praticou ontem e não voltou. Usuário comum leva 403. Admin tem `simular` e `teste_email`. Ver README §2. |
+| `desativarLembretes` | Página pública `/lembretes`, **sem sessão** | Grava `lembretes_desativados_em`. Quem autoriza é o token do link: HMAC-SHA256 do `Account.id` com a `JWT_SECRET` sobre a frase fixa `desativar-lembretes:`. A frase separa este uso do JWT de login — a assinatura de um nunca vale pela do outro. |
 
 ---
 

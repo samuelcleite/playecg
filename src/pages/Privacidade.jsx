@@ -8,8 +8,8 @@ const SECTIONS = [
     title: "Dados que coletamos",
     items: [
       "Dados de cadastro: nome e e-mail, fornecidos no login (incluindo login via Google e Sign in with Apple).",
-      "Dados de perfil, quando você os informa: especialidade, país, estado e cidade.",
-      "Dados de uso: progresso nos módulos, resultados de quizzes, pontuação e conquistas, para viabilizar as funcionalidades do app.",
+      "Dados de perfil, quando você os informa: sua área de atuação ou especialidade. Cadastros mais antigos também podem ter país, estado e cidade, que deixamos de pedir.",
+      "Dados de uso: progresso nos módulos, resultados de quizzes, pontuação e conquistas, para viabilizar as funcionalidades do app, e se a conta foi criada pelo aplicativo ou pelo site.",
       "Dados de assinatura: informações sobre seu plano e status de assinatura, processadas por nossos parceiros de pagamento (Stripe, na web; Apple, no iOS; Google Play, no Android). Não armazenamos dados de cartão de crédito.",
       "Notificações: se você autorizar o envio de notificações, guardamos o identificador de inscrição do seu navegador ou aparelho, usado apenas para entregá-las.",
     ],
@@ -17,7 +17,14 @@ const SECTIONS = [
   {
     title: "Como usamos os dados",
     paragraphs: [
-      "Utilizamos os dados para autenticar seu acesso, salvar seu progresso, gerenciar sua assinatura e melhorar o aplicativo.",
+      "Utilizamos os dados para autenticar seu acesso, salvar seu progresso, gerenciar sua assinatura, enviar lembretes sobre o seu estudo e melhorar o aplicativo.",
+    ],
+  },
+  {
+    title: "Lembretes",
+    paragraphs: [
+      "Podemos enviar um lembrete por e-mail e, se você autorizou, por notificação: quando você cria a conta e ainda não resolveu nenhum caso, e quando você começa a praticar e não volta no dia seguinte. Cada lembrete é enviado no máximo uma vez.",
+      "Todo e-mail de lembrete traz um link para desativar os lembretes. As notificações podem ser desligadas a qualquer momento nos ajustes do aparelho ou do navegador.",
     ],
   },
   {
@@ -95,7 +102,7 @@ export default function Privacidade() {
               Política de Privacidade
             </h1>
             <p className="text-sm text-gray-500">
-              Última atualização: 2 de agosto de 2026
+              Última atualização: 26 de setembro de 2026
             </p>
           </div>
         </div>

@@ -227,6 +227,88 @@ linha de leitura curta e uma tela só para manter.
 *Como se sabe:* decisões tomadas e revisadas no PR #87 (11/09/2026), lidas no
 código.
 
+### Primeira sessão e lembretes (26/09/2026)
+
+Pacote feito para diminuir quem cria a conta e nunca responde uma questão. Linha
+de base, pelo export da `Account` de 26/09/2026 (sem as contas internas): dos
+cadastros de 01/08 a 10/09, 87% completaram o perfil e 47% responderam ao menos
+uma questão; dos de 11/09 a 25/09, 74% e 40%. Quem completava o perfil respondia
+na mesma proporção nos dois períodos (~52%) — a queda do perfil veio da mistura
+de público: o Google, que sempre completou menos o perfil que a Apple, foi de 57%
+para 85% dos cadastros. **Para medir o efeito, compare por semana de cadastro e
+separe Google de Apple.** "Respondeu" = `total_attempts > 0`.
+
+- **Cadastro de um toque** ([CompleteProfile.jsx](src/pages/CompleteProfile.jsx)):
+  o nome, que já vem do provedor, e a área — as cinco mais escolhidas viram
+  botões, o resto fica numa lista nativa. País, estado e cidade saíram do
+  cadastro e do Perfil (não eram usados); conta antiga continua com eles
+  gravados. A validação é da tela, com mensagem visível.
+- **Nome do Google com acento.** O `googleSignIn` gravava "JoÃ£o" (ver o
+  Registro de aprendizados, §12). Corrigido na leitura do token; conta antiga é
+  consertada no próximo login com Google, se o nome gravado for exatamente a
+  versão estragada; e as telas passam o nome por [nome.js](src/lib/nome.js)
+  antes de mostrar.
+- **Origem do cadastro:** `Account.plataforma_cadastro` (`ios_app`,
+  `android_app`, `web_mobile`, `web_desktop`), gravada só na criação pelo
+  `googleSignIn`/`appleSignIn`, a partir do que o app informa
+  (`plataformaDoCadastro`, em [platform.js](src/utils/platform.js)). É
+  informativa, não decide acesso. Conta anterior a 26/09/2026 fica vazia.
+- **Dashboard da primeira sessão:** quem nunca respondeu vê o CONTINUAR como
+  "COMEÇAR — Seu primeiro ECG", que abre a Fase 1 do Módulo 1 (grátis, §5); a
+  meta do dia é tocável; o banner de notificações só monta depois da primeira
+  resposta. "Já respondeu" sai da `Account` em cache (`total_attempts`,
+  `last_practice_date`, `attempted_case_ids`), que o `registrarTentativa`
+  atualiza a cada resposta — sem leitura extra.
+- **Teoria antes da fase:** o COMEÇAR A FASE do `ConteudoECG` fica grudado no
+  rodapé, em vez de no fim do texto.
+
+**Lembretes automáticos** ([lembretesDiarios](base44/functions/lembretesDiarios/entry.ts),
+workflow "Lembretes Diários", todo dia às 19:00 de Brasília — um terço dos
+cadastros acontece entre 18h e 20h). Dois lembretes, cada um **no máximo uma vez
+por conta** (marcas `lembrete_primeira_questao_em` e `lembrete_retorno_em` na
+`Account`):
+
+- *primeira questão* — conta criada há 20h a 72h que nunca respondeu;
+- *retorno* — conta de até 7 dias que praticou ontem e ainda não hoje.
+
+E-mail para todos, porque é o único canal que alcança quem entrou pelo site, e
+push para quem autorizou — OneSignal no iPhone, Web Push no navegador. O que não
+é óbvio:
+
+- **Liga pela env `LEMBRETES_DIARIOS=1`.** Sem ela, a rodada só registra no log
+  quem receberia. Admin (sessão hospedada) pode chamar a function com
+  `{"simular": true}` (lista quem receberia, sem enviar) ou
+  `{"teste_email": "x@y"}` (manda os dois modelos para o endereço, sem ler nem
+  marcar conta). Usuário comum leva 403, e a chamada sem sessão só roda entre
+  18h e 22h de Brasília — "sem sessão" também é o que um disparo anônimo parece.
+- **O e-mail do Base44 só alcança "quem se cadastrou no app"**, a menos que o
+  app esteja em plano pago com domínio próprio verificado — e nossos usuários,
+  desde o corte de julho, não são usuários do Base44. O plano é pago (Samuel,
+  26/09/2026); **confirme com o `teste_email` para um endereço de fora antes de
+  ligar.** Custa cerca de 1 crédito de integração por e-mail.
+- **Descadastro sem login:** todo e-mail leva `/lembretes?t=<token>`, página
+  pública ([Lembretes.jsx](src/pages/Lembretes.jsx)) que desativa no TOQUE do
+  botão, não ao abrir — filtros de e-mail abrem links sozinhos. O token é HMAC
+  do `Account.id` com a `JWT_SECRET` e uma frase fixa, conferido pelo
+  [desativarLembretes](base44/functions/desativarLembretes/entry.ts): não serve
+  de login nem desativa a conta de outra pessoa. Grava
+  `lembretes_desativados_em`, e a tarefa pula a conta em todos os canais. Sem
+  `JWT_SECRET`, nenhum e-mail sai.
+- **E-mail de relay da Apple** (`@privaterelay.appleid.com`) só é entregue se o
+  remetente estiver registrado no Apple Developer (Sign in with Apple → envio de
+  e-mail). Até lá, esses endereços recebem só o push; `APPLE_RELAY_REGISTRADO=1`
+  libera. `@apple.local` é marcador interno e nunca recebe e-mail.
+- **O app não tem universal link:** o botão do e-mail abre o site. Quem se
+  cadastrou pelo app entra no site com o mesmo Google/Apple e cai na mesma conta,
+  e o e-mail lembra que dá para abrir o app.
+- A Política de Privacidade descreve os lembretes desde 26/09/2026. Se as
+  declarações de dados das lojas (App Privacy, Data safety) não citam uso do
+  e-mail para comunicação, precisam ser revistas.
+
+*Como se sabe:* funil medido nos exports da `Account` e da tela de usuários de
+26/09/2026; regras lidas no código; a regra de destinatário do e-mail vem da
+documentação do Base44 ("Sending emails from your app"), lida em 26/09/2026.
+
 ---
 
 ## 3. Ambiente local
@@ -289,7 +371,8 @@ login correto exibiu o perfil de outro usuário.
 - No logout, limpe o JWT **e** encerre a sessão hospedada. As duas coexistem na transição.
 ### Nunca exercitado em produção
  
-`cancelStripeSubscription`, `deleteUserAccount`, `ensureMyAccount`, login por Apple pela Home nova.
+`cancelStripeSubscription`, `deleteUserAccount`, `ensureMyAccount`, login por Apple pela Home nova,
+`lembretesDiarios` e `desativarLembretes` (26/09/2026, ver §2).
  
 ### Dívidas de auth
  
@@ -365,29 +448,53 @@ função `notificarCompra` de cada um.
 
 ### Onde o conteúdo pago é bloqueado
 
-Desde 09/08/2026 a cobrança acontece **na fase, não na listagem**:
+Desde 09/08/2026 a cobrança acontece **na fase, não na listagem**. E desde
+26/09/2026 **o Módulo 1 inteiro e a "Introdução ao ECG" são gratuitos** — fases,
+casos (com a explicação de cada um) e teoria. Do Módulo 2 em diante, só Premium.
+A regra mora em **um lugar só**, [acesso.js](src/lib/acesso.js)
+(`podeAbrirModulo`, `podeLerConteudo`); "Módulo 1" é o de `order` 1, então o
+grátis acompanha o primeiro módulo se o admin reordenar a trilha.
 
 - **`Modules` é aberta a todo mundo.** O usuário gratuito vê a trilha inteira,
   com os nomes reais dos módulos. É a vitrine do que a assinatura vende — antes
-  ele era mandado para o `Upgrade` sem ver nada.
-- **`ModuleDetail` é quem cobra.** A checagem fica logo depois do
-  `setPhase(foundPhase)` e **antes** do `selectAndCombineCases`: `Module` e
-  `Phase` já foram lidos (a tela de bloqueio diz o nome do que a pessoa tentou
-  abrir), mas nenhum caso de ECG chega ao navegador de quem não assinou. Subir
-  ou descer essa checagem quebra uma das duas coisas.
-- **`ConteudoECG` tem gate próprio**, independente deste.
-- **`AprendaECG` mostra o índice a todo mundo (11/09/2026).** O gratuito vê os
-  módulos com cadeado Premium e vai para o `Upgrade` ao tocar — a mesma vitrine
-  da trilha. Antes via só um card de bloqueio. É seguro porque o índice busca
-  **só** `id`/`module_id`/`phase_id` (`CAMPOS_DO_INDICE`), nunca o corpo; quem
-  entrega o corpo é o `ConteudoECG`, que cobra. **Não passe a carregar o
+  ele era mandado para o `Upgrade` sem ver nada. No gratuito, cada módulo ganha
+  um selo Grátis/Premium ao lado do nome (26/09/2026) — desenho, não cadeado.
+- **`ModuleDetail` é quem cobra os casos**, pelo `podeAbrirModulo`. A checagem
+  fica logo depois do `setPhase(foundPhase)` e **antes** do
+  `selectAndCombineCases`: `Module` e `Phase` já foram lidos (a tela de
+  bloqueio diz o nome do que a pessoa tentou abrir), mas nenhum caso de ECG de
+  módulo pago chega ao navegador de quem não assinou. Subir ou descer essa
+  checagem quebra uma das duas coisas.
+- **`ConteudoECG` cobra a teoria, pela mesma regra** (`podeLerConteudo`). **Os
+  três portões — `ModuleDetail`, `ConteudoECG` e `AprendaECG` — mudam juntos:**
+  a primeira entrada numa fase passa pela teoria (desvio para o `ConteudoECG`),
+  então liberar só a fase jogaria o gratuito num bloqueio na teoria.
+- **`AprendaECG` mostra o índice a todo mundo (11/09/2026).** O cadeado é **por
+  módulo** desde 26/09/2026: a Introdução e o Módulo 1 abrem, os demais levam
+  ao `Upgrade` ao tocar — a mesma vitrine da trilha. É seguro porque o índice
+  busca **só** `id`/`module_id`/`phase_id` (`CAMPOS_DO_INDICE`), nunca o corpo;
+  quem entrega o corpo é o `ConteudoECG`, que cobra. **Não passe a carregar o
   conteúdo nesse índice.**
 - **`LearningTrail` não sabe o que é plano.** O único cadeado dela é o de
   progressão (módulo anterior completo, fase anterior concluída). Não devolva a
   prop `isPremium`: com ela todos os módulos ficam `isLocked`, nenhum nó recebe
   `<Link>`, e o usuário gratuito não consegue nem clicar para chegar ao paywall.
+  O `seloDoModulo` (26/09/2026) é só o desenho do selo e não entra no `locked`.
 - O nome do **módulo** nunca é mascarado; o da **fase** é, enquanto bloqueada.
   Mascaramento é cosmético — os nomes reais já estão nas props (ver §8).
+
+**Chamadas para o Premium no plano gratuito (26/09/2026).** Com o Módulo 1
+aberto, a cobrança deixou de ser o primeiro toque e passou a ficar entre fases:
+
+- **Fase concluída do Módulo 1:** um cartão do Premium abaixo do resumo; o botão
+  principal continua sendo a próxima fase.
+- **Última fase do Módulo 1:** a tela inteira vira o convite ("Módulo
+  concluído!" → CONTINUAR COM O PREMIUM), porque o módulo seguinte é pago.
+- **Tela de limite do Quiz:** oferece "Praticar no Módulo 1, que é grátis" — 1
+  em cada 3 gratuitos que responderam parava exatamente na 5ª questão e não
+  voltava (export de 26/09/2026).
+- **Resultado do Quiz:** o cartão "A explicação é do Premium" aponta que no
+  Módulo 1 a explicação é grátis.
 
 **Quem DECIDE é o cliente, com uma exceção (08/09/2026).** Todas as checagens
 acima leem `subscription_type` da `Account` que o `getCurrentUser` trouxe; o
@@ -401,11 +508,15 @@ recontar.
 Decisões dessa regra que não são óbvias e já estão tomadas:
 
 - **Só bloqueia `quiz_type: 'random'`**, que é onde a tela bloqueia. `'daily'` e
-  `'module'` passam: módulo já é pago por outra porta, e bloquear o caso do dia
-  seria regra nova, não a mesma regra movida de lugar.
+  `'module'` passam: módulo pago já é barrado por outra porta, e bloquear o caso
+  do dia seria regra nova, não a mesma regra movida de lugar. O Módulo 1, grátis
+  desde 26/09/2026, é **sem limite diário por decisão** — quem se empolga chega
+  mais rápido ao fim do módulo, onde está o convite mais forte. É esta regra que
+  sustenta isso sem nenhuma mudança no servidor.
 - **A contagem olha todos os tipos**, e conta **casos distintos**, não
   tentativas. Repetir um caso que já contou hoje nunca é recusado — cota é por
-  caso.
+  caso. Consequência desde 26/09/2026: cinco casos do Módulo 1 no dia **fecham o
+  Quiz aleatório** daquele dia. Por isso a tela de limite oferece o Módulo 1.
 - **O dia é o de Brasília nos dois lados**, o mesmo fuso que a sequência de dias
   já usava. A tela cortava à meia-noite **local**; com o servidor decidindo em
   BRT, quem estuda fora do Brasil veria "5 disponíveis" logo depois da própria
@@ -430,8 +541,11 @@ barreira que sobra é a que ninguém lembrou que existia.
 
 Pontos de entrada da fase depois do redesenho (11/09/2026): o item Módulos do
 menu, os nós da trilha e o **CONTINUAR do Dashboard mobile**, que vai direto à
-próxima fase — no gratuito, cai na tela de bloqueio do `ModuleDetail`. O card de
-Módulos do Dashboard citado acima não existe mais.
+próxima fase. Desde 26/09/2026, no gratuito, ele abre a Fase 1 do Módulo 1, e só
+cai na tela de bloqueio do `ModuleDetail` depois que o Módulo 1 acaba. A **meta
+do dia**, que também é tocável, nunca leva a uma cobrança: com a próxima fase
+paga, ela vai para o Quiz. O card de Módulos do Dashboard citado acima não
+existe mais.
 
 ### Plano vitalício
 
@@ -510,7 +624,11 @@ cujo resultado abre no topo da tela.
 
 **Promoção automática (só iOS):** ativar notificações vale N dias, pela function
 `promocoes`. Liga e desliga pela env **`PROMO_PUSH_DIAS`** no Base44 — ausente ou
-`0` desliga na hora, sem deploy; `7` liga valendo 7 dias. Quem confirma que a
+`0` desliga na hora, sem deploy; `7` liga valendo 7 dias. Desde 26/09/2026 o
+banner que a oferece só aparece no Dashboard **depois da primeira questão
+respondida**: antes ele era a primeira coisa da tela de quem acabou de criar a
+conta, antes de qualquer ECG, e no iPhone o pedido de permissão só pode ser feito
+uma vez. Só a hora de montar mudou; o resgate e a reconciliação são os mesmos. Quem confirma que a
 pessoa ativou é o servidor, consultando o OneSignal pelo `external_id`
 (= `Account.id`) — nunca o app, que por construção não sabe. Detalhes e
 armadilhas em [`ARQUITETURA_AUTH.md`](ARQUITETURA_AUTH.md) §4.
@@ -584,7 +702,10 @@ Secrets em uso no Base44: `STRIPE_SECRET_KEY`, `REVENUECAT_SECRET_KEY` (sk_, v1)
 `REVENUECAT_WEBHOOK_AUTH`, `ONESIGNAL_APP_ID`, `ONESIGNAL_REST_API_KEY`.
 
 Variáveis de configuração (não são segredos): `LIFETIME_VAGAS` (padrão 100),
-`PROMO_PUSH_DIAS` (ausente/`0` = promoção de notificações desligada).
+`PROMO_PUSH_DIAS` (ausente/`0` = promoção de notificações desligada),
+`LEMBRETES_DIARIOS` (`1` = os lembretes diários são enviados; ausente = a rodada
+só conta quem receberia — ver §2) e `APPLE_RELAY_REGISTRADO` (`1` = o remetente
+já está registrado na Apple e o lembrete pode ir para e-mail de relay).
 
 Secret **opcional**: `ONESIGNAL_ORG_API_KEY` (Organization API Key, em Keys &
 IDs). Só serve à contagem de inscritos do `adminPushStats` — ver §6. Configure-a
@@ -953,12 +1074,15 @@ rebaseada antes de qualquer merge** — senão o merge deleta `/termos`,
   registro próprio. (Lido no código, 08/09/2026.) A tela de usuários tem o mesmo
   limite: "Manual" é o premium sem nenhuma outra marca, então um assinante de
   loja cujo `Payment` não foi gravado também cai ali (26/09/2026).
-- **Texto de venda escrito à mão nas telas do redesenho.** "Libere os 8
-  módulos" (Dashboard mobile e Upgrade) e "R$59/mês" (card de upsell do
-  Dashboard) não vêm de dado nenhum — e os preços do seletor de planos do
-  Upgrade (59/499) também não saem de `base44/shared/plans.ts`. Criar ou tirar
-  módulo, ou mudar preço, exige editar essas telas à mão. (11/09/2026, lido no
-  código.)
+- **Texto de venda escrito à mão nas telas do redesenho.** "R$59/mês" (card de
+  upsell do Dashboard) não vem de dado nenhum — e os preços do seletor de planos
+  do Upgrade (59/499) também não saem de `base44/shared/plans.ts`. Mudar preço
+  exige editar essas telas à mão. (11/09/2026, lido no código.) O "Libere os 8
+  módulos" virou "Libere todos os módulos" em 26/09/2026, sem contagem. Mas
+  "Módulo 1 grátis" está escrito em Dashboard, Quiz, ModuleDetail, ConteudoECG,
+  AprendaECG, Home (desktop) e nos e-mails do `lembretesDiarios`: a regra mora em
+  `src/lib/acesso.js`, os textos não — mudar qual módulo é grátis exige varrer
+  esses textos.
 - `adminListTrials` e `adminListUsuarios` também carregam a tabela `Payment`
   inteira, pelo mesmo motivo do `getUserSubscriptionInfo` acima: é o que separa
   quem comprou de quem só continua marcado premium. Aceito por ora, porque as
@@ -1114,6 +1238,7 @@ Só o que não coube em nenhuma seção. Mais recente no topo.
  
 | Data | O que se descobriu | Como se sabe |
 |---|---|---|
+| 26/09/2026 | **`atob` devolve bytes, não texto.** O `googleSignIn` fazia `JSON.parse(atob(...))` no payload do `id_token`, e todo nome com acento nascia corrompido ("João" → "JoÃ£o") em toda conta criada pelo Google desde o corte de julho. Nada quebrava: o login funcionava, e o nome estragado aparecia pré-preenchido no formulário de perfil, a primeira tela depois do login. Texto vindo de base64 passa por `TextDecoder` (UTF-8) antes do parse. O mesmo `atob` + `JSON.parse` lê o nosso JWT nas functions — sem efeito hoje porque o payload só tem e-mail, mas qualquer campo de texto livre que entrar ali herda o defeito. | Export da `Account` de 26/09/2026 com 5 nomes estragados; o bug foi reproduzido em teste com o código antigo e a correção conferida no mesmo teste. |
 | 22/09/2026 | **Otimização de leitura pode trocar a distribuição de um sorteio sem quebrar nada.** Para cortar o 429, o sorteio do Quiz virou `Math.random()` dentro de um pool de 30 lido com `-created_date` e `skip 0`: aleatório dentro do pool, mas o pool era sempre o dos 30 casos cadastrados mais recentemente. Como os casos entram em lote e por tema, quem jogava ficava preso no último lote — e no gratuito, com 5 questões por dia, isso dura dias. Nada falhou e nada foi logado: quem percebeu foram as alunas no grupo, onze dias depois. Amostra tirada de lista ordenada precisa de `skip` sorteado; e mudança de distribuição não se confere lendo o código, se confere contando. | Relato de duas alunas em 22/09/2026, confirmado no `getRandomCase` da `main` (`filter(consulta, '-created_date', 30, 0)`) e medido com os handlers reais contra catálogo simulado: 100% dos sorteios nos 30 mais novos, contra 2,4% depois da correção (PRs #94 e #95). |
 | 11/09/2026 | **Otimizar UMA tela não resolve um limite que é do app inteiro.** O 429 de volume de leitura do Base44 soma as leituras de todos os usuários (e do admin) na mesma janela: o bot corrigiu Quiz, Troféus e a abertura da fase e o erro continuou, porque Módulos ainda baixava o corpo de todos os conteúdos, o Quiz relia o conteúdo da fase a cada pergunta, o `checkNewAchievements` lia todas as fases a cada resposta e a tela de usuários do admin baixava todas as tentativas. A pergunta certa não é "esta tela lê muito?" e sim "quantos registros o app inteiro lê por minuto, e o que acontece com a tela quando uma leitura é recusada?". Guardrails na §2. | Print do 429 às 19:38 de 11/09/2026, onze horas depois do commit do bot; leituras contadas no código da `main`. |
 | 08/09/2026 | **Comentário e código podem divergir sem nada acusar.** O `avaliarElegibilidade` dizia, em comentário, "uma data vencida não conta: o tratamento correto é o mesmo do free" — e o `if` logo abaixo recusava, respondendo "já é premium por assinatura paga" a quem nunca pagou nada. O `check-invariantes` passava: ele compara as duas **cópias** entre si, nunca o código com o que o comentário promete. Comentário bom não é prova; num arquivo com cópias sincronizadas por hash, ele é ainda menos. | Lido no código durante a investigação de 08/09/2026 — as duas cópias estavam idênticas, e as duas estavam erradas do mesmo jeito. |

@@ -12,6 +12,7 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import FaleConoscoButton from "@/components/FaleConoscoButton";
 import LearningTrail from "@/components/home/LearningTrail";
 import { Atalho } from "@/components/Cartao";
+import { ehPremium, moduloGratuito } from "@/lib/acesso";
 import { useCorDaFaixa, FAIXA_BRANCA } from "@/lib/faixaTopo";
 import { ESTILO_HTML } from "@/lib/estiloHtml";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,8 @@ import {
 // entra, vê a trilha inteira e navega até tentar abrir uma fase — é o
 // ModuleDetail que pede a assinatura. A ideia é deixar a pessoa avançar até
 // esbarrar no conteúdo, em vez de barrá-la antes de ver o que está comprando.
+// Desde 26/09/2026 o Módulo 1 inteiro é grátis (src/lib/acesso.js), e a trilha
+// marca isso com um selo ao lado do nome de cada módulo.
 export default function Modules() {
   const [user, setUser] = useState(null);
   const [modules, setModules] = useState([]);
@@ -171,6 +174,9 @@ export default function Modules() {
             modules={modules}
             phases={phases}
             userProgress={userProgress}
+            // Só o selo visual, e só no plano gratuito. Não é cadeado: a trilha
+            // continua sem saber de plano (ver o comentário no componente).
+            seloDoModulo={ehPremium(user) ? null : (m) => (moduloGratuito(m) ? "gratis" : "premium")}
           />
         )}
       </div>

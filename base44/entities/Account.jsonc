@@ -123,6 +123,16 @@
       "default": false,
       "description": "Se o usu\u00e1rio completou o perfil inicial"
     },
+    "plataforma_cadastro": {
+      "type": "string",
+      "enum": [
+        "ios_app",
+        "android_app",
+        "web_mobile",
+        "web_desktop"
+      ],
+      "description": "De onde a conta foi criada, informado pelo app no primeiro login (googleSignIn/appleSignIn). Gravado s\u00f3 na cria\u00e7\u00e3o e nunca sobrescrito. Serve para medir o funil por origem; n\u00e3o decide acesso nenhum. Vazio = conta criada antes de 26/09/2026 ou pelo login hospedado."
+    },
     "total_attempts": {
       "type": "number",
       "default": 0,
@@ -183,6 +193,21 @@
       "type": "number",
       "default": 1,
       "description": "Nivel, derivado dos pontos: 1 + floor(points / 100). Nunca editado a mao."
+    },
+    "lembrete_primeira_questao_em": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Quando o lembrete 'seu primeiro ECG está te esperando' foi enviado (lembretesDiarios). Preenchido = já recebeu, e nunca recebe de novo."
+    },
+    "lembrete_retorno_em": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Quando o lembrete 'suas questões de hoje estão liberadas' foi enviado (lembretesDiarios). Preenchido = já recebeu, e nunca recebe de novo."
+    },
+    "lembretes_desativados_em": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Quando a pessoa desativou os lembretes pelo link do e-mail (desativarLembretes). Preenchido = o lembretesDiarios não manda mais nada para ela, por nenhum canal."
     }
   },
   "required": [

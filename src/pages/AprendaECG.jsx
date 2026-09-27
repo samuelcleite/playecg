@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/currentUser';
 import { carregarCatalogoTrilha, carregarIndiceDeConteudos } from "@/lib/catalogoTrilha";
 import { createPageUrl } from "@/utils";
 import AprendaECGMobile from "@/components/aprenda/AprendaECGMobile";
+import { podeLerConteudo } from "@/lib/acesso";
 import { Loader2 } from "lucide-react";
 
 // Esta tela é um índice: ela nunca mostra o corpo de um conteúdo. Usa os
@@ -73,13 +74,15 @@ export default function AprendaECG() {
     );
   }
 
-  const isPremium = user?.subscription_type === "premium";
-
   // Antes, quem não assinava via só um card "Conteúdo Premium" e nada do que
   // existia aqui dentro. Agora vê o índice com cadeados — a mesma lógica da
   // trilha em Modules: mostrar o que a assinatura vende. É seguro porque este
   // índice nunca carrega o corpo de conteúdo nenhum (ver CAMPOS_DO_INDICE lá em
   // cima) e o ConteudoECG, que carrega, tem gate próprio.
+  //
+  // O cadeado é POR MÓDULO desde 26/09/2026: a Introdução e o Módulo 1 são
+  // grátis. A regra é a mesma do ConteudoECG (src/lib/acesso.js), então o que
+  // aparece aberto aqui é exatamente o que abre lá.
   //
   // Mesmas regras de antes para o que entra na lista: módulo sem conteúdo
   // nenhum não aparece; fase só aparece se tiver conteúdo próprio.
@@ -115,6 +118,7 @@ export default function AprendaECG() {
         nome: module.name,
         legenda: `${conteudos.length} ${conteudos.length === 1 ? "conteúdo" : "conteúdos"}`,
         conteudos,
+        bloqueado: !podeLerConteudo(user, "module", module),
       };
     });
 
@@ -126,9 +130,9 @@ export default function AprendaECG() {
         titulo: "Introdução ao ECG",
         legenda: "Fundamentos essenciais para começar",
         to: `${createPageUrl("ConteudoECG")}?type=intro`,
+        bloqueado: !podeLerConteudo(user, "intro"),
       }}
       modulos={modulos}
-      bloqueado={!isPremium}
       urlBloqueado={createPageUrl("Upgrade")}
     />
   );

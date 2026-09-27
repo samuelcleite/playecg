@@ -1,7 +1,7 @@
 import { base44 } from '@/api/base44Client'
 import { appParams } from '@/lib/app-params'
 import despia from 'despia-native'
-import { isAndroidNativeApp } from '@/utils/platform'
+import { isAndroidNativeApp, plataformaDoCadastro } from '@/utils/platform'
 
 const TOKEN_KEY = 'app_auth_token'
 const VAULT_KEY = 'app_session_token'
@@ -55,7 +55,12 @@ export async function signInWithGoogle() {
 }
 
 export async function loginWithGoogleCode(code) {
-  const { data } = await base44.functions.invoke('googleSignIn', { google_code: code })
+  const { data } = await base44.functions.invoke('googleSignIn', {
+    google_code: code,
+    // Só vale na criação da conta (Account.plataforma_cadastro). Informativo:
+    // mede o funil por origem e não decide acesso nenhum.
+    plataforma: plataformaDoCadastro(),
+  })
   if (!data?.token) throw new Error(data?.error || 'falha no login')
   setToken(data.token)
   return data.account

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { getCurrentUser, refreshCurrentUser } from '@/lib/currentUser';
+import { repararNome } from "@/lib/nome";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { calculateStreakDays } from "@/components/StreakCalculator";
 import { loadUserAchievements } from "@/components/AchievementChecker";
@@ -117,11 +118,11 @@ export default function Profile() {
   // O estado `stats` saiu junto com o painel de estatísticas: nada na tela lia
   // mais totalAttempts/accuracy/completedModules.
   const [isEditing, setIsEditing] = useState(false);
+  // Estado e cidade saíram do perfil em 26/09/2026, junto com o cadastro: não
+  // eram usados para nada. Conta antiga continua com eles gravados.
   const [formData, setFormData] = useState({
     full_name: "",
-    specialty: "",
-    state: "",
-    city: ""
+    specialty: ""
   });
   const [subscriptionInfo, setSubscriptionInfo] = useState(null);
   // Falhou ao carregar o plano. Estado PRÓPRIO, e não um subscriptionInfo
@@ -150,10 +151,8 @@ export default function Profile() {
     setUser(userData);
     
     setFormData({
-      full_name: userData.full_name || "",
-      specialty: userData.specialty || "",
-      state: userData.state || "",
-      city: userData.city || ""
+      full_name: repararNome(userData.full_name || ""),
+      specialty: userData.specialty || ""
     });
 
     // Antes daqui saíam cinco round-trips em fila, e dois deles eram a MESMA
@@ -377,10 +376,7 @@ export default function Profile() {
   const nivel = 1 + Math.floor(pontos / 100);
   const progressoNivel = pontos % 100;
   const conquistados = achievements.filter(b => b.earned).length;
-  const subtitulo = [
-    user?.specialty,
-    user?.city && user?.state ? `${user.city}, ${user.state}` : null,
-  ].filter(Boolean).join(" · ");
+  const subtitulo = user?.specialty || "";
 
   return (
     <div ref={containerRef} className="relative min-h-full">
@@ -390,8 +386,8 @@ export default function Profile() {
         </div>
       )}
       <ProfileMobile
-        nome={user?.full_name || 'Usuário'}
-        iniciais={user?.full_name?.[0]?.toUpperCase() || 'U'}
+        nome={repararNome(user?.full_name) || 'Usuário'}
+        iniciais={repararNome(user?.full_name)?.[0]?.toUpperCase() || 'U'}
         subtitulo={subtitulo}
         email={user?.email}
         premium={isPremium}
@@ -425,9 +421,8 @@ export default function Profile() {
         ]}
         onSair={() => { clearToken(); base44.auth.logout("/"); }}
       >
-        {/* O lápis do topo abre a edição. Fora dela, nome, especialidade e
-            cidade já estão no topo — repetir num card seria a mesma coisa duas
-            vezes. */}
+        {/* O lápis do topo abre a edição. Fora dela, nome e especialidade já
+            estão no topo — repetir num card seria a mesma coisa duas vezes. */}
         {isEditing && (
           <SecaoPerfil
             titulo="Editar perfil"
@@ -447,22 +442,6 @@ export default function Profile() {
                   id="specialty"
                   value={formData.specialty}
                   onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="state">Estado</Label>
-                <Input
-                  id="state"
-                  value={formData.state}
-                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="city">Cidade</Label>
-                <Input
-                  id="city"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                 />
               </div>
             </div>
