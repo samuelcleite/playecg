@@ -9,7 +9,13 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
+        <!-- Retrato fixo, como no iOS (lá quem trava é o Despia). Com
+             targetSdk 36 o Android 16 ignora a trava em telas grandes
+             (lado menor >= 600dp: tablet, dobrável aberto) — decidido deixar
+             girar, em vez do opt-out PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY,
+             que some no targetSdk 37. -->
         <activity
+            android:screenOrientation="portrait"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"
             android:label="@string/title_activity_main"

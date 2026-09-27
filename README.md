@@ -1006,6 +1006,11 @@ por isso tudo é hospedado em `playecg.app`.
   de pagamento redireciona (relevante no Brasil).
 - `targetSdk: 36` (obrigatório desde agosto/2026). minSdk subiu de 22 para 24 na
   versionCode 3.
+- Retrato fixo (`screenOrientation="portrait"`, versionCode 6), igual ao iOS,
+  onde a trava é configuração do Despia. Em tablet e dobrável aberto o app
+  **gira mesmo assim**: com targetSdk 36 o Android 16 ignora a trava em telas
+  com lado menor ≥ 600dp. Foi decisão deixar girar (27/09/2026) — o opt-out
+  `PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` deixa de valer no targetSdk 37.
 - Build:
   ```powershell
   npm run build
