@@ -1,0 +1,72 @@
+{
+  // Expense — despesas da empresa, lançadas à mão na tela Financeiro
+  // (AdminPayments). A receita não mora aqui: ela vem do Payment, gravado pelos
+  // webhooks. Uma linha por despesa; conta recorrente (Base44, domínio, contador)
+  // é uma linha por mês — a tela tem "Duplicar" para o mês seguinte.
+  //
+  // As duas datas existem para os dois regimes da tela: competence_date diz a
+  // que mês a despesa pertence (competência), payment_date diz quando o dinheiro
+  // saiu (caixa). payment_date vazio = despesa em aberto (a pagar): ela conta na
+  // competência e fica fora do caixa até ser paga.
+  "name": "Expense",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "O que foi pago (ex.: 'Base44 — plano Builder', 'DAS setembro')."
+    },
+    "category": {
+      "type": "string",
+      "enum": ["infraestrutura", "software", "impostos", "taxas", "marketing", "pessoal", "servicos", "outros"],
+      "description": "Tipo da despesa. Os rótulos da tela estão em src/components/admin/financeiro/financeiro.js."
+    },
+    "amount": {
+      "type": "number",
+      "description": "Valor em reais, positivo."
+    },
+    "competence_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de competência (YYYY-MM-DD): o mês a que a despesa pertence."
+    },
+    "payment_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data em que foi paga (YYYY-MM-DD). Vazio = ainda não paga."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Observação livre."
+    },
+    "created_by": {
+      "type": "string",
+      "description": "E-mail do admin que lançou. Preenchido pela function a partir da identidade da sessão, nunca do corpo da requisição."
+    }
+  },
+  "required": ["name", "category", "amount", "competence_date"],
+  // Mesmo desenho do Partner/Coupon: só as functions adminListFinanceiro
+  // (leitura) e adminDespesas (escrita) tocam nesta entidade, com service role
+  // atrás de um gate de admin. Nenhum cliente acessa direto.
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__service_only__"
+      }
+    }
+  }
+}

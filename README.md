@@ -83,6 +83,7 @@ Modelo: freemium. Usuário nasce `free`; conteúdo pago liberado por
 | `DailyQuizStats` | per-user | `user_email` |
 | `Payment` | per-user | `user_email` |
 | `CouponUsage` | per-user | `user_email` |
+| `Expense` | despesas lançadas à mão (service only) | — |
 | `PushSubscription` | per-user | **`user_id`** (única exceção) |
 | `Module`, `Phase`, `Content`, `ECGCase`, `ECGImage`, `Achievement`, `DailyCase`, `Coupon` | catálogo global | — |
 
@@ -144,7 +145,7 @@ por `fields` e já classificada no servidor (`adminListUsuarios`), e uma functio
 de detalhe por clique, restrita àquele e-mail (`adminListUsuarioDetalhe`). A
 Account nunca vem inteira: o `attempted_case_ids` cresce a cada caso respondido
 e é a coluna mais pesada da tabela. O `adminListAccounts` ainda a devolve
-inteira para `AdminActivity`, `AdminPayments` e `AdminTrials`. "Já usou tal
+inteira para `AdminActivity` e `AdminTrials`. "Já usou tal
 coisa?" se responde com consulta de **um** registro (`limit 1`, ordenado),
 nunca contando o histórico. O nome começa com `adminList` de propósito: é o que
 dá retentativa em 429 (camada 2).
@@ -426,6 +427,20 @@ Três trilhos independentes. **Nenhum sistema de cupom atravessa os três.**
   roda — o Base44 não resolve import entre functions — então ele é o *original*
   e as functions carregam cópias inline, mesmo contrato do `resolveIdentity`.
   `grep PLANOS` acha todas.
+
+- **Tela Financeiro (28/09/2026), na rota `/adminpayments`** — substituiu a
+  tela antiga de pagamentos, que não era usada. Receita = `Payment`; despesa =
+  `Expense`, lançada à mão. Lê pelo `adminListFinanceiro` (uma leitura por
+  visita, Payment projetado por `fields`) e escreve pelo `adminDespesas`. A
+  regra de caixa é combinada, não medida: **Stripe e Google Play +30 dias, App
+  Store +60**; canal sem regra (Mercado Pago legado) cai no dia da venda. Plano
+  anual entra inteiro no mês da venda, e o valor é bruto (taxa de loja/Stripe
+  vira despesa do tipo `taxas`). `CANCELED` conta como receita, exceto no
+  `STRIPE_LIFETIME`, onde é estorno. Payment do Android anterior a 03/08/2026
+  está como `APP_STORE_SUBSCRIPTION`; o `adminListFinanceiro` o reconhece pelo
+  `reference_id` começando com `GPA.` (formato do order id do Google Play) —
+  **deduzido** do formato do RevenueCat, não conferido nos dados de produção.
+  Se a coluna Google Play vier zerada antes de agosto, é aqui que está errado.
 
 ### Notificação de venda (10/08/2026)
 
